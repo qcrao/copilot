@@ -1,0 +1,18 @@
+{
+  "name": "last-year-today",
+  "module": "index.ts",
+  "type": "module",
+  "scripts": {
+    "build": "webpack --mode production",
+    "dev": "webpack --mode development --watch"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "autoprefixer": "^10.4.20",
+    "mini-css-extract-plugin": "^2.9.2",
+    "postcss": "^8.4.49",
+    "postcss-loader": "^8.1.1",
+    "typescript": "^5.7.2",
+    "roamjs-scripts": "^0.27.0"
+  }
+}
