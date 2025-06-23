@@ -7,33 +7,87 @@ export class RoamService {
    */
   static async getCurrentPageInfo(): Promise<RoamPage | null> {
     try {
-      const currentPageUid = window.roamAlphaAPI?.ui?.mainWindow?.getOpenPageOrBlockUid?.();
+      // Try multiple methods to get current page
+      let currentPageUid =
+        await window.roamAlphaAPI?.ui?.mainWindow?.getOpenPageOrBlockUid?.();
+      let title = "";
+
+      console.log("Current page UID from API:", currentPageUid);
+
       if (!currentPageUid) {
+        // Fallback: try to get from URL
+        const urlMatch = window.location.href.match(/\/page\/([^/?]+)/);
+        if (urlMatch) {
+          currentPageUid = decodeURIComponent(urlMatch[1]);
+          console.log("Current page UID from URL:", currentPageUid);
+        }
+      }
+
+      if (!currentPageUid) {
+        // Fallback: try to get from document title or other methods
+        const titleElement = document.querySelector(".rm-title-display");
+        if (titleElement) {
+          title = titleElement.textContent || "";
+          console.log("Page title from DOM:", title);
+
+          // Try to find page by title
+          if (title) {
+            const titleQuery = `
+              [:find ?uid
+               :where
+               [?e :node/title "${title}"]
+               [?e :block/uid ?uid]]
+            `;
+            const titleResult = window.roamAlphaAPI.q(titleQuery);
+            if (titleResult && titleResult.length > 0) {
+              currentPageUid = titleResult[0][0];
+              console.log("Found UID by title:", currentPageUid);
+            }
+          }
+        }
+      }
+
+      if (!currentPageUid) {
+        console.log("No current page UID found");
         return null;
       }
 
-      // Query page title
-      const pageQuery = `
-        [:find ?title
-         :where
-         [?e :block/uid "${currentPageUid}"]
-         [?e :node/title ?title]]
-      `;
+      // If we don't have title yet, query it
+      if (!title) {
+        const pageQuery = `
+          [:find ?title
+           :where
+           [?e :block/uid "${currentPageUid}"]
+           [?e :node/title ?title]]
+        `;
 
-      const result = window.roamAlphaAPI.q(pageQuery);
-      if (!result || result.length === 0) {
-        return null;
+        const result = window.roamAlphaAPI.q(pageQuery);
+        if (result && result.length > 0) {
+          title = result[0][0];
+        } else {
+          // Try alternative query for daily notes
+          const dailyQuery = `
+            [:find ?title
+             :where
+             [?e :block/uid "${currentPageUid}"]
+             [?e :block/string ?title]]
+          `;
+          const dailyResult = window.roamAlphaAPI.q(dailyQuery);
+          if (dailyResult && dailyResult.length > 0) {
+            title = dailyResult[0][0];
+          }
+        }
       }
 
-      const title = result[0][0];
-      
+      console.log("Final page info:", { title, uid: currentPageUid });
+
       // Get all blocks for this page
       const blocks = await this.getPageBlocks(currentPageUid);
-      
+
       return {
-        title,
+        title: title || "Untitled",
         uid: currentPageUid,
-        blocks
+        blocks,
       };
     } catch (error) {
       console.error("Error getting current page info:", error);
@@ -46,28 +100,81 @@ export class RoamService {
    */
   static async getPageBlocks(pageUid: string): Promise<RoamBlock[]> {
     try {
-      const blocksQuery = `
-        [:find ?uid ?string ?order
+      console.log("Getting blocks for page:", pageUid);
+
+      // Ensure pageUid is a string, not a Promise
+      const resolvedPageUid = await Promise.resolve(pageUid);
+      console.log("Resolved page UID:", resolvedPageUid);
+
+      if (!resolvedPageUid) {
+        console.log("No valid page UID provided");
+        return [];
+      }
+
+      // Try different query patterns for different types of pages
+      const queries = [
+        // Standard page children query
+        `[:find ?uid ?string ?order
          :where
-         [?page :block/uid "${pageUid}"]
+         [?page :block/uid "${resolvedPageUid}"]
          [?page :block/children ?block]
          [?block :block/uid ?uid]
          [?block :block/string ?string]
-         [?block :block/order ?order]]
-      `;
+         [?block :block/order ?order]]`,
 
-      const result = window.roamAlphaAPI.q(blocksQuery);
-      if (!result) return [];
-      
-      const blocks: RoamBlock[] = result.map(([uid, string, order]: [string, string, number]) => ({
-        uid,
-        string,
-        order
+        // Alternative query using parents relationship
+        `[:find ?uid ?string ?order
+         :where
+         [?page :block/uid "${resolvedPageUid}"]
+         [?block :block/parents ?page]
+         [?block :block/uid ?uid]
+         [?block :block/string ?string]
+         [?block :block/order ?order]]`,
+
+        // Try without order constraint
+        `[:find ?uid ?string
+         :where
+         [?page :block/uid "${resolvedPageUid}"]
+         [?page :block/children ?block]
+         [?block :block/uid ?uid]
+         [?block :block/string ?string]]`,
+
+        // Try finding all blocks that reference this page
+        `[:find ?uid ?string
+         :where
+         [?block :block/uid ?uid]
+         [?block :block/string ?string]
+         [?block :block/refs ?page]
+         [?page :block/uid "${resolvedPageUid}"]]`,
+      ];
+
+      let result = null;
+      for (let i = 0; i < queries.length; i++) {
+        console.log(`Trying query ${i + 1}:`, queries[i]);
+        result = window.roamAlphaAPI.q(queries[i]);
+        console.log(`Query ${i + 1} result:`, result);
+
+        if (result && result.length > 0) {
+          break;
+        }
+      }
+
+      if (!result || result.length === 0) {
+        console.log("No blocks found with any query");
+        return [];
+      }
+
+      const blocks: RoamBlock[] = result.map((row: any[]) => ({
+        uid: row[0],
+        string: row[1] || "",
+        order: row[2] || 0,
       }));
 
       // Sort by order and get children for each block
       blocks.sort((a, b) => (a.order || 0) - (b.order || 0));
-      
+
+      console.log("Found blocks:", blocks.length);
+
       // Get children for each block recursively
       for (const block of blocks) {
         block.children = await this.getBlockChildren(block.uid);
@@ -97,12 +204,14 @@ export class RoamService {
 
       const result = window.roamAlphaAPI.q(childrenQuery);
       if (!result) return [];
-      
-      const children: RoamBlock[] = result.map(([uid, string, order]: [string, string, number]) => ({
-        uid,
-        string,
-        order
-      }));
+
+      const children: RoamBlock[] = result.map(
+        ([uid, string, order]: [string, string, number]) => ({
+          uid,
+          string,
+          order,
+        })
+      );
 
       children.sort((a, b) => (a.order || 0) - (b.order || 0));
 
@@ -123,27 +232,32 @@ export class RoamService {
    */
   static getVisibleBlocks(): RoamBlock[] {
     const visibleBlocks: RoamBlock[] = [];
-    
+
     try {
       // Get all visible block elements
-      const blockElements = document.querySelectorAll('.roam-block[data-block-uid]');
-      
+      const blockElements = document.querySelectorAll(
+        ".roam-block[data-block-uid]"
+      );
+
       blockElements.forEach((element) => {
-        const uid = element.getAttribute('data-block-uid');
-        const textElement = element.querySelector('.rm-block-text');
-        
+        const uid = element.getAttribute("data-block-uid");
+        const textElement = element.querySelector(".rm-block-text");
+
         if (uid && textElement) {
-          const string = textElement.textContent || '';
-          
+          const string = textElement.textContent || "";
+
           // Only include blocks that are actually visible
           const rect = element.getBoundingClientRect();
-          if (rect.top >= 0 && rect.left >= 0 && 
-              rect.bottom <= window.innerHeight && 
-              rect.right <= window.innerWidth) {
+          if (
+            rect.top >= 0 &&
+            rect.left >= 0 &&
+            rect.bottom <= window.innerHeight &&
+            rect.right <= window.innerWidth
+          ) {
             visibleBlocks.push({
               uid,
               string,
-              children: [] // We'll focus on the main visible content for now
+              children: [], // We'll focus on the main visible content for now
             });
           }
         }
@@ -161,10 +275,96 @@ export class RoamService {
   static getSelectedText(): string {
     try {
       const selection = window.getSelection();
-      return selection ? selection.toString().trim() : '';
+      return selection ? selection.toString().trim() : "";
     } catch (error) {
       console.error("Error getting selected text:", error);
-      return '';
+      return "";
+    }
+  }
+
+  /**
+   * Get today's daily note
+   */
+  static async getTodaysDailyNote(): Promise<RoamPage | null> {
+    try {
+      const today = new Date();
+      const dateString = today
+        .toLocaleDateString("en-US", {
+          month: "2-digit",
+          day: "2-digit",
+          year: "numeric",
+        })
+        .replace(/\//g, "-");
+
+      console.log("Looking for daily note:", dateString);
+
+      // Try different date formats that Roam might use
+      const dateFormats = [
+        dateString, // MM-dd-yyyy
+        today.toLocaleDateString("en-US", {
+          month: "long",
+          day: "numeric",
+          year: "numeric",
+        }), // Month dd, yyyy
+        today.toISOString().split("T")[0], // yyyy-mm-dd
+      ];
+
+      for (const format of dateFormats) {
+        const query = `
+          [:find ?uid
+           :where
+           [?e :node/title "${format}"]
+           [?e :block/uid ?uid]]
+        `;
+
+        const result = window.roamAlphaAPI.q(query);
+        if (result && result.length > 0) {
+          const uid = result[0][0];
+          const blocks = await this.getPageBlocks(uid);
+
+          return {
+            title: format,
+            uid,
+            blocks,
+          };
+        }
+      }
+
+      return null;
+    } catch (error) {
+      console.error("Error getting today's daily note:", error);
+      return null;
+    }
+  }
+
+  /**
+   * Get linked references for a page
+   */
+  static async getLinkedReferences(pageTitle: string): Promise<RoamBlock[]> {
+    try {
+      console.log("Getting linked references for:", pageTitle);
+
+      const query = `
+        [:find ?uid ?string
+         :where
+         [?block :block/string ?string]
+         [?block :block/uid ?uid]
+         [(clojure.string/includes? ?string "[[${pageTitle}]]")]]
+      `;
+
+      const result = window.roamAlphaAPI.q(query);
+      console.log("Linked references result:", result);
+
+      if (!result) return [];
+
+      return result.map(([uid, string]: [string, string]) => ({
+        uid,
+        string: string || "",
+        children: [],
+      }));
+    } catch (error) {
+      console.error("Error getting linked references:", error);
+      return [];
     }
   }
 
@@ -172,16 +372,36 @@ export class RoamService {
    * Get comprehensive page context for AI
    */
   static async getPageContext(): Promise<PageContext> {
-    const [currentPage, visibleBlocks, selectedText] = await Promise.all([
-      this.getCurrentPageInfo(),
-      Promise.resolve(this.getVisibleBlocks()),
-      Promise.resolve(this.getSelectedText())
-    ]);
+    console.log("Getting comprehensive page context...");
+
+    const [currentPage, visibleBlocks, selectedText, dailyNote] =
+      await Promise.all([
+        this.getCurrentPageInfo(),
+        Promise.resolve(this.getVisibleBlocks()),
+        Promise.resolve(this.getSelectedText()),
+        this.getTodaysDailyNote(),
+      ]);
+
+    // Get linked references if we have a current page
+    let linkedReferences: RoamBlock[] = [];
+    if (currentPage) {
+      linkedReferences = await this.getLinkedReferences(currentPage.title);
+    }
+
+    console.log("Page context summary:", {
+      currentPage: currentPage?.title || "None",
+      visibleBlocks: visibleBlocks.length,
+      selectedText: selectedText ? "Yes" : "No",
+      dailyNote: dailyNote?.title || "None",
+      linkedReferences: linkedReferences.length,
+    });
 
     return {
       currentPage: currentPage || undefined,
       visibleBlocks,
-      selectedText: selectedText || undefined
+      selectedText: selectedText || undefined,
+      dailyNote: dailyNote || undefined,
+      linkedReferences,
     };
   }
 
@@ -197,17 +417,44 @@ export class RoamService {
 
     if (context.currentPage) {
       formattedContext += `**Current Page: "${context.currentPage.title}"**\n\n`;
-      
+
       if (context.currentPage.blocks.length > 0) {
         formattedContext += "**Page Content:**\n";
-        formattedContext += this.formatBlocksForAI(context.currentPage.blocks, 0);
+        formattedContext += this.formatBlocksForAI(
+          context.currentPage.blocks,
+          0
+        );
+        formattedContext += "\n";
       }
     } else if (context.visibleBlocks.length > 0) {
       formattedContext += "**Visible Content:**\n";
       formattedContext += this.formatBlocksForAI(context.visibleBlocks, 0);
+      formattedContext += "\n";
     }
 
-    return formattedContext;
+    // Add daily note content
+    if (context.dailyNote && context.dailyNote.blocks.length > 0) {
+      formattedContext += `**Today's Daily Note (${context.dailyNote.title}):**\n`;
+      formattedContext += this.formatBlocksForAI(context.dailyNote.blocks, 0);
+      formattedContext += "\n";
+    }
+
+    // Add linked references
+    if (context.linkedReferences.length > 0) {
+      formattedContext += `**Linked References (${context.linkedReferences.length} references):**\n`;
+      for (const ref of context.linkedReferences.slice(0, 10)) {
+        // Limit to first 10 references
+        formattedContext += `- ${ref.string}\n`;
+      }
+      if (context.linkedReferences.length > 10) {
+        formattedContext += `... and ${
+          context.linkedReferences.length - 10
+        } more references\n`;
+      }
+      formattedContext += "\n";
+    }
+
+    return formattedContext.trim();
   }
 
   /**
@@ -220,7 +467,7 @@ export class RoamService {
     for (const block of blocks) {
       if (block.string.trim()) {
         formatted += `${indent}- ${block.string}\n`;
-        
+
         if (block.children && block.children.length > 0) {
           formatted += this.formatBlocksForAI(block.children, level + 1);
         }
