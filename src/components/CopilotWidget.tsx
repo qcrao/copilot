@@ -266,8 +266,13 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
                     {msg.direction === 'incoming' && (
                       <Avatar 
                         src="" 
-                        name="Roam Copilot"
-                        style={{ backgroundColor: '#106ba3' }}
+                        name="RC"
+                        style={{ 
+                          backgroundColor: '#106ba3',
+                          color: 'white',
+                          fontSize: '14px',
+                          fontWeight: 'bold'
+                        }}
                       />
                     )}
                   </Message>
