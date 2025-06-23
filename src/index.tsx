@@ -56,7 +56,7 @@ const createCopilotContainer = () => {
     width: 100%;
     height: 100%;
     pointer-events: none;
-    z-index: 10000;
+    z-index: 99999;
   `;
 
   // Make sure we can interact with the copilot widget

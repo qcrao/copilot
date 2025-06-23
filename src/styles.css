@@ -3,14 +3,21 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Custom copilot styles */
+/* Custom copilot styles - simplified for chatscope integration */
 .roam-copilot-container {
   position: fixed;
   bottom: 20px;
   right: 20px;
-  z-index: 10000;
+  z-index: 99999;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
     "Helvetica Neue", Arial, sans-serif;
+  pointer-events: none;
+}
+
+.roam-copilot-container *,
+.roam-copilot-container *::before,
+.roam-copilot-container *::after {
+  box-sizing: border-box;
 }
 
 .roam-copilot-minimized {
@@ -24,6 +31,7 @@
   align-items: center;
   justify-content: center;
   transition: all 0.3s ease;
+  pointer-events: auto;
 }
 
 .roam-copilot-minimized:hover {
@@ -43,6 +51,8 @@
   flex-direction: column;
   overflow: hidden;
   animation: slideUp 0.3s ease;
+  pointer-events: auto;
+  position: relative;
 }
 
 @keyframes slideUp {
@@ -63,267 +73,55 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
+  flex-shrink: 0;
 }
 
-.roam-copilot-messages {
-  flex: 1;
-  overflow-y: auto;
-  overflow-x: hidden;
-  padding: 16px;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  scroll-behavior: smooth;
-  min-height: 0;
+/* Override chatscope styles to match our theme */
+.roam-copilot-expanded .cs-main-container {
+  height: 100% !important;
 }
 
-.roam-copilot-messages::-webkit-scrollbar {
-  width: 6px;
+.roam-copilot-expanded .cs-chat-container {
+  height: 100% !important;
 }
 
-.roam-copilot-messages::-webkit-scrollbar-track {
-  background: #f1f1f1;
-  border-radius: 3px;
+.roam-copilot-expanded .cs-message-list {
+  background-color: #f8f9fa !important;
 }
 
-.roam-copilot-messages::-webkit-scrollbar-thumb {
-  background: #c1c1c1;
-  border-radius: 3px;
+.roam-copilot-expanded .cs-message-input {
+  background-color: white !important;
+  border-top: 1px solid #e1e5e9 !important;
 }
 
-.roam-copilot-messages::-webkit-scrollbar-thumb:hover {
-  background: #a1a1a1;
+.roam-copilot-expanded .cs-message--outgoing .cs-message__content {
+  background-color: #106ba3 !important;
+  color: white !important;
 }
 
-.roam-copilot-message {
-  max-width: min(85%, 300px);
-  min-width: 0;
-  padding: 12px 16px;
-  border-radius: 18px;
-  font-size: 14px;
-  line-height: 1.5;
-  word-wrap: break-word;
-  overflow-wrap: break-word;
-  word-break: break-word;
-  white-space: pre-wrap;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
-  hyphens: auto;
-  overflow: hidden;
+.roam-copilot-expanded .cs-message--incoming .cs-message__content {
+  background-color: white !important;
+  color: #333 !important;
+  border: 1px solid #e9ecef !important;
 }
 
-.roam-copilot-message.user {
-  align-self: flex-end;
-  background: #106ba3;
-  color: white;
-  border-bottom-right-radius: 4px;
+.roam-copilot-expanded .cs-message-input__content-editor {
+  font-family: inherit !important;
 }
 
-.roam-copilot-message.assistant {
-  align-self: flex-start;
-  background: #f8f9fa;
-  color: #333;
-  border: 1px solid #e9ecef;
-  border-bottom-left-radius: 4px;
+.roam-copilot-expanded .cs-button--send {
+  background-color: #106ba3 !important;
 }
 
-.roam-copilot-input {
-  padding: 16px 20px;
-  border-top: 1px solid #e1e5e9;
-  display: flex;
-  gap: 8px;
-  align-items: flex-end;
+.roam-copilot-expanded .cs-button--send:hover {
+  background-color: #0e5a8a !important;
 }
 
-.roam-copilot-textarea {
-  flex: 1;
-  min-height: 40px;
-  max-height: 120px;
-  padding: 10px 12px;
-  border: 1px solid #d1d5da;
-  border-radius: 20px;
-  resize: none;
-  font-size: 14px;
-  font-family: inherit;
-  outline: none;
+.roam-copilot-expanded .cs-typing-indicator {
+  background-color: transparent !important;
 }
 
-.roam-copilot-textarea:focus {
-  border-color: #106ba3;
-  box-shadow: 0 0 0 2px rgba(16, 107, 163, 0.2);
-}
-
-.roam-copilot-send-button {
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  background: #106ba3;
-  color: white;
-  border: none;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: background-color 0.2s;
-}
-
-.roam-copilot-send-button:hover:not(:disabled) {
-  background: #0e5a8a;
-}
-
-.roam-copilot-send-button:disabled {
-  background: #ccc;
-  cursor: not-allowed;
-}
-
-.roam-copilot-loading {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  color: #666;
-  font-style: italic;
-}
-
-.roam-copilot-loading-dots {
-  display: inline-flex;
-  gap: 2px;
-}
-
-.roam-copilot-loading-dot {
-  width: 4px;
-  height: 4px;
-  border-radius: 50%;
-  background: #666;
-  animation: bounce 1.4s ease-in-out infinite both;
-}
-
-.roam-copilot-loading-dot:nth-child(1) {
-  animation-delay: -0.32s;
-}
-.roam-copilot-loading-dot:nth-child(2) {
-  animation-delay: -0.16s;
-}
-
-@keyframes bounce {
-  0%,
-  80%,
-  100% {
-    transform: scale(0);
-  }
-  40% {
-    transform: scale(1);
-  }
-}
-
-/* Markdown content styles */
-.roam-copilot-markdown {
-  line-height: 1.6;
-  word-wrap: break-word;
-  overflow-wrap: break-word;
-  word-break: break-word;
-  min-width: 0;
-  max-width: 100%;
-}
-
-.roam-copilot-markdown h1,
-.roam-copilot-markdown h2,
-.roam-copilot-markdown h3,
-.roam-copilot-markdown h4,
-.roam-copilot-markdown h5,
-.roam-copilot-markdown h6 {
-  font-weight: 600;
-  margin: 12px 0 6px 0;
-}
-
-.roam-copilot-markdown h1 {
-  font-size: 16px;
-}
-.roam-copilot-markdown h2 {
-  font-size: 15px;
-}
-.roam-copilot-markdown h3 {
-  font-size: 14px;
-}
-
-.roam-copilot-markdown p {
-  margin: 6px 0;
-}
-
-.roam-copilot-markdown ul,
-.roam-copilot-markdown ol {
-  margin: 6px 0;
-  padding-left: 18px;
-}
-
-.roam-copilot-markdown li {
-  margin: 2px 0;
-}
-
-.roam-copilot-markdown code {
-  background: rgba(0, 0, 0, 0.05);
-  padding: 2px 4px;
-  border-radius: 3px;
-  font-size: 13px;
-  font-family: "Monaco", "Menlo", "Ubuntu Mono", monospace;
-}
-
-.roam-copilot-message.user .roam-copilot-markdown code {
-  background: rgba(255, 255, 255, 0.2);
-  color: #e8f4f8;
-}
-
-.roam-copilot-markdown pre {
-  background: rgba(0, 0, 0, 0.05);
-  padding: 8px 12px;
-  border-radius: 6px;
-  overflow-x: auto;
-  overflow-wrap: break-word;
-  word-break: break-all;
-  margin: 8px 0;
-  font-size: 13px;
-  max-width: 100%;
-}
-
-.roam-copilot-message.user .roam-copilot-markdown pre {
-  background: rgba(255, 255, 255, 0.1);
-}
-
-.roam-copilot-markdown pre code {
-  background: none;
-  padding: 0;
-}
-
-.roam-copilot-markdown blockquote {
-  border-left: 3px solid #e1e5e9;
-  padding-left: 12px;
-  margin: 8px 0;
-  color: #666;
-  font-style: italic;
-}
-
-.roam-copilot-message.user .roam-copilot-markdown blockquote {
-  border-left-color: rgba(255, 255, 255, 0.3);
-  color: rgba(255, 255, 255, 0.9);
-}
-
-.roam-copilot-markdown a {
-  color: #106ba3;
-  text-decoration: none;
-}
-
-.roam-copilot-message.user .roam-copilot-markdown a {
-  color: #b8e6ff;
-}
-
-.roam-copilot-markdown a:hover {
-  text-decoration: underline;
-}
-
-.roam-copilot-markdown strong,
-.roam-copilot-markdown b {
-  font-weight: 600;
-}
-
-.roam-copilot-markdown em,
-.roam-copilot-markdown i {
-  font-style: italic;
+.roam-copilot-expanded .cs-typing-indicator__content {
+  color: #666 !important;
+  font-style: italic !important;
 }

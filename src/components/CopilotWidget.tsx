@@ -1,9 +1,17 @@
 // src/components/CopilotWidget.tsx
 import React, { useState, useEffect, useRef } from 'react';
 import { Button, Icon, Spinner } from '@blueprintjs/core';
-// Temporarily removed marked and DOMPurify to fix import issues
-// import { marked } from 'marked';
-// import DOMPurify from 'dompurify';
+import { 
+  MainContainer, 
+  ChatContainer, 
+  MessageList, 
+  Message, 
+  MessageInput,
+  TypingIndicator,
+  Avatar,
+  MessageModel
+} from '@chatscope/chat-ui-kit-react';
+import '@chatscope/chat-ui-kit-styles/dist/default/styles.min.css';
 import { ChatMessage, CopilotState, PageContext } from '../types';
 import { AIService } from '../services/aiService';
 import { RoamService } from '../services/roamService';
@@ -29,8 +37,6 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
 
   const [inputValue, setInputValue] = useState('');
   const [pageContext, setPageContext] = useState<PageContext | null>(null);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
     setState(prev => ({
@@ -41,15 +47,8 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
   }, [isOpen]);
 
   useEffect(() => {
-    scrollToBottom();
-  }, [state.messages]);
-
-  useEffect(() => {
     if (isOpen) {
       updatePageContext();
-      if (inputRef.current) {
-        inputRef.current.focus();
-      }
     }
   }, [isOpen]);
 
@@ -116,10 +115,6 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
     };
   }, [isOpen]);
 
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  };
-
   const updatePageContext = async () => {
     try {
       const context = await RoamService.getPageContext();
@@ -142,10 +137,10 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
     }));
   };
 
-  const handleSendMessage = async () => {
-    if (!inputValue.trim() || state.isLoading) return;
+  const handleSendMessage = async (innerHtml: string, textContent: string) => {
+    if (!textContent.trim() || state.isLoading) return;
 
-    const userMessage = inputValue.trim();
+    const userMessage = textContent.trim();
     setInputValue('');
 
     // Add user message
@@ -190,44 +185,15 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
     }
   };
 
-  const handleKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      handleSendMessage();
-    }
-  };
-
-  const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    setInputValue(e.target.value);
-    
-    // Auto-resize textarea
-    const textarea = e.target;
-    textarea.style.height = 'auto';
-    textarea.style.height = Math.min(textarea.scrollHeight, 120) + 'px';
-  };
-
-  const renderMessage = (message: ChatMessage) => {
-    const isUser = message.role === 'user';
-    
-    if (isUser) {
-      return (
-        <div key={message.id} className="roam-copilot-message user">
-          {message.content}
-        </div>
-      );
-    }
-
-    // Render assistant message as plain text for now
-    // TODO: Add markdown support back later
-    return (
-      <div key={message.id} className="roam-copilot-message assistant">
-        <div className="roam-copilot-markdown">
-          {message.content.split('\n').map((line, index) => (
-            <div key={index}>{line}</div>
-          ))}
-        </div>
-      </div>
-    );
+  // Convert our ChatMessage format to chatscope Message format
+  const convertToChatscopeMessages = (): MessageModel[] => {
+    return state.messages.map(msg => ({
+      message: msg.content,
+      sentTime: msg.timestamp.toLocaleTimeString(),
+      sender: msg.role === 'user' ? 'You' : 'Roam Copilot',
+      direction: (msg.role === 'user' ? 'outgoing' : 'incoming') as "outgoing" | "incoming",
+      position: 'single' as "single"
+    }));
   };
 
   if (state.isMinimized) {
@@ -270,53 +236,56 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
           </div>
         </div>
 
-        <div className="roam-copilot-messages">
-          {state.messages.length === 0 && (
-            <div className="text-center text-gray-500 py-8">
-              <Icon icon="chat" size={48} className="mb-4 opacity-50" />
-              <p>Hello! I'm your Roam Research assistant.</p>
-              <p className="text-sm mt-2">
-                I can help you with your notes and answer questions based on your current page content.
-              </p>
-            </div>
-          )}
-          
-          {state.messages.map(renderMessage)}
-          
-          {state.isLoading && (
-            <div className="roam-copilot-loading">
-              <Spinner size={16} />
-              <span>Thinking...</span>
-              <div className="roam-copilot-loading-dots">
-                <div className="roam-copilot-loading-dot"></div>
-                <div className="roam-copilot-loading-dot"></div>
-                <div className="roam-copilot-loading-dot"></div>
-              </div>
-            </div>
-          )}
-          
-          <div ref={messagesEndRef} />
-        </div>
-
-        <div className="roam-copilot-input">
-          <textarea
-            ref={inputRef}
-            className="roam-copilot-textarea"
-            placeholder="Ask me anything about your notes..."
-            value={inputValue}
-            onChange={handleInputChange}
-            onKeyPress={handleKeyPress}
-            disabled={state.isLoading}
-            rows={1}
-          />
-          <button
-            className="roam-copilot-send-button"
-            onClick={handleSendMessage}
-            disabled={!inputValue.trim() || state.isLoading}
-            title="Send message"
-          >
-            <Icon icon="send-message" size={16} />
-          </button>
+        <div style={{ position: "relative", height: "100%", flex: 1 }}>
+          <MainContainer>
+            <ChatContainer>
+              <MessageList>
+                {state.messages.length === 0 && (
+                  <div style={{ 
+                    textAlign: 'center', 
+                    color: '#666', 
+                    padding: '40px 20px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    gap: '12px'
+                  }}>
+                    <Icon icon="chat" size={48} style={{ opacity: 0.5 }} />
+                    <p>Hello! I'm your Roam Research assistant.</p>
+                    <p style={{ fontSize: '14px', marginTop: '8px' }}>
+                      I can help you with your notes and answer questions based on your current page content.
+                    </p>
+                  </div>
+                )}
+                
+                {convertToChatscopeMessages().map((msg, index) => (
+                  <Message 
+                    key={index} 
+                    model={msg}
+                  >
+                    {msg.direction === 'incoming' && (
+                      <Avatar 
+                        src="" 
+                        name="Roam Copilot"
+                        style={{ backgroundColor: '#106ba3' }}
+                      />
+                    )}
+                  </Message>
+                ))}
+                
+                {state.isLoading && (
+                  <TypingIndicator content="Roam Copilot is thinking..." />
+                )}
+              </MessageList>
+              
+              <MessageInput 
+                placeholder="Ask me anything about your notes..."
+                onSend={handleSendMessage}
+                disabled={state.isLoading}
+                attachButton={false}
+              />
+            </ChatContainer>
+          </MainContainer>
         </div>
       </div>
     </div>
