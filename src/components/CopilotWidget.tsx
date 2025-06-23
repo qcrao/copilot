@@ -6,7 +6,6 @@ import {
   ChatContainer, 
   MessageList, 
   Message, 
-  MessageInput,
   TypingIndicator,
   Avatar,
   MessageModel
@@ -16,6 +15,7 @@ import { ChatMessage, CopilotState, PageContext } from '../types';
 import { AIService } from '../services/aiService';
 import { RoamService } from '../services/roamService';
 import { aiSettings } from '../settings';
+import { CustomMessageInput } from './CustomMessageInput';
 
 interface CopilotWidgetProps {
   isOpen: boolean;
@@ -35,7 +35,6 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
     isLoading: false,
   });
 
-  const [inputValue, setInputValue] = useState('');
   const [pageContext, setPageContext] = useState<PageContext | null>(null);
 
   useEffect(() => {
@@ -115,6 +114,7 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
     };
   }, [isOpen]);
 
+
   const updatePageContext = async () => {
     try {
       const context = await RoamService.getPageContext();
@@ -137,11 +137,10 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
     }));
   };
 
-  const handleSendMessage = async (innerHtml: string, textContent: string) => {
-    if (!textContent.trim() || state.isLoading) return;
+  const handleSendMessage = async (message: string) => {
+    if (!message.trim() || state.isLoading) return;
 
-    const userMessage = textContent.trim();
-    setInputValue('');
+    const userMessage = message.trim();
 
     // Add user message
     addMessage({
@@ -236,61 +235,62 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
           </div>
         </div>
 
-        <div style={{ position: "relative", height: "100%", flex: 1 }}>
-          <MainContainer>
-            <ChatContainer>
-              <MessageList>
-                {state.messages.length === 0 && (
-                  <div style={{ 
-                    textAlign: 'center', 
-                    color: '#666', 
-                    padding: '40px 20px',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    gap: '12px'
-                  }}>
-                    <Icon icon="chat" size={48} style={{ opacity: 0.5 }} />
-                    <p>Hello! I'm your Roam Research assistant.</p>
-                    <p style={{ fontSize: '14px', marginTop: '8px' }}>
-                      I can help you with your notes and answer questions based on your current page content.
-                    </p>
-                  </div>
-                )}
-                
-                {convertToChatscopeMessages().map((msg, index) => (
-                  <Message 
-                    key={index} 
-                    model={msg}
-                  >
-                    {msg.direction === 'incoming' && (
-                      <Avatar 
-                        src="" 
-                        name="RC"
-                        style={{ 
-                          backgroundColor: '#106ba3',
-                          color: 'white',
-                          fontSize: '14px',
-                          fontWeight: 'bold'
-                        }}
-                      />
-                    )}
-                  </Message>
-                ))}
-                
-                {state.isLoading && (
-                  <TypingIndicator content="Roam Copilot is thinking..." />
-                )}
-              </MessageList>
-              
-              <MessageInput 
-                placeholder="Ask me anything about your notes..."
-                onSend={handleSendMessage}
-                disabled={state.isLoading}
-                attachButton={false}
-              />
-            </ChatContainer>
-          </MainContainer>
+        <div style={{ position: "relative", height: "100%", flex: 1, display: "flex", flexDirection: "column" }}>
+          <div style={{ flex: 1, overflow: "hidden" }}>
+            <MainContainer>
+              <ChatContainer>
+                <MessageList>
+                  {state.messages.length === 0 && (
+                    <div style={{ 
+                      textAlign: 'center', 
+                      color: '#666', 
+                      padding: '40px 20px',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      gap: '12px'
+                    }}>
+                      <Icon icon="chat" size={48} style={{ opacity: 0.5 }} />
+                      <p>Hello! I'm your Roam Research assistant.</p>
+                      <p style={{ fontSize: '14px', marginTop: '8px' }}>
+                        I can help you with your notes and answer questions based on your current page content.
+                      </p>
+                    </div>
+                  )}
+                  
+                  {convertToChatscopeMessages().map((msg, index) => (
+                    <Message 
+                      key={index} 
+                      model={msg}
+                    >
+                      {msg.direction === 'incoming' && (
+                        <Avatar 
+                          src="" 
+                          name="RC"
+                          style={{ 
+                            backgroundColor: '#106ba3',
+                            color: 'white',
+                            fontSize: '14px',
+                            fontWeight: 'bold'
+                          }}
+                        />
+                      )}
+                    </Message>
+                  ))}
+                  
+                  {state.isLoading && (
+                    <TypingIndicator content="Roam Copilot is thinking..." />
+                  )}
+                </MessageList>
+              </ChatContainer>
+            </MainContainer>
+          </div>
+          
+          <CustomMessageInput
+            placeholder="Ask me anything about your notes..."
+            onSend={handleSendMessage}
+            disabled={state.isLoading}
+          />
         </div>
       </div>
     </div>

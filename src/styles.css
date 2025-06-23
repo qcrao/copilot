@@ -89,102 +89,6 @@
   background-color: #f8f9fa !important;
 }
 
-/* Ultra-simple pure white input - override everything */
-.roam-copilot-expanded .cs-message-input,
-.roam-copilot-expanded .cs-message-input * {
-  background: white !important;
-  background-color: white !important;
-  border: none !important;
-  box-shadow: none !important;
-  outline: none !important;
-}
-
-.roam-copilot-expanded .cs-message-input {
-  padding: 12px !important;
-  border-top: 1px solid #ddd !important;
-}
-
-.roam-copilot-expanded .cs-message-input__content-editor-wrapper {
-  border: 1px solid #ccc !important;
-  border-radius: 4px !important;
-  padding: 0 !important;
-  display: flex !important;
-  align-items: stretch !important;
-}
-
-.roam-copilot-expanded .cs-message-input__content-editor-wrapper:focus-within {
-  border-color: #106ba3 !important;
-}
-
-.roam-copilot-expanded .cs-message-input__content-editor {
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
-  padding: 10px 12px !important;
-  min-height: 36px !important;
-  max-height: 100px !important;
-  resize: none !important;
-  font-size: 14px !important;
-  line-height: 1.2 !important;
-  color: #333 !important;
-  width: 100% !important;
-  flex: 1 !important;
-  vertical-align: middle !important;
-}
-
-.roam-copilot-expanded .cs-message-input__content-editor::placeholder {
-  color: #888 !important;
-}
-
-.roam-copilot-expanded .cs-message-input__content-editor::-webkit-scrollbar {
-  width: 3px !important;
-}
-
-.roam-copilot-expanded .cs-message-input__content-editor::-webkit-scrollbar-thumb {
-  background-color: #bbb !important;
-  border-radius: 1px !important;
-}
-
-/* Custom send button with vertical up arrow icon */
-.roam-copilot-expanded .cs-button--send {
-  background-color: #106ba3 !important;
-  border: none !important;
-  width: 40px !important;
-  height: 40px !important;
-  border-radius: 6px !important;
-  margin-left: 4px !important;
-  flex-shrink: 0 !important;
-  cursor: pointer !important;
-  box-shadow: none !important;
-  outline: none !important;
-  display: flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-  align-self: stretch !important;
-  position: relative !important;
-}
-
-.roam-copilot-expanded .cs-button--send:hover {
-  background-color: #0e5a8a !important;
-}
-
-.roam-copilot-expanded .cs-button--send:disabled {
-  background-color: #bbb !important;
-  cursor: not-allowed !important;
-}
-
-.roam-copilot-expanded .cs-button--send svg {
-  display: none !important;
-}
-
-.roam-copilot-expanded .cs-button--send::after {
-  content: "" !important;
-  display: block !important;
-  width: 18px !important;
-  height: 18px !important;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath fill='white' d='M8 4l-4 4h2.5v4h3V8H12L8 4z'/%3E%3C/svg%3E") !important;
-  background-size: contain !important;
-  background-repeat: no-repeat !important;
-  background-position: center !important;
-}
 
 /* Typing indicator styling */
 .roam-copilot-expanded .cs-typing-indicator {
@@ -205,6 +109,93 @@
 
 .roam-copilot-expanded .cs-conversation {
   background: transparent !important;
+}
+
+/* Custom Message Input - Claude-style */
+.custom-message-input {
+  padding: 16px;
+  background: white;
+  border-top: 1px solid #e5e7eb;
+}
+
+.custom-message-input__container {
+  position: relative;
+  display: flex;
+  align-items: flex-end;
+  background: white;
+  border: 1px solid #d1d5db;
+  border-radius: 12px;
+  padding: 8px 52px 8px 16px;
+  transition: border-color 0.2s ease;
+}
+
+.custom-message-input__container:focus-within {
+  border-color: #9ca3af;
+  outline: none;
+}
+
+.custom-message-input__textarea {
+  width: 100%;
+  background: transparent;
+  border: none;
+  outline: none;
+  resize: none;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-size: 14px;
+  line-height: 20px;
+  color: #111827;
+  min-height: 20px;
+  max-height: 120px;
+  overflow-y: auto;
+}
+
+.custom-message-input__textarea::placeholder {
+  color: #9ca3af;
+}
+
+.custom-message-input__textarea:disabled {
+  color: #9ca3af;
+  cursor: not-allowed;
+}
+
+.custom-message-input__send-button {
+  position: absolute;
+  right: 0px;
+  bottom: 0px;
+  width: 36px;
+  height: 36px;
+  border: none;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  outline: none;
+}
+
+.custom-message-input__send-button.active {
+  background-color: #ea7b47;
+  color: white;
+}
+
+.custom-message-input__send-button.active:hover {
+  background-color: #dc6536;
+  transform: translateY(-1px);
+}
+
+.custom-message-input__send-button.active:active {
+  transform: translateY(0);
+}
+
+.custom-message-input__send-button.inactive {
+  background-color: #f3f4f6;
+  color: #9ca3af;
+  cursor: not-allowed;
+}
+
+.custom-message-input__send-button:disabled {
+  cursor: not-allowed;
 }
 
 /* Message styling - no avatars for AI messages */

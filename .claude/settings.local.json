@@ -3,7 +3,11 @@
     "allow": [
       "Bash(npm install)",
       "Bash(sh:*)",
-      "Bash(npm install:*)"
+      "Bash(npm install:*)",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:chatscope.io)",
+      "Bash(grep:*)",
+      "Bash(sed:*)"
     ],
     "deny": []
   }
