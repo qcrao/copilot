@@ -22,7 +22,7 @@ export default {
       {
         test: /\.css$/,
         use: [
-          MiniCssExtractPlugin.loader, // 替换 style-loader
+          MiniCssExtractPlugin.loader,
           "css-loader",
           "postcss-loader",
         ],
@@ -40,5 +40,9 @@ export default {
   externals: {
     react: "React",
     "react-dom": "ReactDOM",
+    // Blueprint.js will be available from CDN in Roam
+    "@blueprintjs/core": "Blueprint.Core",
+    "@blueprintjs/icons": "Blueprint.Icons",
+    // Include marked and dompurify in bundle since they might not be available in Roam
   },
 };

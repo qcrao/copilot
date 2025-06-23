@@ -1,23 +1,29 @@
-import { DateUtils } from "./utils/dateUtils";
+// src/commands.ts
 
 export const loadRoamExtensionCommands = async (
   extensionAPI: any,
-  openHistoricalPages: (date: string) => Promise<void>,
-  closeHistoricalPages: (date: string) => Promise<void>
+  toggleCopilot: () => void,
+  openCopilot: () => void,
+  closeCopilot: () => void
 ) => {
   extensionAPI.ui.commandPalette.addCommand({
-    label: "Open Last Year Today",
-    callback: async () => {
-      const today = DateUtils.formatRoamDate(new Date());
-      await openHistoricalPages(today);
+    label: "Toggle Roam Copilot",
+    callback: () => {
+      toggleCopilot();
     },
   });
 
   extensionAPI.ui.commandPalette.addCommand({
-    label: "Close Last Year Today",
-    callback: async () => {
-      const today = DateUtils.formatRoamDate(new Date());
-      await closeHistoricalPages(today);
+    label: "Open Roam Copilot",
+    callback: () => {
+      openCopilot();
+    },
+  });
+
+  extensionAPI.ui.commandPalette.addCommand({
+    label: "Close Roam Copilot",
+    callback: () => {
+      closeCopilot();
     },
   });
 };

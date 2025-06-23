@@ -1,179 +1,129 @@
 // src/index.tsx
-import { HistoricalPagesService } from "./services/historicalPagesService";
-import { RoamService } from "./services/roamService";
-import { DateUtils } from "./utils/dateUtils";
-import {
-  loadInitialSettings,
-  initPanelConfig,
-  yearsBack,
-  dailyUpdateHour,
-} from "./settings";
+import React from "react";
+import { createRoot } from "react-dom/client";
+import { CopilotWidget } from "./components/CopilotWidget";
+import { loadInitialSettings, initPanelConfig } from "./settings";
 import { loadRoamExtensionCommands } from "./commands";
+import "./styles.css";
 
-let cleanupObserver: (() => void) | null = null;
-let updateTimer: NodeJS.Timer | null = null;
-
-const openHistoricalPages = async (today: string) => {
-  const historicalPages = await HistoricalPagesService.getHistoricalPages(
-    today,
-    yearsBack
-  );
-
-  if (historicalPages.length > 0) {
-    // Open right sidebar
-    await (window as any).roamAlphaAPI.ui.rightSidebar.open();
-
-    // Reverse historical pages so they are in order from oldest to newest
-    historicalPages.reverse();
-
-    // Open windows for each historical page
-    for (const page of historicalPages) {
-      const formattedDate = DateUtils.formatRoamDate(page.date);
-      await (window as any).roamAlphaAPI.ui.rightSidebar.addWindow({
-        window: {
-          type: "outline",
-          "block-uid": page.uid,
-          title: formattedDate,
-        },
-      });
-    }
-
-    // Mark historical windows with custom styles and store cleanup function
-    cleanupObserver = RoamService.markHistoricalWindows();
-    console.log("Historical pages opened successfully!");
-  } else {
-    console.log("No historical pages found");
-  }
+let copilotState = {
+  isOpen: false,
+  container: null as HTMLDivElement | null,
+  root: null as any,
 };
 
-const closeHistoricalPages = async (today: string) => {
-  const historicalPages = await HistoricalPagesService.getHistoricalPages(
-    today,
-    yearsBack
-  );
-
-  // Check if rightSidebar API exists before using it
-  const roamAPI = window as any;
-  if (!roamAPI?.roamAlphaAPI?.ui?.rightSidebar) {
-    console.error("Right sidebar API not available");
-    return;
-  }
-
-  // Close windows for each historical page
-  for (const page of historicalPages) {
-    try {
-      await roamAPI.roamAlphaAPI.ui.rightSidebar.removeWindow({
-        window: {
-          type: "outline",
-          "block-uid": page.uid,
-        },
-      });
-    } catch (error) {
-      console.error(`Failed to close window for page ${page.uid}:`, error);
-    }
-  }
+const toggleCopilot = () => {
+  copilotState.isOpen = !copilotState.isOpen;
+  renderCopilot();
 };
 
-const scheduleNextUpdate = () => {
-  const now = new Date();
-  const nextUpdate = new Date(now);
+const openCopilot = () => {
+  copilotState.isOpen = true;
+  renderCopilot();
+};
 
-  // If current hour is before update hour, schedule for today
-  // Otherwise schedule for tomorrow
-  if (now.getHours() < dailyUpdateHour) {
-    nextUpdate.setHours(dailyUpdateHour, 0, 3, 0); // set seconds to 3 to avoid timezone issues
-  } else {
-    nextUpdate.setDate(nextUpdate.getDate() + 1);
-    nextUpdate.setHours(dailyUpdateHour, 0, 3, 0); // set seconds to 3 to avoid timezone issues
+const closeCopilot = () => {
+  copilotState.isOpen = false;
+  renderCopilot();
+};
+
+const renderCopilot = () => {
+  if (!copilotState.root) return;
+
+  copilotState.root.render(
+    <CopilotWidget
+      isOpen={copilotState.isOpen}
+      onToggle={toggleCopilot}
+      onClose={closeCopilot}
+    />
+  );
+};
+
+const createCopilotContainer = () => {
+  // Remove existing container if it exists
+  const existingContainer = document.getElementById("roam-copilot-root");
+  if (existingContainer) {
+    existingContainer.remove();
   }
 
-  const timeUntilUpdate = nextUpdate.getTime() - now.getTime();
-  console.log(
-    `Next update scheduled in ${Math.round(
-      timeUntilUpdate / 1000 / 60
-    )} minutes`
-  );
+  // Create new container
+  const container = document.createElement("div");
+  container.id = "roam-copilot-root";
+  container.style.cssText = `
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 10000;
+  `;
 
-  return setTimeout(async () => {
-    const today = DateUtils.formatRoamDate(new Date());
-    await openHistoricalPages(today);
-    // Schedule next update
-    updateTimer = scheduleNextUpdate();
-  }, timeUntilUpdate);
+  // Make sure we can interact with the copilot widget
+  container.addEventListener("click", (e) => {
+    e.stopPropagation();
+  });
+
+  document.body.appendChild(container);
+  copilotState.container = container;
+  copilotState.root = createRoot(container);
+
+  // Re-enable pointer events for the copilot area
+  const style = document.createElement("style");
+  style.textContent = `
+    #roam-copilot-root .roam-copilot-container {
+      pointer-events: auto;
+    }
+  `;
+  document.head.appendChild(style);
+
+  return container;
 };
 
 const onload = async ({ extensionAPI }: { extensionAPI: any }) => {
-  console.log("Last Year Today plugin loading...");
+  console.log("Roam Copilot loading...");
 
   try {
     // Load settings
-    console.log("loadInitialSettings...");
     loadInitialSettings(extensionAPI);
-    console.log("yearsBack", yearsBack);
-    console.log("dailyUpdateHour", dailyUpdateHour);
 
     // Initialize panel config
     await extensionAPI.settings.panel.create(initPanelConfig(extensionAPI));
 
-    // Listen for settings changes
-    window.addEventListener(
-      "lastYearToday:hour-to-open-last-year-today-page:settingsChanged",
-      () => {
-        if (updateTimer) {
-          clearTimeout(updateTimer);
-        }
-        updateTimer = scheduleNextUpdate();
-      }
-    );
-
+    // Load commands
     await loadRoamExtensionCommands(
       extensionAPI,
-      openHistoricalPages,
-      closeHistoricalPages
+      toggleCopilot,
+      openCopilot,
+      closeCopilot
     );
 
-    // Initialize custom styles
-    RoamService.injectCustomStyles();
+    // Create copilot container and render
+    createCopilotContainer();
+    renderCopilot();
 
-    // Get current date in Roam format
-    const now = new Date();
-    const today = DateUtils.formatRoamDate(now);
-
-    await openHistoricalPages(today);
-
-    // Schedule next update
-    updateTimer = scheduleNextUpdate();
+    console.log("Roam Copilot loaded successfully!");
   } catch (error) {
-    console.error("Error loading Last Year Today plugin:", error);
+    console.error("Error loading Roam Copilot:", error);
   }
 };
 
 const onunload = () => {
-  // Remove settings change listener
-  window.removeEventListener(
-    "lastYearToday:hour-to-open-last-year-today-page:settingsChanged",
-    () => {}
-  );
-
-  // Clean up custom styles
-  const styleElement = document.getElementById("last-year-today-styles");
-  if (styleElement) {
-    styleElement.remove();
+  // Clean up
+  if (copilotState.root) {
+    copilotState.root.unmount();
+    copilotState.root = null;
+  }
+  if (copilotState.container) {
+    copilotState.container.remove();
+    copilotState.container = null;
   }
 
-  // Clean up observer
-  if (cleanupObserver) {
-    cleanupObserver();
-    cleanupObserver = null;
-  }
+  // Remove any added styles
+  const styleElements = document.querySelectorAll("style[data-roam-copilot]");
+  styleElements.forEach((el) => el.remove());
 
-  // Clear update timer
-  if (updateTimer) {
-    clearTimeout(updateTimer);
-    updateTimer = null;
-  }
-
-  console.log("Last Year Today plugin unloaded!");
+  console.log("Roam Copilot unloaded!");
 };
 
 export default {
