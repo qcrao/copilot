@@ -32,8 +32,10 @@
 }
 
 .roam-copilot-expanded {
-  width: 400px;
-  height: 600px;
+  width: min(400px, calc(100vw - 40px));
+  height: min(600px, calc(100vh - 40px));
+  max-width: 400px;
+  max-height: 600px;
   background: white;
   border-radius: 12px;
   box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
@@ -66,11 +68,13 @@
 .roam-copilot-messages {
   flex: 1;
   overflow-y: auto;
+  overflow-x: hidden;
   padding: 16px;
   display: flex;
   flex-direction: column;
   gap: 12px;
   scroll-behavior: smooth;
+  min-height: 0;
 }
 
 .roam-copilot-messages::-webkit-scrollbar {
@@ -92,15 +96,19 @@
 }
 
 .roam-copilot-message {
-  max-width: 85%;
+  max-width: min(85%, 300px);
+  min-width: 0;
   padding: 12px 16px;
   border-radius: 18px;
   font-size: 14px;
   line-height: 1.5;
   word-wrap: break-word;
   overflow-wrap: break-word;
+  word-break: break-word;
   white-space: pre-wrap;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+  hyphens: auto;
+  overflow: hidden;
 }
 
 .roam-copilot-message.user {
@@ -211,6 +219,9 @@
   line-height: 1.6;
   word-wrap: break-word;
   overflow-wrap: break-word;
+  word-break: break-word;
+  min-width: 0;
+  max-width: 100%;
 }
 
 .roam-copilot-markdown h1,
@@ -265,8 +276,11 @@
   padding: 8px 12px;
   border-radius: 6px;
   overflow-x: auto;
+  overflow-wrap: break-word;
+  word-break: break-all;
   margin: 8px 0;
   font-size: 13px;
+  max-width: 100%;
 }
 
 .roam-copilot-message.user .roam-copilot-markdown pre {

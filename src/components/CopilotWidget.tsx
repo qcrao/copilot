@@ -53,6 +53,69 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
     }
   }, [isOpen]);
 
+  useEffect(() => {
+    // Listen for page changes in Roam
+    const handlePageChange = () => {
+      console.log('Page change detected, updating context...');
+      updatePageContext();
+    };
+
+    // Listen for URL changes (page navigation)
+    const handlePopState = () => {
+      console.log('URL change detected, updating context...');
+      setTimeout(updatePageContext, 100); // Small delay to ensure page is loaded
+    };
+
+    // Listen for focus changes (switching between pages)
+    const handleFocus = () => {
+      if (isOpen) {
+        console.log('Focus change detected, updating context...');
+        updatePageContext();
+      }
+    };
+
+    // Add event listeners
+    window.addEventListener('popstate', handlePopState);
+    window.addEventListener('focus', handleFocus);
+    
+    // Also listen for hash changes (Roam uses hash routing)
+    window.addEventListener('hashchange', handlePageChange);
+
+    // Use MutationObserver to detect DOM changes that indicate page changes
+    const observer = new MutationObserver((mutations) => {
+      mutations.forEach((mutation) => {
+        if (mutation.type === 'childList') {
+          // Check if the main content area changed
+          const hasPageContent = Array.from(mutation.addedNodes).some(node => 
+            node instanceof Element && (
+              node.classList?.contains('roam-main') ||
+              node.classList?.contains('rm-title-display') ||
+              node.querySelector?.('.rm-title-display')
+            )
+          );
+          
+          if (hasPageContent) {
+            console.log('Page content change detected, updating context...');
+            setTimeout(updatePageContext, 200); // Delay to ensure content is rendered
+          }
+        }
+      });
+    });
+
+    // Start observing the document body for changes
+    observer.observe(document.body, { 
+      childList: true, 
+      subtree: true 
+    });
+
+    return () => {
+      window.removeEventListener('popstate', handlePopState);
+      window.removeEventListener('focus', handleFocus);
+      window.removeEventListener('hashchange', handlePageChange);
+      observer.disconnect();
+    };
+  }, [isOpen]);
+
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
@@ -95,11 +158,17 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
 
     try {
       // Get fresh context before sending to AI
-      await updatePageContext();
+      const freshContext = await RoamService.getPageContext();
+      setPageContext(freshContext);
       
-      const contextString = pageContext 
-        ? RoamService.formatContextForAI(pageContext)
+      const contextString = freshContext 
+        ? RoamService.formatContextForAI(freshContext)
         : 'No context available';
+
+      console.log('Sending message with context:', {
+        currentPage: freshContext?.currentPage?.title,
+        blocksCount: freshContext?.currentPage?.blocks?.length || 0
+      });
 
       const response = await AIService.sendMessage(
         aiSettings,
