@@ -311,12 +311,15 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
                         flexDirection: msg.role === "user" ? "row-reverse" : "row",
                         alignItems: "flex-start",
                         margin: "8px 0",
-                        gap: "8px"
+                        gap: "8px",
+                        // Symmetric padding and ensure no overlap with scrollbar
+                        paddingLeft: msg.role === "user" ? "0" : "12px",
+                        paddingRight: msg.role === "user" ? "20px" : "0"
                       }}
                     >
                       <div
                         style={{
-                          maxWidth: "70%",
+                          maxWidth: msg.role === "user" ? "75%" : "80%",
                           padding: "8px 12px",
                           borderRadius: "12px",
                           backgroundColor: msg.role === "user" ? "#393A3D" : "#f1f3f4",
@@ -345,10 +348,17 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
                   ))}
 
                   {state.isLoading && (
-                    <div style={{ display: "flex", alignItems: "flex-start", margin: "8px 0", gap: "8px" }}>
+                    <div style={{ 
+                      display: "flex", 
+                      alignItems: "flex-start", 
+                      margin: "8px 0", 
+                      gap: "8px",
+                      paddingLeft: "12px",
+                      paddingRight: "0"
+                    }}>
                       <div
                         style={{
-                          maxWidth: "70%",
+                          maxWidth: "80%",
                           padding: "8px 12px",
                           borderRadius: "12px",
                           backgroundColor: "#f1f3f4",

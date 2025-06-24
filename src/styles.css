@@ -94,33 +94,43 @@
 
 .roam-copilot-expanded .cs-message-list {
   background-color: #f8f9fa !important;
+  /* Force scrollbar to always show for consistent layout */
+  overflow-y: scroll;
+  overflow-x: hidden;
+  /* Reduce padding to move scrollbar closer to right edge */
+  padding-right: 12px;
+  /* Firefox scrollbar styling with transparency */
+  scrollbar-width: thin;
+  scrollbar-color: rgba(57, 58, 61, 0.6) rgba(0, 0, 0, 0.02);
+  /* Add smooth scrolling */
+  scroll-behavior: smooth;
+  /* Minimal padding for content spacing */
+  padding-left: 8px;
 }
 
-/* Custom scrollbar for chat message list */
+/* Custom scrollbar for chat message list with transparency */
 .roam-copilot-expanded .cs-message-list::-webkit-scrollbar {
-  width: 6px;
+  width: 8px;
 }
 
 .roam-copilot-expanded .cs-message-list::-webkit-scrollbar-track {
-  background: rgba(0, 0, 0, 0.05);
-  border-radius: 3px;
+  background: rgba(0, 0, 0, 0.02);
+  border-radius: 4px;
+  margin: 4px 0;
 }
 
 .roam-copilot-expanded .cs-message-list::-webkit-scrollbar-thumb {
-  background: #393A3D;
-  border-radius: 3px;
+  background: rgba(57, 58, 61, 0.6);
+  border-radius: 4px;
   transition: background-color 0.2s ease;
+  border: 1px solid rgba(255, 255, 255, 0.05);
 }
 
 .roam-copilot-expanded .cs-message-list::-webkit-scrollbar-thumb:hover {
-  background: #2a2b2d;
+  background: rgba(42, 43, 45, 0.8);
 }
 
-/* Firefox scrollbar styling */
-.roam-copilot-expanded .cs-message-list {
-  scrollbar-width: thin;
-  scrollbar-color: #393A3D rgba(0, 0, 0, 0.05);
-}
+/* Firefox scrollbar styling - integrated into main rule above */
 
 /* Typing indicator styling */
 .roam-copilot-expanded .cs-typing-indicator {
