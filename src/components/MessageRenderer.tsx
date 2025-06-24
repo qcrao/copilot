@@ -24,7 +24,7 @@ export const MessageRenderer: React.FC<MessageRendererProps> = ({ content, isUse
       },
       // URLs: http:// or https://
       {
-        regex: /(https?:\/\/[^\s\)\.,;!?]+)/g,
+        regex: /(https?:\/\/[^\s\)\.,;!?\u4e00-\u9fff]+)/g,
         type: 'url'
       }
     ];
