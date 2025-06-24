@@ -89,6 +89,32 @@
   background-color: #f8f9fa !important;
 }
 
+/* Custom scrollbar for chat message list */
+.roam-copilot-expanded .cs-message-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.roam-copilot-expanded .cs-message-list::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.05);
+  border-radius: 3px;
+}
+
+.roam-copilot-expanded .cs-message-list::-webkit-scrollbar-thumb {
+  background: #393A3D;
+  border-radius: 3px;
+  transition: background-color 0.2s ease;
+}
+
+.roam-copilot-expanded .cs-message-list::-webkit-scrollbar-thumb:hover {
+  background: #2a2b2d;
+}
+
+/* Firefox scrollbar styling */
+.roam-copilot-expanded .cs-message-list {
+  scrollbar-width: thin;
+  scrollbar-color: #393A3D rgba(0, 0, 0, 0.05);
+}
+
 /* Typing indicator styling */
 .roam-copilot-expanded .cs-typing-indicator {
   background-color: transparent !important;

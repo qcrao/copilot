@@ -154,8 +154,11 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
       const freshContext = await RoamService.getPageContext();
       setPageContext(freshContext);
 
+      // Get model-specific token limit for context
+      const maxContextTokens = RoamService.getModelTokenLimit(aiSettings.provider, aiSettings.model);
+
       const contextString = freshContext
-        ? RoamService.formatContextForAI(freshContext)
+        ? RoamService.formatContextForAI(freshContext, maxContextTokens)
         : "No context available";
 
       console.log("Sending message with context:", {

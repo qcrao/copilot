@@ -493,9 +493,120 @@ export class RoamService {
   }
 
   /**
+   * Get model-specific maximum context tokens
+   */
+  static getModelTokenLimit(provider: string, model: string): number {
+    const modelLimits: { [key: string]: { [key: string]: number } } = {
+      openai: {
+        'gpt-4o-mini': 24000,  // 128k context window, very cost-effective
+        'gpt-3.5-turbo': 2000, // 4k context window, keep conservative
+      },
+      anthropic: {
+        'claude-3-haiku-20240307': 180000,     // Claude 3 Haiku - 200k context
+        'claude-3-5-haiku-20241022': 180000,   // Claude 3.5 Haiku - 200k context  
+      },
+      groq: {
+        'llama-3.1-8b-instant': 24000,    // 128k context window, ultra fast & cheap
+        'gemma2-9b-it': 6000,             // 8k context window, very fast
+      },
+      xai: {
+        'grok-beta': 24000,        // 131k context window
+        'grok-3-mini': 24000,      // 128k context window, most cost-effective
+      }
+    };
+
+    const providerLimits = modelLimits[provider];
+    if (!providerLimits) {
+      console.warn(`Unknown provider: ${provider}, using default limit`);
+      return 6000; // Default fallback
+    }
+
+    const limit = providerLimits[model];
+    if (!limit) {
+      console.warn(`Unknown model: ${model} for provider: ${provider}, using default limit`);
+      return 6000; // Default fallback
+    }
+
+    return limit;
+  }
+
+  /**
+   * Estimate token count (rough approximation: 1 token ≈ 4 characters)
+   */
+  static estimateTokenCount(text: string): number {
+    return Math.ceil(text.length / 4);
+  }
+
+  /**
+   * Truncate context to fit within token limit
+   */
+  static truncateContext(formattedContext: string, maxTokens: number = 6000): string {
+    const currentTokens = this.estimateTokenCount(formattedContext);
+    
+    if (currentTokens <= maxTokens) {
+      return formattedContext;
+    }
+
+    // Calculate how much we need to reduce
+    const targetLength = Math.floor(formattedContext.length * (maxTokens / currentTokens));
+    
+    // Split into sections
+    const sections = formattedContext.split('\n\n');
+    let result = '';
+    let addedSections = 0;
+    
+    // Always include selected text and current page title if they exist
+    const selectedTextSection = sections.find(s => s.startsWith('**Selected Text:**'));
+    const currentPageSection = sections.find(s => s.startsWith('**Current Page:'));
+    
+    if (selectedTextSection) {
+      result += selectedTextSection + '\n\n';
+    }
+    
+    if (currentPageSection) {
+      result += currentPageSection + '\n\n';
+      addedSections = 1;
+    }
+
+    // Add other sections until we approach the limit
+    for (const section of sections) {
+      if (section === selectedTextSection || section === currentPageSection) continue;
+      
+      const testResult = result + section + '\n\n';
+      if (this.estimateTokenCount(testResult) > targetLength) {
+        // If this is page content, try to include partial content
+        if (section.startsWith('**Page Content:**') || section.startsWith('**Visible Content:**')) {
+          const lines = section.split('\n');
+          const header = lines[0];
+          let partialContent = header + '\n';
+          
+          for (let i = 1; i < lines.length; i++) {
+            const testPartial = result + partialContent + lines[i] + '\n' + '... (content truncated)\n\n';
+            if (this.estimateTokenCount(testPartial) > targetLength) break;
+            partialContent += lines[i] + '\n';
+          }
+          
+          if (partialContent !== header + '\n') {
+            result += partialContent + '... (content truncated)\n\n';
+          }
+        }
+        break;
+      }
+      
+      result += section + '\n\n';
+      addedSections++;
+      
+      // Limit number of sections to prevent too much context
+      if (addedSections >= 3) break;
+    }
+
+    return result.trim();
+  }
+
+  /**
    * Format page context for AI prompt with clickable source references
    */
-  static formatContextForAI(context: PageContext): string {
+  static formatContextForAI(context: PageContext, maxTokens?: number): string {
     let formattedContext = "";
     const graphName = this.getCurrentGraphName();
     const isDesktop = this.isDesktopApp();
@@ -567,7 +678,10 @@ export class RoamService {
       formattedContext += "\n";
     }
 
-    return formattedContext.trim();
+    const finalContext = formattedContext.trim();
+    
+    // Apply truncation if context is too long
+    return this.truncateContext(finalContext, maxTokens);
   }
 
   /**

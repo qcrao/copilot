@@ -17,6 +17,21 @@ export const MessageRenderer: React.FC<MessageRendererProps> = ({ content, isUse
         regex: /\[([^\]]+)\]\(([^)]+)\)/g,
         type: 'markdown-link'
       },
+      // Bold text: **text** or __text__
+      {
+        regex: /(\*\*|__)([^\*_]+)\1/g,
+        type: 'bold'
+      },
+      // Italic text: *text* or _text_ (simple version to avoid lookbehind issues)
+      {
+        regex: /\*([^\*]+)\*|_([^_]+)_/g,
+        type: 'italic'
+      },
+      // Inline code: `code`
+      {
+        regex: /`([^`]+)`/g,
+        type: 'code'
+      },
       // Roam page links: [[Page Name]]
       {
         regex: /\[\[([^\]]+)\]\]/g,
@@ -49,6 +64,30 @@ export const MessageRenderer: React.FC<MessageRendererProps> = ({ content, isUse
             type: pattern.type,
             text: match[1], // Link text
             url: match[2], // URL
+            originalMatch: match[0]
+          });
+        } else if (pattern.type === 'bold') {
+          allMatches.push({
+            start: match.index,
+            end: match.index + match[0].length,
+            type: pattern.type,
+            text: match[2], // Bold text content
+            originalMatch: match[0]
+          });
+        } else if (pattern.type === 'italic') {
+          allMatches.push({
+            start: match.index,
+            end: match.index + match[0].length,
+            type: pattern.type,
+            text: match[1] || match[2], // Italic text content
+            originalMatch: match[0]
+          });
+        } else if (pattern.type === 'code') {
+          allMatches.push({
+            start: match.index,
+            end: match.index + match[0].length,
+            type: pattern.type,
+            text: match[1], // Code content
             originalMatch: match[0]
           });
         } else if (pattern.type === 'roam-page') {
@@ -134,6 +173,32 @@ export const MessageRenderer: React.FC<MessageRendererProps> = ({ content, isUse
           </a>
         );
 
+      case 'bold':
+        return (
+          <strong key={index}>{match.text}</strong>
+        );
+
+      case 'italic':
+        return (
+          <em key={index}>{match.text}</em>
+        );
+
+      case 'code':
+        return (
+          <code
+            key={index}
+            style={{
+              backgroundColor: isUser ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.1)',
+              padding: '2px 4px',
+              borderRadius: '3px',
+              fontFamily: 'monospace',
+              fontSize: '0.9em'
+            }}
+          >
+            {match.text}
+          </code>
+        );
+
       case 'roam-page':
         return (
           <span
@@ -207,13 +272,40 @@ export const MessageRenderer: React.FC<MessageRendererProps> = ({ content, isUse
     const elements = parseContent(content);
     return elements.map((element, index) => {
       if (typeof element === 'string') {
-        // Handle line breaks in text
-        return element.split('\n').map((line, lineIndex, arr) => (
-          <React.Fragment key={`${index}-${lineIndex}`}>
-            {line}
-            {lineIndex < arr.length - 1 && <br />}
-          </React.Fragment>
-        ));
+        // Handle line breaks and list items in text
+        return element.split('\n').map((line, lineIndex, arr) => {
+          // Check if line starts with bullet point
+          const listMatch = line.match(/^(\s*)-\s(.+)$/);
+          if (listMatch) {
+            const indentLevel = listMatch[1].length / 2; // Assuming 2 spaces per indent
+            return (
+              <React.Fragment key={`${index}-${lineIndex}`}>
+                <div style={{ 
+                  marginLeft: `${indentLevel * 16}px`,
+                  display: 'flex',
+                  alignItems: 'flex-start',
+                  gap: '8px',
+                  margin: '2px 0'
+                }}>
+                  <span style={{ 
+                    color: isUser ? '#ffffff' : '#393A3D',
+                    fontWeight: 'bold',
+                    lineHeight: '1.6'
+                  }}>•</span>
+                  <span>{listMatch[2]}</span>
+                </div>
+                {lineIndex < arr.length - 1 && lineIndex < arr.length - 1 && arr[lineIndex + 1].trim() !== '' && <br />}
+              </React.Fragment>
+            );
+          }
+          
+          return (
+            <React.Fragment key={`${index}-${lineIndex}`}>
+              {line}
+              {lineIndex < arr.length - 1 && <br />}
+            </React.Fragment>
+          );
+        });
       }
       return element;
     });

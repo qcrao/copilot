@@ -62,9 +62,9 @@ export class AIService {
     return data.content[0]?.text || 'No response generated';
   }
 
-  private static async callGrok(settings: AISettings, messages: any[]): Promise<string> {
-    const provider = AI_PROVIDERS.find(p => p.id === 'grok');
-    if (!provider?.baseUrl) throw new Error('Grok provider not configured');
+  private static async callGroq(settings: AISettings, messages: any[]): Promise<string> {
+    const provider = AI_PROVIDERS.find(p => p.id === 'groq');
+    if (!provider?.baseUrl) throw new Error('Groq provider not configured');
 
     const response = await fetch(`${provider.baseUrl}/chat/completions`, {
       method: 'POST',
@@ -82,7 +82,34 @@ export class AIService {
 
     if (!response.ok) {
       const error = await response.json().catch(() => ({}));
-      throw new Error(`Grok API error: ${response.status} ${error.error?.message || response.statusText}`);
+      throw new Error(`Groq API error: ${response.status} ${error.error?.message || response.statusText}`);
+    }
+
+    const data = await response.json();
+    return data.choices[0]?.message?.content || 'No response generated';
+  }
+
+  private static async callXAI(settings: AISettings, messages: any[]): Promise<string> {
+    const provider = AI_PROVIDERS.find(p => p.id === 'xai');
+    if (!provider?.baseUrl) throw new Error('xAI provider not configured');
+
+    const response = await fetch(`${provider.baseUrl}/chat/completions`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${settings.apiKey}`,
+      },
+      body: JSON.stringify({
+        model: settings.model,
+        messages,
+        temperature: settings.temperature || 0.7,
+        max_tokens: settings.maxTokens || 2000,
+      }),
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      throw new Error(`xAI API error: ${response.status} ${error.error?.message || response.statusText}`);
     }
 
     const data = await response.json();
@@ -134,8 +161,10 @@ Please provide helpful, accurate responses based on the context provided. If the
           return await this.callOpenAI(settings, messages);
         case 'anthropic':
           return await this.callAnthropic(settings, messages);
-        case 'grok':
-          return await this.callGrok(settings, messages);
+        case 'groq':
+          return await this.callGroq(settings, messages);
+        case 'xai':
+          return await this.callXAI(settings, messages);
         default:
           throw new Error(`Unsupported AI provider: ${settings.provider}`);
       }

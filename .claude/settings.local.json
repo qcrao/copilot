@@ -14,7 +14,9 @@
       "Bash(npm run typecheck:*)",
       "Bash(npm run:*)",
       "Bash(npx tsc:*)",
-      "Bash(npx webpack:*)"
+      "Bash(npx webpack:*)",
+      "WebFetch(domain:openai.com)",
+      "WebFetch(domain:groq.com)"
     ],
     "deny": []
   }
