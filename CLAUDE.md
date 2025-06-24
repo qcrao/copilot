@@ -8,19 +8,13 @@ This is "Roam Copilot" - a Roam Research extension that provides an AI-powered c
 
 ## Build Commands
 
-### Development
+### Production Build (Recommended)
+
 ```bash
-npm run dev          # Watch mode development build
-npm run build        # Production build
+sh build.sh          # Primary build script for Roam extension
 ```
 
-### Alternative Build Scripts
-```bash
-./build.sh           # npm-based build with roamjs-scripts
-./bun-build.sh       # bun-based build with roamjs-scripts
-```
-
-Both build scripts use `roamjs-scripts build --depot` for Roam Research extension packaging.
+This is the main build command for compiling the Roam extension. It uses `roamjs-scripts build --depot` for proper Roam Research extension packaging.
 
 ## Architecture
 
@@ -53,33 +47,39 @@ Both build scripts use `roamjs-scripts build --depot` for Roam Research extensio
 ## Development Notes
 
 ### AI Providers
+
 - **OpenAI**: Standard chat completions API with system messages
 - **Anthropic**: Claude API with separate system/user message handling
 - **Grok**: xAI API compatible with OpenAI format
 
 ### Context Extraction
+
 - Extracts current page title and all blocks recursively
 - Gets visible blocks in current viewport
 - Includes selected text if any
 - Formats as structured markdown for AI consumption
 
 ### Roam API Usage
+
 - Uses Datalog queries via `roamAlphaAPI.q()` for page and block data
 - DOM inspection for visible content detection
 - Command palette integration for keyboard shortcuts
 
 ### UI Framework
+
 - Blueprint.js components for consistency with Roam
 - TailwindCSS for utility styling (with preflight disabled)
 - Custom CSS for chat interface and animations
 - Markdown rendering with syntax highlighting
 
 ### Build Output
+
 - `extension.js` - Main bundle (CommonJS format)
 - `extension.css` - Extracted styles with TailwindCSS
 - External dependencies: React, ReactDOM, Blueprint.js from Roam environment
 
 ### TypeScript Configuration
+
 - Target: ES2020 with strict mode enabled
 - JSX: React (external dependency)
 - Global Roam API types in `src/global.d.ts`
