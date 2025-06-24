@@ -148,7 +148,7 @@
   min-height: 20px;
   max-height: 120px;
   overflow-y: auto;
-  margin-bottom: 12px;
+  margin-bottom: 16px;
 }
 
 .input-textarea::placeholder {
