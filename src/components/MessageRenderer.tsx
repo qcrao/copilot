@@ -12,6 +12,11 @@ export const MessageRenderer: React.FC<MessageRendererProps> = ({ content, isUse
     
     // Define all patterns we want to match
     const patterns = [
+      // Headings: ### Header (must be at start of line)
+      {
+        regex: /^(#{1,6})\s+(.+)$/gm,
+        type: 'heading'
+      },
       // Markdown links: [text](url)
       {
         regex: /\[([^\]]+)\]\(([^)]+)\)/g,
@@ -57,7 +62,16 @@ export const MessageRenderer: React.FC<MessageRendererProps> = ({ content, isUse
     patterns.forEach(pattern => {
       let match;
       while ((match = pattern.regex.exec(text)) !== null) {
-        if (pattern.type === 'markdown-link') {
+        if (pattern.type === 'heading') {
+          allMatches.push({
+            start: match.index,
+            end: match.index + match[0].length,
+            type: pattern.type,
+            text: match[2], // Header text
+            url: match[1], // Header level (# ## ###)
+            originalMatch: match[0]
+          });
+        } else if (pattern.type === 'markdown-link') {
           allMatches.push({
             start: match.index,
             end: match.index + match[0].length,
@@ -148,6 +162,30 @@ export const MessageRenderer: React.FC<MessageRendererProps> = ({ content, isUse
 
   const renderMatchedElement = (match: any, index: number): React.ReactNode => {
     switch (match.type) {
+      case 'heading':
+        const level = match.url.length; // Number of # characters
+        const HeadingTag = `h${Math.min(level, 6)}` as keyof JSX.IntrinsicElements;
+        const fontSizeMap: { [key: number]: string } = {
+          1: '1.8em',
+          2: '1.5em', 
+          3: '1.3em',
+          4: '1.1em',
+          5: '1em',
+          6: '0.9em'
+        };
+        const fontSize = fontSizeMap[level] || '1em';
+        
+        return React.createElement(HeadingTag, {
+          key: index,
+          style: {
+            fontSize,
+            fontWeight: 'bold',
+            color: isUser ? '#ffffff' : '#393A3D',
+            margin: '16px 0 8px 0',
+            lineHeight: '1.3'
+          }
+        }, match.text);
+
       case 'markdown-link':
         return (
           <a

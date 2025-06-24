@@ -29,6 +29,30 @@ export class RoamService {
   }
 
   /**
+   * Get user name (using graph name as identifier)
+   */
+  static getUserName(): string | null {
+    try {
+      const graphName = this.getCurrentGraphName();
+      if (!graphName) {
+        return null;
+      }
+      
+      // Clean up the graph name for display
+      // Remove any URL encoding but keep original casing
+      let userName = decodeURIComponent(graphName);
+      
+      // Only replace underscores and hyphens with spaces, but preserve original casing
+      userName = userName.replace(/[_-]/g, ' ');
+      
+      return userName;
+    } catch (error) {
+      console.error("Error getting user name:", error);
+      return null;
+    }
+  }
+
+  /**
    * Detect if running in web or desktop environment
    */
   static isDesktopApp(): boolean {
