@@ -10,12 +10,27 @@ export const MessageRenderer: React.FC<MessageRendererProps> = ({ content, isUse
   const parseContent = (text: string): React.ReactNode[] => {
     const elements: React.ReactNode[] = [];
     
-    // Define all patterns we want to match
+    // Define all patterns we want to match (order matters for priority)
     const patterns = [
+      // List items: - item (must be at start of line, includes nested lists)
+      {
+        regex: /^(\s*)-\s+(.+)$/gm,
+        type: 'list-item'
+      },
+      // Horizontal rule: --- or *** (must be at start of line, 3 or more)
+      {
+        regex: /^(-{3,}|\*{3,}|_{3,})\s*$/gm,
+        type: 'horizontal-rule'
+      },
       // Headings: ### Header (must be at start of line)
       {
         regex: /^(#{1,6})\s+(.+)$/gm,
         type: 'heading'
+      },
+      // Code blocks: ```code``` (multiline)
+      {
+        regex: /```([\s\S]*?)```/g,
+        type: 'code-block'
       },
       // Markdown links: [text](url)
       {
@@ -24,23 +39,33 @@ export const MessageRenderer: React.FC<MessageRendererProps> = ({ content, isUse
       },
       // Bold text: **text** or __text__
       {
-        regex: /(\*\*|__)([^\*_]+)\1/g,
+        regex: /(\*\*|__)([^\*_]+?)\1/g,
         type: 'bold'
       },
-      // Italic text: *text* or _text_ (simple version to avoid lookbehind issues)
+      // Italic text: *text* or _text_ (simple approach to avoid conflicts)
       {
-        regex: /\*([^\*]+)\*|_([^_]+)_/g,
+        regex: /\b_([^_\n]+?)_\b|\*([^\*\n]+?)\*/g,
         type: 'italic'
+      },
+      // Strikethrough: ~~text~~
+      {
+        regex: /~~([^~]+?)~~/g,
+        type: 'strikethrough'
       },
       // Inline code: `code`
       {
-        regex: /`([^`]+)`/g,
+        regex: /`([^`\n]+?)`/g,
         type: 'code'
       },
       // Roam page links: [[Page Name]]
       {
         regex: /\[\[([^\]]+)\]\]/g,
         type: 'roam-page'
+      },
+      // Roam block references: ((block-uid))
+      {
+        regex: /\(\(([^)]+)\)\)/g,
+        type: 'roam-block'
       },
       // URLs: http:// or https://
       {
@@ -62,13 +87,38 @@ export const MessageRenderer: React.FC<MessageRendererProps> = ({ content, isUse
     patterns.forEach(pattern => {
       let match;
       while ((match = pattern.regex.exec(text)) !== null) {
-        if (pattern.type === 'heading') {
+        if (pattern.type === 'list-item') {
+          allMatches.push({
+            start: match.index,
+            end: match.index + match[0].length,
+            type: pattern.type,
+            text: match[2], // List item content
+            url: match[1], // Indentation level
+            originalMatch: match[0]
+          });
+        } else if (pattern.type === 'horizontal-rule') {
+          allMatches.push({
+            start: match.index,
+            end: match.index + match[0].length,
+            type: pattern.type,
+            text: '', // No text content for HR
+            originalMatch: match[0]
+          });
+        } else if (pattern.type === 'heading') {
           allMatches.push({
             start: match.index,
             end: match.index + match[0].length,
             type: pattern.type,
             text: match[2], // Header text
             url: match[1], // Header level (# ## ###)
+            originalMatch: match[0]
+          });
+        } else if (pattern.type === 'code-block') {
+          allMatches.push({
+            start: match.index,
+            end: match.index + match[0].length,
+            type: pattern.type,
+            text: match[1], // Code content
             originalMatch: match[0]
           });
         } else if (pattern.type === 'markdown-link') {
@@ -96,6 +146,14 @@ export const MessageRenderer: React.FC<MessageRendererProps> = ({ content, isUse
             text: match[1] || match[2], // Italic text content
             originalMatch: match[0]
           });
+        } else if (pattern.type === 'strikethrough') {
+          allMatches.push({
+            start: match.index,
+            end: match.index + match[0].length,
+            type: pattern.type,
+            text: match[1], // Strikethrough text content
+            originalMatch: match[0]
+          });
         } else if (pattern.type === 'code') {
           allMatches.push({
             start: match.index,
@@ -110,6 +168,14 @@ export const MessageRenderer: React.FC<MessageRendererProps> = ({ content, isUse
             end: match.index + match[0].length,
             type: pattern.type,
             text: match[1], // Page name
+            originalMatch: match[0]
+          });
+        } else if (pattern.type === 'roam-block') {
+          allMatches.push({
+            start: match.index,
+            end: match.index + match[0].length,
+            type: pattern.type,
+            text: match[1], // Block UID
             originalMatch: match[0]
           });
         } else if (pattern.type === 'url') {
@@ -162,6 +228,49 @@ export const MessageRenderer: React.FC<MessageRendererProps> = ({ content, isUse
 
   const renderMatchedElement = (match: any, index: number): React.ReactNode => {
     switch (match.type) {
+      case 'list-item':
+        const indentLevel = (match.url?.length || 0) / 2; // Calculate indent from spaces
+        return (
+          <div
+            key={index}
+            style={{ 
+              marginLeft: `${indentLevel * 16}px`,
+              display: 'flex',
+              alignItems: 'flex-start',
+              gap: '8px',
+              margin: '2px 0',
+              lineHeight: '1.6'
+            }}
+          >
+            <span style={{ 
+              color: isUser ? '#ffffff' : '#393A3D',
+              fontWeight: 'bold',
+              lineHeight: '1.6',
+              marginTop: '1px'
+            }}>•</span>
+            <span style={{ flex: 1 }}>
+              {parseContent(match.text).map((subElement, subIndex) => 
+                React.isValidElement(subElement) 
+                  ? React.cloneElement(subElement as React.ReactElement, { key: `list-${index}-${subIndex}` })
+                  : subElement
+              )}
+            </span>
+          </div>
+        );
+
+      case 'horizontal-rule':
+        return (
+          <hr
+            key={index}
+            style={{
+              border: 'none',
+              borderTop: `2px solid ${isUser ? 'rgba(255,255,255,0.3)' : 'rgba(57,58,61,0.3)'}`,
+              margin: '16px 0',
+              width: '100%'
+            }}
+          />
+        );
+
       case 'heading':
         const level = match.url.length; // Number of # characters
         const HeadingTag = `h${Math.min(level, 6)}` as keyof JSX.IntrinsicElements;
@@ -185,6 +294,26 @@ export const MessageRenderer: React.FC<MessageRendererProps> = ({ content, isUse
             lineHeight: '1.3'
           }
         }, match.text);
+
+      case 'code-block':
+        return (
+          <pre
+            key={index}
+            style={{
+              backgroundColor: isUser ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.1)',
+              padding: '12px',
+              borderRadius: '6px',
+              fontFamily: 'monospace',
+              fontSize: '0.9em',
+              overflow: 'auto',
+              margin: '8px 0',
+              whiteSpace: 'pre-wrap',
+              border: `1px solid ${isUser ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.2)'}`
+            }}
+          >
+            <code>{match.text}</code>
+          </pre>
+        );
 
       case 'markdown-link':
         return (
@@ -219,6 +348,19 @@ export const MessageRenderer: React.FC<MessageRendererProps> = ({ content, isUse
       case 'italic':
         return (
           <em key={index}>{match.text}</em>
+        );
+
+      case 'strikethrough':
+        return (
+          <span
+            key={index}
+            style={{
+              textDecoration: 'line-through',
+              color: isUser ? 'rgba(255,255,255,0.7)' : 'rgba(57,58,61,0.7)'
+            }}
+          >
+            {match.text}
+          </span>
         );
 
       case 'code':
@@ -256,6 +398,29 @@ export const MessageRenderer: React.FC<MessageRendererProps> = ({ content, isUse
             title={`Roam page: ${match.text}`}
           >
             {match.text}
+          </span>
+        );
+
+      case 'roam-block':
+        return (
+          <span
+            key={index}
+            style={{
+              backgroundColor: isUser ? 'rgba(255,255,255,0.15)' : 'rgba(57,58,61,0.08)',
+              color: isUser ? '#ffffff' : '#393A3D',
+              padding: '1px 4px',
+              borderRadius: '3px',
+              fontFamily: 'monospace',
+              fontSize: '0.85em',
+              border: `1px dashed ${isUser ? 'rgba(255,255,255,0.4)' : 'rgba(57,58,61,0.4)'}`,
+              cursor: 'default',
+              margin: '1px 0',
+              display: 'inline-block',
+              lineHeight: '1.2'
+            }}
+            title={`Roam block: ${match.text}`}
+          >
+            (({match.text}))
           </span>
         );
 
@@ -310,42 +475,13 @@ export const MessageRenderer: React.FC<MessageRendererProps> = ({ content, isUse
     const elements = parseContent(content);
     return elements.map((element, index) => {
       if (typeof element === 'string') {
-        // Handle line breaks and list items in text
-        return element.split('\n').map((line, lineIndex, arr) => {
-          // Convert to bullet point if it's a list item:
-          // - Must start with optional whitespace, then "-", then space/content
-          // - Content should be non-empty after trimming
-          const listMatch = line.match(/^(\s*)-\s*(.+)$/);
-          if (listMatch && listMatch[2].trim().length > 0) {
-            const indentLevel = listMatch[1].length / 2; // Assuming 2 spaces per indent
-            return (
-              <React.Fragment key={`${index}-${lineIndex}`}>
-                <div style={{ 
-                  marginLeft: `${indentLevel * 16}px`,
-                  display: 'flex',
-                  alignItems: 'flex-start',
-                  gap: '8px',
-                  margin: '2px 0'
-                }}>
-                  <span style={{ 
-                    color: isUser ? '#ffffff' : '#393A3D',
-                    fontWeight: 'bold',
-                    lineHeight: '1.6'
-                  }}>•</span>
-                  <span>{listMatch[2]}</span>
-                </div>
-                {lineIndex < arr.length - 1 && lineIndex < arr.length - 1 && arr[lineIndex + 1].trim() !== '' && <br />}
-              </React.Fragment>
-            );
-          }
-          
-          return (
-            <React.Fragment key={`${index}-${lineIndex}`}>
-              {line}
-              {lineIndex < arr.length - 1 && <br />}
-            </React.Fragment>
-          );
-        });
+        // Handle line breaks in remaining text
+        return element.split('\n').map((line, lineIndex, arr) => (
+          <React.Fragment key={`${index}-${lineIndex}`}>
+            {line}
+            {lineIndex < arr.length - 1 && <br />}
+          </React.Fragment>
+        ));
       }
       return element;
     });
