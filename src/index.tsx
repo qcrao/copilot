@@ -8,6 +8,7 @@ import "./styles.css";
 
 let copilotState = {
   isOpen: false,
+  isVisible: true,
   container: null as HTMLDivElement | null,
   root: null as any,
 };
@@ -19,16 +20,23 @@ const toggleCopilot = () => {
 
 const openCopilot = () => {
   copilotState.isOpen = true;
+  copilotState.isVisible = true;
   renderCopilot();
 };
 
 const closeCopilot = () => {
   copilotState.isOpen = false;
+  copilotState.isVisible = false;
   renderCopilot();
 };
 
 const renderCopilot = () => {
   if (!copilotState.root) return;
+
+  if (!copilotState.isVisible) {
+    copilotState.root.render(null);
+    return;
+  }
 
   copilotState.root.render(
     <CopilotWidget

@@ -37,6 +37,7 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
   });
 
   const [pageContext, setPageContext] = useState<PageContext | null>(null);
+  const [isHoveringMinimized, setIsHoveringMinimized] = useState(false);
 
   useEffect(() => {
     setState((prev) => ({
@@ -208,10 +209,50 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
       <div className="roam-copilot-container">
         <div
           className="roam-copilot-minimized"
-          onClick={onToggle}
-          title="Open Roam Copilot"
+          onMouseEnter={() => setIsHoveringMinimized(true)}
+          onMouseLeave={() => setIsHoveringMinimized(false)}
+          style={{ position: "relative" }}
         >
-          <Icon icon={IconNames.LIGHTBULB} size={24} color="white" />
+          <div
+            onClick={onToggle}
+            title="Open Roam Copilot"
+            style={{ 
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              width: "100%",
+              height: "100%",
+              cursor: "pointer"
+            }}
+          >
+            <Icon icon={IconNames.LIGHTBULB} size={24} color="white" />
+          </div>
+          {isHoveringMinimized && (
+            <Button
+              minimal
+              small
+              icon="cross"
+              onClick={(e) => {
+                e.stopPropagation();
+                onClose();
+              }}
+              title="Close Copilot"
+              style={{
+                position: "absolute",
+                top: "-8px",
+                right: "-8px",
+                backgroundColor: "#f55656",
+                color: "white",
+                borderRadius: "50%",
+                width: "20px",
+                height: "20px",
+                minWidth: "20px",
+                minHeight: "20px",
+                padding: "0",
+                boxShadow: "0 2px 4px rgba(0,0,0,0.2)"
+              }}
+            />
+          )}
         </div>
       </div>
     );
@@ -220,27 +261,18 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
   return (
     <div className="roam-copilot-container">
       <div className="roam-copilot-expanded">
-        <div className="roam-copilot-header">
+        <div className="roam-copilot-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%" }}>
           <span className="flex items-center gap-2">
             <Icon icon={IconNames.LIGHTBULB} size={16} />
             Roam Copilot
           </span>
-          <div className="flex items-center gap-2">
-            <Button
-              minimal
-              small
-              icon="minus"
-              onClick={onToggle}
-              title="Minimize"
-            />
-            <Button
-              minimal
-              small
-              icon="cross"
-              onClick={onClose}
-              title="Close"
-            />
-          </div>
+          <Button
+            minimal
+            small
+            icon="minus"
+            onClick={onToggle}
+            title="Minimize"
+          />
         </div>
 
         <div
