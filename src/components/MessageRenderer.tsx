@@ -274,9 +274,11 @@ export const MessageRenderer: React.FC<MessageRendererProps> = ({ content, isUse
       if (typeof element === 'string') {
         // Handle line breaks and list items in text
         return element.split('\n').map((line, lineIndex, arr) => {
-          // Check if line starts with bullet point
-          const listMatch = line.match(/^(\s*)-\s(.+)$/);
-          if (listMatch) {
+          // Only convert to bullet point if it's clearly a list item:
+          // - Must start with optional whitespace, then "-", then space, then content
+          // - Content should be substantial (more than just a single dash)
+          const listMatch = line.match(/^(\s*)-\s+(.{2,})$/);
+          if (listMatch && listMatch[2].trim().length > 1) {
             const indentLevel = listMatch[1].length / 2; // Assuming 2 spaces per indent
             return (
               <React.Fragment key={`${index}-${lineIndex}`}>
