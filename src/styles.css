@@ -89,7 +89,6 @@
   background-color: #f8f9fa !important;
 }
 
-
 /* Typing indicator styling */
 .roam-copilot-expanded .cs-typing-indicator {
   background-color: transparent !important;
@@ -111,30 +110,32 @@
   background: transparent !important;
 }
 
-/* Custom Message Input - Claude-style */
-.custom-message-input {
+/* Simplified Input Component */
+.input-container {
   padding: 16px;
   background: white;
   border-top: 1px solid #e5e7eb;
 }
 
-.custom-message-input__container {
+.input-box {
   position: relative;
   display: flex;
-  align-items: flex-end;
+  flex-direction: column;
+  background: #f8f9fa;
+  border: 1px solid #e5e7eb;
+  border-radius: 20px;
+  padding: 16px;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+.input-box:focus-within {
+  border-color: #106ba3;
   background: white;
-  border: 1px solid #d1d5db;
-  border-radius: 12px;
-  padding: 8px 52px 8px 16px;
-  transition: border-color 0.2s ease;
+  box-shadow: 0 0 0 3px rgba(16, 107, 163, 0.1);
 }
 
-.custom-message-input__container:focus-within {
-  border-color: #9ca3af;
-  outline: none;
-}
-
-.custom-message-input__textarea {
+.input-textarea {
   width: 100%;
   background: transparent;
   border: none;
@@ -147,54 +148,94 @@
   min-height: 20px;
   max-height: 120px;
   overflow-y: auto;
+  margin-bottom: 12px;
 }
 
-.custom-message-input__textarea::placeholder {
-  color: #9ca3af;
+.input-textarea::placeholder {
+  color: #6b7280;
 }
 
-.custom-message-input__textarea:disabled {
+.input-textarea:disabled {
   color: #9ca3af;
   cursor: not-allowed;
 }
 
-.custom-message-input__send-button {
-  position: absolute;
-  right: 0px;
-  bottom: 0px;
-  width: 36px;
-  height: 36px;
+.input-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 32px;
+}
+
+.model-selector {
+  height: 32px;
+  width: 120px;
+  padding: 0 12px;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  background-color: white;
+  color: #6b7280;
+  font-size: 12px;
+  cursor: pointer;
+  outline: none;
+  appearance: none;
+  background-image: url("data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%23666666%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E");
+  background-repeat: no-repeat;
+  background-position: right 8px center;
+  background-size: 8px 8px;
+}
+
+.model-selector:hover {
+  border-color: #d1d5db;
+}
+
+.model-selector:focus {
+  border-color: #106ba3;
+  box-shadow: 0 0 0 2px rgba(16, 107, 163, 0.1);
+}
+
+.model-selector:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.send-button {
+  width: 32px;
+  height: 32px;
   border: none;
-  border-radius: 12px;
+  border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
   transition: all 0.2s ease;
   outline: none;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
-.custom-message-input__send-button.active {
-  background-color: #ea7b47;
+.send-button.active {
+  background-color: #106ba3;
   color: white;
 }
 
-.custom-message-input__send-button.active:hover {
-  background-color: #dc6536;
+.send-button.active:hover {
+  background-color: #0d5a8a;
   transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(16, 107, 163, 0.3);
 }
 
-.custom-message-input__send-button.active:active {
+.send-button.active:active {
   transform: translateY(0);
 }
 
-.custom-message-input__send-button.inactive {
-  background-color: #f3f4f6;
+.send-button.inactive {
+  background-color: #e5e7eb;
   color: #9ca3af;
   cursor: not-allowed;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
-.custom-message-input__send-button:disabled {
+.send-button:disabled {
   cursor: not-allowed;
 }
 

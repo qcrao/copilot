@@ -1,31 +1,36 @@
 // src/components/CustomMessageInput.tsx
-import React, { useState, useRef, useEffect, KeyboardEvent } from 'react';
+import React, { useState, useRef, useEffect, KeyboardEvent } from "react";
+import { aiSettings } from "../settings";
+import { AI_PROVIDERS } from "../types";
 
 interface CustomMessageInputProps {
   placeholder?: string;
   onSend: (message: string) => void;
   disabled?: boolean;
+  onModelChange?: (model: string) => void;
 }
 
 export const CustomMessageInput: React.FC<CustomMessageInputProps> = ({
   placeholder = "Ask me anything about your notes...",
   onSend,
   disabled = false,
+  onModelChange,
 }) => {
-  const [value, setValue] = useState('');
+  const [value, setValue] = useState("");
+  const [selectedModel, setSelectedModel] = useState(aiSettings.model);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   // Auto-resize textarea
   useEffect(() => {
     const textarea = textareaRef.current;
     if (textarea) {
-      textarea.style.height = 'auto';
+      textarea.style.height = "auto";
       textarea.style.height = `${Math.min(textarea.scrollHeight, 120)}px`;
     }
   }, [value]);
 
   const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
+    if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       handleSend();
     }
@@ -35,18 +40,45 @@ export const CustomMessageInput: React.FC<CustomMessageInputProps> = ({
     const message = value.trim();
     if (message && !disabled) {
       onSend(message);
-      setValue('');
+      setValue("");
+    }
+  };
+
+  const handleModelChange = (newModel: string) => {
+    setSelectedModel(newModel);
+    aiSettings.model = newModel;
+
+    // Save to extension settings if available
+    if (typeof window !== "undefined" && (window as any).roamAlphaAPI) {
+      try {
+        const extensionAPI = (window as any).roamAlphaAPI.ui.commandPalette;
+        if (extensionAPI && extensionAPI.settings) {
+          extensionAPI.settings.set("copilot-model", newModel);
+        }
+      } catch (error) {
+        console.log("Could not save model setting:", error);
+      }
+    }
+
+    if (onModelChange) {
+      onModelChange(newModel);
     }
   };
 
   const canSend = value.trim().length > 0 && !disabled;
 
+  // Get current provider and its models
+  const currentProvider = AI_PROVIDERS.find(
+    (p) => p.id === aiSettings.provider
+  );
+  const availableModels = currentProvider?.models || [];
+
   return (
-    <div className="custom-message-input">
-      <div className="custom-message-input__container">
+    <div className="input-container">
+      <div className="input-box">
         <textarea
           ref={textareaRef}
-          className="custom-message-input__textarea"
+          className="input-textarea"
           placeholder={placeholder}
           value={value}
           onChange={(e) => setValue(e.target.value)}
@@ -54,28 +86,45 @@ export const CustomMessageInput: React.FC<CustomMessageInputProps> = ({
           disabled={disabled}
           rows={1}
         />
-        <button
-          className={`custom-message-input__send-button ${canSend ? 'active' : 'inactive'}`}
-          onClick={handleSend}
-          disabled={!canSend}
-          type="button"
-        >
-          <svg
-            width="16"
-            height="16"
-            viewBox="0 0 16 16"
-            fill="none"
-            xmlns="http://www.w3.org/2000/svg"
+
+        <div className="input-toolbar">
+          <select
+            value={selectedModel}
+            onChange={(e) => handleModelChange(e.target.value)}
+            className="model-selector"
+            disabled={disabled}
           >
-            <path
-              d="M8 2L8 14M8 2L3 7M8 2L13 7"
-              stroke="currentColor"
-              strokeWidth="1.5"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </svg>
-        </button>
+            {availableModels.map((model) => (
+              <option key={model} value={model}>
+                {model}
+              </option>
+            ))}
+          </select>
+
+          <button
+            className={`send-button ${canSend ? "active" : "inactive"}`}
+            onClick={handleSend}
+            disabled={!canSend}
+            type="button"
+            title="Send message"
+          >
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 16 16"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <path
+                d="M8 2L8 14M8 2L3 7M8 2L13 7"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          </button>
+        </div>
       </div>
     </div>
   );
