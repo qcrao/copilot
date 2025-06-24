@@ -1,5 +1,5 @@
 // src/settings.ts
-import { AISettings, AI_PROVIDERS } from "./types";
+import { AISettings, MultiProviderSettings, AI_PROVIDERS } from "./types";
 
 const DEFAULT_SETTINGS: AISettings = {
   provider: "openai",
@@ -9,25 +9,49 @@ const DEFAULT_SETTINGS: AISettings = {
   maxTokens: 2000,
 };
 
+// New multi-provider settings
+export let multiProviderSettings: MultiProviderSettings = {
+  apiKeys: {},
+  currentModel: "gpt-4o-mini",
+  temperature: 0.7,
+  maxTokens: 2000,
+};
+
 export let aiSettings: AISettings = { ...DEFAULT_SETTINGS };
 
 export function loadInitialSettings(extensionAPI: any) {
+  // Load new multi-provider settings
+  const savedCurrentModel = extensionAPI.settings.get("copilot-current-model");
+  const savedTemperature = extensionAPI.settings.get("copilot-temperature");
+  const savedMaxTokens = extensionAPI.settings.get("copilot-max-tokens");
+
+  // Load API keys for all providers
+  const apiKeys: { [providerId: string]: string } = {};
+  AI_PROVIDERS.forEach(provider => {
+    const savedKey = extensionAPI.settings.get(`copilot-api-key-${provider.id}`);
+    if (savedKey) {
+      apiKeys[provider.id] = savedKey;
+    }
+  });
+
+  multiProviderSettings = {
+    apiKeys,
+    currentModel: savedCurrentModel || "gpt-4o-mini",
+    temperature: savedTemperature ? parseFloat(savedTemperature) : 0.7,
+    maxTokens: savedMaxTokens ? parseInt(savedMaxTokens) : 2000,
+  };
+
+  // Keep legacy settings for backward compatibility
   const savedProvider = extensionAPI.settings.get("copilot-provider");
   const savedModel = extensionAPI.settings.get("copilot-model");
   const savedApiKey = extensionAPI.settings.get("copilot-api-key");
-  const savedTemperature = extensionAPI.settings.get("copilot-temperature");
-  const savedMaxTokens = extensionAPI.settings.get("copilot-max-tokens");
 
   aiSettings = {
     provider: savedProvider || DEFAULT_SETTINGS.provider,
     model: savedModel || DEFAULT_SETTINGS.model,
     apiKey: savedApiKey || DEFAULT_SETTINGS.apiKey,
-    temperature: savedTemperature
-      ? parseFloat(savedTemperature)
-      : DEFAULT_SETTINGS.temperature,
-    maxTokens: savedMaxTokens
-      ? parseInt(savedMaxTokens)
-      : DEFAULT_SETTINGS.maxTokens,
+    temperature: multiProviderSettings.temperature || DEFAULT_SETTINGS.temperature,
+    maxTokens: multiProviderSettings.maxTokens || DEFAULT_SETTINGS.maxTokens,
   };
 }
 
@@ -35,6 +59,28 @@ export function loadInitialSettings(extensionAPI: any) {
 function getModelsForProvider(providerId: string) {
   const provider = AI_PROVIDERS.find((p) => p.id === providerId);
   return provider ? provider.models : [];
+}
+
+// Helper function to get all available models (only providers with API keys)
+export function getAvailableModels(): Array<{model: string, provider: string, providerName: string}> {
+  const availableModels: Array<{model: string, provider: string, providerName: string}> = [];
+  
+  AI_PROVIDERS.forEach(provider => {
+    const hasApiKey = multiProviderSettings.apiKeys[provider.id] && 
+                     multiProviderSettings.apiKeys[provider.id].trim() !== '';
+    
+    if (hasApiKey) {
+      provider.models.forEach(model => {
+        availableModels.push({
+          model,
+          provider: provider.id,
+          providerName: provider.name
+        });
+      });
+    }
+  });
+  
+  return availableModels;
 }
 
 // Helper function to update model dropdown
@@ -136,125 +182,29 @@ function updateModelDropdown(extensionAPI: any, providerId: string) {
 }
 
 export function initPanelConfig(extensionAPI: any) {
-  // Get initial models for current provider
-  const initialModelItems = getModelsForProvider(aiSettings.provider);
-  
-  console.log("initPanelConfig - Current provider:", aiSettings.provider);
-  console.log("initPanelConfig - Available models:", initialModelItems);
-  console.log("initPanelConfig - Current model:", aiSettings.model);
-  
-  // Ensure current model is valid for current provider
-  if (initialModelItems.length > 0) {
-    if (!initialModelItems.includes(aiSettings.model)) {
-      aiSettings.model = initialModelItems[0];
-      extensionAPI.settings.set("copilot-model", aiSettings.model);
-      console.log("initPanelConfig - Updated model to:", aiSettings.model);
-    }
-  } else {
-    console.log("initPanelConfig - No models available for provider:", aiSettings.provider);
-    // Fallback to OpenAI if no models found
-    aiSettings.provider = "openai";
-    extensionAPI.settings.set("copilot-provider", "openai");
-    const fallbackModels = getModelsForProvider("openai");
-    if (fallbackModels.length > 0) {
-      aiSettings.model = fallbackModels[0];
-      extensionAPI.settings.set("copilot-model", aiSettings.model);
-      console.log("initPanelConfig - Fallback to OpenAI with model:", aiSettings.model);
-    }
-  }
-  
-  // Get current provider name for display
-  const currentProvider = AI_PROVIDERS.find(p => p.id === aiSettings.provider);
-  const currentProviderName = currentProvider ? currentProvider.name : AI_PROVIDERS[0].name;
-  
-  // Re-get models in case provider was changed in fallback
-  const finalModelItems = getModelsForProvider(aiSettings.provider);
-  console.log("initPanelConfig - Final models for UI:", finalModelItems);
-  console.log("initPanelConfig - Final provider name:", currentProviderName);
-  console.log("initPanelConfig - Final model:", aiSettings.model);
+  // Create settings for all providers
+  const providerSettings = AI_PROVIDERS.map(provider => ({
+    id: `copilot-api-key-${provider.id}`,
+    name: `${provider.name} API Key`,
+    description: `Enter your ${provider.name} API key`,
+    action: {
+      type: "input",
+      placeholder: `Enter your ${provider.name} API key...`,
+      value: multiProviderSettings.apiKeys[provider.id] || "",
+      onChange: (evt: any) => {
+        const value = evt?.target?.value;
+        if (value === undefined) return;
+
+        multiProviderSettings.apiKeys[provider.id] = value;
+        extensionAPI.settings.set(`copilot-api-key-${provider.id}`, value);
+      },
+    },
+  }));
 
   return {
     tabTitle: "Roam Copilot",
     settings: [
-      {
-        id: "copilot-provider",
-        name: "AI Provider",
-        description: "Choose your AI provider",
-        action: {
-          type: "select",
-          items: AI_PROVIDERS.map((provider) => provider.name),
-          value: currentProviderName,
-          onChange: (evt: any) => {
-            console.log("Provider onChange event:", evt);
-            
-            // Try different ways to get the value
-            const value = evt?.target?.value || evt?.value || evt;
-            console.log("Provider changed to:", value);
-            
-            if (!value) {
-              console.log("No value found in event");
-              return;
-            }
-
-            // Find provider by name and get its id
-            const provider = AI_PROVIDERS.find((p) => p.name === value);
-            if (!provider) {
-              console.log("Provider not found for name:", value);
-              return;
-            }
-
-            console.log("Provider ID:", provider.id);
-            console.log("Provider models:", provider.models);
-
-            aiSettings.provider = provider.id;
-            extensionAPI.settings.set("copilot-provider", provider.id);
-
-            // Update model dropdown with new provider's models
-            updateModelDropdown(extensionAPI, provider.id);
-          },
-        },
-      },
-      {
-        id: "copilot-model",
-        name: "AI Model",
-        description: "Choose the AI model to use",
-        action: {
-          type: "select",
-          items: finalModelItems, // Populate with final models
-          value: aiSettings.model,
-          onChange: (evt: any) => {
-            console.log("Model onChange event:", evt);
-            
-            const value = evt?.target?.value || evt?.value || evt;
-            console.log("Model changed to:", value);
-            
-            if (!value) {
-              console.log("No model value found in event");
-              return;
-            }
-
-            aiSettings.model = value;
-            extensionAPI.settings.set("copilot-model", value);
-          },
-        },
-      },
-      {
-        id: "copilot-api-key",
-        name: "API Key",
-        description: "Enter your API key for the selected provider",
-        action: {
-          type: "input",
-          placeholder: "Enter your API key...",
-          value: aiSettings.apiKey,
-          onChange: (evt: any) => {
-            const value = evt?.target?.value;
-            if (value === undefined) return;
-
-            aiSettings.apiKey = value;
-            extensionAPI.settings.set("copilot-api-key", value);
-          },
-        },
-      },
+      ...providerSettings,
       {
         id: "copilot-temperature",
         name: "Temperature",
@@ -262,14 +212,14 @@ export function initPanelConfig(extensionAPI: any) {
         action: {
           type: "input",
           placeholder: "0.7",
-          value: aiSettings.temperature?.toString(),
+          value: multiProviderSettings.temperature?.toString(),
           onChange: (evt: any) => {
             const value = evt?.target?.value;
             if (!value) return;
 
             const temp = parseFloat(value);
             if (!isNaN(temp) && temp >= 0 && temp <= 1) {
-              aiSettings.temperature = temp;
+              multiProviderSettings.temperature = temp;
               extensionAPI.settings.set("copilot-temperature", temp.toString());
             }
           },
@@ -282,18 +232,15 @@ export function initPanelConfig(extensionAPI: any) {
         action: {
           type: "input",
           placeholder: "2000",
-          value: aiSettings.maxTokens?.toString(),
+          value: multiProviderSettings.maxTokens?.toString(),
           onChange: (evt: any) => {
             const value = evt?.target?.value;
             if (!value) return;
 
             const tokens = parseInt(value);
             if (!isNaN(tokens) && tokens > 0) {
-              aiSettings.maxTokens = tokens;
-              extensionAPI.settings.set(
-                "copilot-max-tokens",
-                tokens.toString()
-              );
+              multiProviderSettings.maxTokens = tokens;
+              extensionAPI.settings.set("copilot-max-tokens", tokens.toString());
             }
           },
         },

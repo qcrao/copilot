@@ -12,7 +12,7 @@ import "@chatscope/chat-ui-kit-styles/dist/default/styles.min.css";
 import { ChatMessage, CopilotState, PageContext } from "../types";
 import { AIService } from "../services/aiService";
 import { RoamService } from "../services/roamService";
-import { aiSettings } from "../settings";
+import { aiSettings, multiProviderSettings } from "../settings";
 import { CustomMessageInput } from "./CustomMessageInput";
 import { MessageRenderer } from "./MessageRenderer";
 
@@ -155,7 +155,12 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
       setPageContext(freshContext);
 
       // Get model-specific token limit for context
-      const maxContextTokens = RoamService.getModelTokenLimit(aiSettings.provider, aiSettings.model);
+      const currentModel = multiProviderSettings.currentModel;
+      const provider = AIService.getProviderForModel(currentModel);
+      const maxContextTokens = RoamService.getModelTokenLimit(
+        provider?.provider?.id || 'openai', 
+        currentModel
+      );
 
       const contextString = freshContext
         ? RoamService.formatContextForAI(freshContext, maxContextTokens)
@@ -164,10 +169,10 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
       console.log("Sending message with context:", {
         currentPage: freshContext?.currentPage?.title,
         blocksCount: freshContext?.currentPage?.blocks?.length || 0,
+        model: currentModel,
       });
 
-      const response = await AIService.sendMessage(
-        aiSettings,
+      const response = await AIService.sendMessageWithCurrentModel(
         userMessage,
         contextString
       );

@@ -40,10 +40,17 @@
 }
 
 .roam-copilot-expanded {
-  width: min(400px, calc(100vw - 40px));
-  height: min(600px, calc(100vh - 40px));
-  max-width: 400px;
-  max-height: 600px;
+  /* Dynamic sizing based on screen size */
+  width: min(
+    max(400px, min(35vw, 600px)), /* Between 400px and 35% of viewport width, max 600px */
+    calc(100vw - 40px) /* Never exceed viewport minus padding */
+  );
+  height: min(
+    max(600px, min(70vh, 800px)), /* Between 600px and 70% of viewport height, max 800px */
+    calc(100vh - 40px) /* Never exceed viewport minus padding */
+  );
+  max-width: 600px; /* Increased max width for larger screens */
+  max-height: 800px; /* Increased max height for larger screens */
   background: white;
   border-radius: 12px;
   box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);

@@ -1,6 +1,6 @@
 // src/components/CustomMessageInput.tsx
 import React, { useState, useRef, useEffect, KeyboardEvent } from "react";
-import { aiSettings } from "../settings";
+import { aiSettings, multiProviderSettings, getAvailableModels } from "../settings";
 import { AI_PROVIDERS } from "../types";
 
 interface CustomMessageInputProps {
@@ -17,7 +17,7 @@ export const CustomMessageInput: React.FC<CustomMessageInputProps> = ({
   onModelChange,
 }) => {
   const [value, setValue] = useState("");
-  const [selectedModel, setSelectedModel] = useState(aiSettings.model);
+  const [selectedModel, setSelectedModel] = useState(multiProviderSettings.currentModel);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   // Auto-resize textarea
@@ -46,14 +46,14 @@ export const CustomMessageInput: React.FC<CustomMessageInputProps> = ({
 
   const handleModelChange = (newModel: string) => {
     setSelectedModel(newModel);
-    aiSettings.model = newModel;
+    multiProviderSettings.currentModel = newModel;
 
     // Save to extension settings if available
     if (typeof window !== "undefined" && (window as any).roamAlphaAPI) {
       try {
         const extensionAPI = (window as any).roamAlphaAPI.ui.commandPalette;
         if (extensionAPI && extensionAPI.settings) {
-          extensionAPI.settings.set("copilot-model", newModel);
+          extensionAPI.settings.set("copilot-current-model", newModel);
         }
       } catch (error) {
         console.log("Could not save model setting:", error);
@@ -67,11 +67,8 @@ export const CustomMessageInput: React.FC<CustomMessageInputProps> = ({
 
   const canSend = value.trim().length > 0 && !disabled;
 
-  // Get current provider and its models
-  const currentProvider = AI_PROVIDERS.find(
-    (p) => p.id === aiSettings.provider
-  );
-  const availableModels = currentProvider?.models || [];
+  // Get all available models from providers with API keys
+  const availableModels = getAvailableModels();
 
   return (
     <div className="input-container">
@@ -94,11 +91,15 @@ export const CustomMessageInput: React.FC<CustomMessageInputProps> = ({
             className="model-selector"
             disabled={disabled}
           >
-            {availableModels.map((model) => (
-              <option key={model} value={model}>
-                {model}
-              </option>
-            ))}
+            {availableModels.length === 0 ? (
+              <option value="">No API keys configured</option>
+            ) : (
+              availableModels.map((modelInfo) => (
+                <option key={`${modelInfo.provider}-${modelInfo.model}`} value={modelInfo.model}>
+                  {modelInfo.model}
+                </option>
+              ))
+            )}
           </select>
 
           <button

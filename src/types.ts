@@ -15,6 +15,13 @@ export interface AISettings {
   maxTokens?: number;
 }
 
+export interface MultiProviderSettings {
+  apiKeys: { [providerId: string]: string };
+  currentModel: string;
+  temperature?: number;
+  maxTokens?: number;
+}
+
 export interface ChatMessage {
   id: string;
   role: "user" | "assistant";

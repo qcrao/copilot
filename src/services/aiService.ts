@@ -1,7 +1,21 @@
 // src/services/aiService.ts
 import { AISettings, AI_PROVIDERS } from "../types";
+import { multiProviderSettings } from "../settings";
 
 export class AIService {
+  // Helper function to get provider for a specific model
+  static getProviderForModel(model: string): {provider: any, apiKey: string} | null {
+    for (const provider of AI_PROVIDERS) {
+      if (provider.models.includes(model)) {
+        const apiKey = multiProviderSettings.apiKeys[provider.id];
+        if (apiKey && apiKey.trim() !== '') {
+          return { provider, apiKey };
+        }
+      }
+    }
+    return null;
+  }
+
   private static async callOpenAI(settings: AISettings, messages: any[]): Promise<string> {
     const provider = AI_PROVIDERS.find(p => p.id === 'openai');
     if (!provider?.baseUrl) throw new Error('OpenAI provider not configured');
@@ -114,6 +128,33 @@ export class AIService {
 
     const data = await response.json();
     return data.choices[0]?.message?.content || 'No response generated';
+  }
+
+  // New method that uses the currently selected model from multiProviderSettings
+  static async sendMessageWithCurrentModel(
+    userMessage: string,
+    context: string
+  ): Promise<string> {
+    const model = multiProviderSettings.currentModel;
+    if (!model) {
+      throw new Error('No model selected. Please select a model from the dropdown.');
+    }
+
+    const providerInfo = this.getProviderForModel(model);
+    if (!providerInfo) {
+      throw new Error(`No API key configured for model: ${model}. Please configure the API key in settings.`);
+    }
+
+    // Create temporary settings object for the selected model
+    const tempSettings: AISettings = {
+      provider: providerInfo.provider.id,
+      model: model,
+      apiKey: providerInfo.apiKey,
+      temperature: multiProviderSettings.temperature || 0.7,
+      maxTokens: multiProviderSettings.maxTokens || 2000,
+    };
+
+    return this.sendMessage(tempSettings, userMessage, context);
   }
 
   static async sendMessage(
