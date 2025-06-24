@@ -3,14 +3,101 @@ import { RoamBlock, RoamPage, PageContext } from "../types";
 
 export class RoamService {
   /**
+   * Get the current graph name
+   */
+  static getCurrentGraphName(): string | null {
+    try {
+      // Try to get graph name from URL
+      const urlMatch = window.location.href.match(/\/app\/([^\/]+)/);
+      if (urlMatch) {
+        return urlMatch[1];
+      }
+
+      // Fallback: try to get from roam API or other methods
+      // Some roam installations might have different URL patterns
+      const pathMatch = window.location.pathname.match(/\/app\/([^\/]+)/);
+      if (pathMatch) {
+        return pathMatch[1];
+      }
+
+      console.log("Could not determine graph name from URL:", window.location.href);
+      return null;
+    } catch (error) {
+      console.error("Error getting graph name:", error);
+      return null;
+    }
+  }
+
+  /**
+   * Detect if running in web or desktop environment
+   */
+  static isDesktopApp(): boolean {
+    try {
+      // Check for desktop app indicators
+      return (
+        window.location.protocol === 'roam:' ||
+        window.location.href.startsWith('roam://') ||
+        // Check for Electron environment
+        (typeof window !== 'undefined' && 
+         (window as any).process && 
+         (window as any).process.type === 'renderer') ||
+        // Check user agent for desktop indicators
+        /Electron|roam/i.test(navigator.userAgent)
+      );
+    } catch (error) {
+      console.error("Error detecting desktop app:", error);
+      return false;
+    }
+  }
+
+  /**
+   * Generate clickable URL for a block
+   */
+  static generateBlockUrl(blockUid: string, graphName?: string): { webUrl: string; desktopUrl: string } | null {
+    const graph = graphName || this.getCurrentGraphName();
+    if (!graph) {
+      console.log("Cannot generate URLs without graph name");
+      return null;
+    }
+
+    const webUrl = `https://roamresearch.com/#/app/${graph}/page/${blockUid}`;
+    const desktopUrl = `roam://#/app/${graph}/page/${blockUid}`;
+
+    return { webUrl, desktopUrl };
+  }
+
+  /**
+   * Generate clickable URL for a page
+   */
+  static generatePageUrl(pageUid: string, graphName?: string): { webUrl: string; desktopUrl: string } | null {
+    const graph = graphName || this.getCurrentGraphName();
+    if (!graph) {
+      console.log("Cannot generate URLs without graph name");
+      return null;
+    }
+
+    const webUrl = `https://roamresearch.com/#/app/${graph}/page/${pageUid}`;
+    const desktopUrl = `roam://#/app/${graph}/page/${pageUid}`;
+
+    return { webUrl, desktopUrl };
+  }
+
+  /**
    * Get the current page information
    */
   static async getCurrentPageInfo(): Promise<RoamPage | null> {
     try {
       // Try multiple methods to get current page
-      let currentPageUid =
-        await window.roamAlphaAPI?.ui?.mainWindow?.getOpenPageOrBlockUid?.();
+      let currentPageUid = null;
       let title = "";
+
+      // Try to get from API (might be async)
+      const apiResult = window.roamAlphaAPI?.ui?.mainWindow?.getOpenPageOrBlockUid?.();
+      if (apiResult && typeof apiResult === 'object' && 'then' in apiResult) {
+        currentPageUid = await apiResult;
+      } else {
+        currentPageUid = apiResult || null;
+      }
 
       console.log("Current page UID from API:", currentPageUid);
 
@@ -406,40 +493,59 @@ export class RoamService {
   }
 
   /**
-   * Format page context for AI prompt with source references
+   * Format page context for AI prompt with clickable source references
    */
   static formatContextForAI(context: PageContext): string {
     let formattedContext = "";
+    const graphName = this.getCurrentGraphName();
+    const isDesktop = this.isDesktopApp();
 
     if (context.selectedText) {
       formattedContext += `**Selected Text:**\n${context.selectedText}\n\n`;
     }
 
+    // Helper function to format URL links
+    const formatUrls = (webUrl: string, desktopUrl: string) => {
+      if (isDesktop) {
+        return `[🔗 Open in Roam](${desktopUrl})`;
+      } else {
+        return `[🔗 Web](${webUrl}) | [🔗 Desktop](${desktopUrl})`;
+      }
+    };
+
     if (context.currentPage) {
-      formattedContext += `**Current Page: "${context.currentPage.title}"** [Page Reference: [[${context.currentPage.title}]]]\n\n`;
+      const pageUrls = this.generatePageUrl(context.currentPage.uid, graphName || undefined);
+      const urlLinks = pageUrls ? formatUrls(pageUrls.webUrl, pageUrls.desktopUrl) : `[[${context.currentPage.title}]]`;
+      
+      formattedContext += `**Current Page: "${context.currentPage.title}"** ${urlLinks}\n\n`;
 
       if (context.currentPage.blocks.length > 0) {
         formattedContext += "**Page Content:**\n";
-        formattedContext += this.formatBlocksForAIWithReferences(
+        formattedContext += this.formatBlocksForAIWithClickableReferences(
           context.currentPage.blocks,
           0,
-          context.currentPage.title
+          graphName,
+          isDesktop
         );
         formattedContext += "\n";
       }
     } else if (context.visibleBlocks.length > 0) {
       formattedContext += "**Visible Content:**\n";
-      formattedContext += this.formatBlocksForAIWithReferences(context.visibleBlocks, 0);
+      formattedContext += this.formatBlocksForAIWithClickableReferences(context.visibleBlocks, 0, graphName, isDesktop);
       formattedContext += "\n";
     }
 
     // Add daily note content
     if (context.dailyNote && context.dailyNote.blocks.length > 0) {
-      formattedContext += `**Today's Daily Note (${context.dailyNote.title}):** [Page Reference: [[${context.dailyNote.title}]]]\n`;
-      formattedContext += this.formatBlocksForAIWithReferences(
+      const dailyUrls = this.generatePageUrl(context.dailyNote.uid, graphName || undefined);
+      const dailyUrlLinks = dailyUrls ? formatUrls(dailyUrls.webUrl, dailyUrls.desktopUrl) : `[[${context.dailyNote.title}]]`;
+      
+      formattedContext += `**Today's Daily Note (${context.dailyNote.title}):** ${dailyUrlLinks}\n`;
+      formattedContext += this.formatBlocksForAIWithClickableReferences(
         context.dailyNote.blocks, 
         0,
-        context.dailyNote.title
+        graphName,
+        isDesktop
       );
       formattedContext += "\n";
     }
@@ -448,8 +554,10 @@ export class RoamService {
     if (context.linkedReferences.length > 0) {
       formattedContext += `**Linked References (${context.linkedReferences.length} references):**\n`;
       for (const ref of context.linkedReferences.slice(0, 10)) {
-        // Limit to first 10 references
-        formattedContext += `- ${ref.string} [Block Reference: ((${ref.uid}))]\n`;
+        const blockUrls = this.generateBlockUrl(ref.uid, graphName || undefined);
+        const blockUrlLinks = blockUrls ? formatUrls(blockUrls.webUrl, blockUrls.desktopUrl) : `((${ref.uid}))`;
+        
+        formattedContext += `- ${ref.string} ${blockUrlLinks}\n`;
       }
       if (context.linkedReferences.length > 10) {
         formattedContext += `... and ${
@@ -463,7 +571,40 @@ export class RoamService {
   }
 
   /**
-   * Format blocks recursively for AI with source references
+   * Format blocks recursively for AI with clickable source references
+   */
+  static formatBlocksForAIWithClickableReferences(blocks: RoamBlock[], level: number, graphName?: string | null, isDesktop?: boolean): string {
+    let formatted = "";
+    const indent = "  ".repeat(level);
+
+    for (const block of blocks) {
+      if (block.string.trim()) {
+        let blockReference = `((${block.uid}))`;
+        
+        if (graphName) {
+          const blockUrls = this.generateBlockUrl(block.uid, graphName);
+          if (blockUrls) {
+            if (isDesktop) {
+              blockReference = `[🔗](${blockUrls.desktopUrl})`;
+            } else {
+              blockReference = `[🔗 Web](${blockUrls.webUrl}) | [🔗 App](${blockUrls.desktopUrl})`;
+            }
+          }
+        }
+        
+        formatted += `${indent}- ${block.string} ${blockReference}\n`;
+
+        if (block.children && block.children.length > 0) {
+          formatted += this.formatBlocksForAIWithClickableReferences(block.children, level + 1, graphName, isDesktop);
+        }
+      }
+    }
+
+    return formatted;
+  }
+
+  /**
+   * Format blocks recursively for AI with source references (legacy method)
    */
   static formatBlocksForAIWithReferences(blocks: RoamBlock[], level: number, pageTitle?: string): string {
     let formatted = "";

@@ -6,7 +6,7 @@ declare global {
       q: (query: string) => any[];
       ui: {
         mainWindow: {
-          getOpenPageOrBlockUid?: () => string | null;
+          getOpenPageOrBlockUid?: () => string | null | Promise<string | null>;
         };
         rightSidebar: {
           open: () => Promise<void>;

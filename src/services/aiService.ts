@@ -107,15 +107,18 @@ export class AIService {
 Current Context:
 ${context}
 
-IMPORTANT: When referencing information from the context in your responses, ALWAYS include the appropriate source citations using Roam's linking format:
-- For page references, use: [[Page Title]]
-- For block references, use: ((block-uid))
-- These references are already provided in the context above in the format [Page Reference: [[title]]] and [Block Reference: ((uid))]
+IMPORTANT: When referencing information from the context in your responses, ALWAYS include the appropriate source citations. The context above contains clickable links in these formats:
+- Page links: [🔗 Web](https://roamresearch.com/#/app/graph/page/uid) | [🔗 Desktop](roam://#/app/graph/page/uid)
+- Block links: [🔗 Web](https://roamresearch.com/#/app/graph/page/uid) | [🔗 App](roam://#/app/graph/page/uid)
+- Simple links: [🔗](roam://#/app/graph/page/uid) for desktop users
 
-When you mention specific information from the context, add the corresponding reference at the end of the relevant sentence or paragraph. This allows users to directly navigate to the source content in Roam.
+When you mention specific information from the context, copy the exact clickable link provided in the context. This allows users to directly navigate to the source content in Roam by clicking the links.
 
-Example:
-"Based on your notes, the meeting is scheduled for tomorrow ((abc123)) and you need to prepare the presentation slides [[Project Planning]]."
+Example responses:
+"Based on your notes, the meeting is scheduled for tomorrow [🔗 Web](https://roamresearch.com/#/app/qcrao/page/abc123) | [🔗 App](roam://#/app/qcrao/page/abc123) and you need to prepare the presentation slides [🔗 Web](https://roamresearch.com/#/app/qcrao/page/xyz789) | [🔗 Desktop](roam://#/app/qcrao/page/xyz789)."
+
+Or for desktop users:
+"Based on your notes, the meeting is scheduled for tomorrow [🔗](roam://#/app/qcrao/page/abc123) and you need to prepare the presentation slides [🔗](roam://#/app/qcrao/page/xyz789)."
 
 Please provide helpful, accurate responses based on the context provided. If the context doesn't contain relevant information for the user's question, feel free to provide general assistance.`
       },
