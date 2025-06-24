@@ -24,8 +24,8 @@
   width: 60px;
   height: 60px;
   border-radius: 50%;
-  background: #106ba3;
-  box-shadow: 0 4px 20px rgba(16, 107, 163, 0.3);
+  background: #393a3d;
+  box-shadow: 0 4px 20px rgba(57, 58, 61, 0.3);
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -36,7 +36,7 @@
 
 .roam-copilot-minimized:hover {
   transform: scale(1.1);
-  box-shadow: 0 6px 25px rgba(16, 107, 163, 0.4);
+  box-shadow: 0 6px 25px rgba(57, 58, 61, 0.4);
 }
 
 .roam-copilot-expanded {
@@ -68,7 +68,7 @@
 
 .roam-copilot-header {
   padding: 16px 20px;
-  background: #106ba3;
+  background: #393a3d;
   color: white;
   display: flex;
   justify-content: space-between;
@@ -214,12 +214,12 @@
 }
 
 .send-button.active {
-  background-color: #106ba3;
+  background-color: #393a3d;
   color: white;
 }
 
 .send-button.active:hover {
-  background-color: #0d5a8a;
+  background-color: #2a2b2d;
   transform: translateY(-1px);
   box-shadow: 0 4px 12px rgba(16, 107, 163, 0.3);
 }
@@ -260,7 +260,7 @@
 
 .roam-copilot-expanded .cs-message--incoming .cs-message__content {
   background-color: white !important;
-  color: #333 !important;
+  color: #393a3d !important;
   border: 1px solid #e9ecef !important;
   border-radius: 12px !important;
   padding: 12px 16px !important;
@@ -282,7 +282,7 @@
 }
 
 .roam-copilot-expanded .cs-message--outgoing .cs-message__content {
-  background-color: #106ba3 !important;
+  background-color: #393a3d !important;
   color: white !important;
   border-radius: 12px !important;
   padding: 12px 16px !important;
