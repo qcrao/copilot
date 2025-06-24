@@ -107,6 +107,16 @@ export class AIService {
 Current Context:
 ${context}
 
+IMPORTANT: When referencing information from the context in your responses, ALWAYS include the appropriate source citations using Roam's linking format:
+- For page references, use: [[Page Title]]
+- For block references, use: ((block-uid))
+- These references are already provided in the context above in the format [Page Reference: [[title]]] and [Block Reference: ((uid))]
+
+When you mention specific information from the context, add the corresponding reference at the end of the relevant sentence or paragraph. This allows users to directly navigate to the source content in Roam.
+
+Example:
+"Based on your notes, the meeting is scheduled for tomorrow ((abc123)) and you need to prepare the presentation slides [[Project Planning]]."
+
 Please provide helpful, accurate responses based on the context provided. If the context doesn't contain relevant information for the user's question, feel free to provide general assistance.`
       },
       {

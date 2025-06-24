@@ -9,7 +9,10 @@
       "Bash(grep:*)",
       "Bash(sed:*)",
       "WebFetch(domain:blueprintjs.com)",
-      "Bash(find:*)"
+      "Bash(find:*)",
+      "Bash(npm run lint)",
+      "Bash(npm run typecheck:*)",
+      "Bash(npm run:*)"
     ],
     "deny": []
   }

@@ -406,7 +406,7 @@ export class RoamService {
   }
 
   /**
-   * Format page context for AI prompt
+   * Format page context for AI prompt with source references
    */
   static formatContextForAI(context: PageContext): string {
     let formattedContext = "";
@@ -416,26 +416,31 @@ export class RoamService {
     }
 
     if (context.currentPage) {
-      formattedContext += `**Current Page: "${context.currentPage.title}"**\n\n`;
+      formattedContext += `**Current Page: "${context.currentPage.title}"** [Page Reference: [[${context.currentPage.title}]]]\n\n`;
 
       if (context.currentPage.blocks.length > 0) {
         formattedContext += "**Page Content:**\n";
-        formattedContext += this.formatBlocksForAI(
+        formattedContext += this.formatBlocksForAIWithReferences(
           context.currentPage.blocks,
-          0
+          0,
+          context.currentPage.title
         );
         formattedContext += "\n";
       }
     } else if (context.visibleBlocks.length > 0) {
       formattedContext += "**Visible Content:**\n";
-      formattedContext += this.formatBlocksForAI(context.visibleBlocks, 0);
+      formattedContext += this.formatBlocksForAIWithReferences(context.visibleBlocks, 0);
       formattedContext += "\n";
     }
 
     // Add daily note content
     if (context.dailyNote && context.dailyNote.blocks.length > 0) {
-      formattedContext += `**Today's Daily Note (${context.dailyNote.title}):**\n`;
-      formattedContext += this.formatBlocksForAI(context.dailyNote.blocks, 0);
+      formattedContext += `**Today's Daily Note (${context.dailyNote.title}):** [Page Reference: [[${context.dailyNote.title}]]]\n`;
+      formattedContext += this.formatBlocksForAIWithReferences(
+        context.dailyNote.blocks, 
+        0,
+        context.dailyNote.title
+      );
       formattedContext += "\n";
     }
 
@@ -444,7 +449,7 @@ export class RoamService {
       formattedContext += `**Linked References (${context.linkedReferences.length} references):**\n`;
       for (const ref of context.linkedReferences.slice(0, 10)) {
         // Limit to first 10 references
-        formattedContext += `- ${ref.string}\n`;
+        formattedContext += `- ${ref.string} [Block Reference: ((${ref.uid}))]\n`;
       }
       if (context.linkedReferences.length > 10) {
         formattedContext += `... and ${
@@ -458,7 +463,27 @@ export class RoamService {
   }
 
   /**
-   * Format blocks recursively for AI
+   * Format blocks recursively for AI with source references
+   */
+  static formatBlocksForAIWithReferences(blocks: RoamBlock[], level: number, pageTitle?: string): string {
+    let formatted = "";
+    const indent = "  ".repeat(level);
+
+    for (const block of blocks) {
+      if (block.string.trim()) {
+        formatted += `${indent}- ${block.string} [Block Reference: ((${block.uid}))]\n`;
+
+        if (block.children && block.children.length > 0) {
+          formatted += this.formatBlocksForAIWithReferences(block.children, level + 1, pageTitle);
+        }
+      }
+    }
+
+    return formatted;
+  }
+
+  /**
+   * Format blocks recursively for AI (legacy method for compatibility)
    */
   static formatBlocksForAI(blocks: RoamBlock[], level: number): string {
     let formatted = "";
