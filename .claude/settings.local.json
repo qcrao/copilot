@@ -7,7 +7,9 @@
       "WebFetch(domain:github.com)",
       "WebFetch(domain:chatscope.io)",
       "Bash(grep:*)",
-      "Bash(sed:*)"
+      "Bash(sed:*)",
+      "WebFetch(domain:blueprintjs.com)",
+      "Bash(find:*)"
     ],
     "deny": []
   }

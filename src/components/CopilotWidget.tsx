@@ -1,6 +1,7 @@
 // src/components/CopilotWidget.tsx
 import React, { useState, useEffect, useRef } from "react";
 import { Button, Icon, Spinner } from "@blueprintjs/core";
+import { IconNames } from "@blueprintjs/icons";
 import {
   MainContainer,
   ChatContainer,
@@ -210,7 +211,7 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
           onClick={onToggle}
           title="Open Roam Copilot"
         >
-          <Icon icon="chat" size={24} color="white" />
+          <Icon icon={IconNames.LIGHTBULB} size={24} color="white" />
         </div>
       </div>
     );
@@ -221,7 +222,7 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
       <div className="roam-copilot-expanded">
         <div className="roam-copilot-header">
           <span className="flex items-center gap-2">
-            <Icon icon="chat" size={16} />
+            <Icon icon={IconNames.LIGHTBULB} size={16} />
             Roam Copilot
           </span>
           <div className="flex items-center gap-2">
@@ -267,7 +268,7 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
                         gap: "12px",
                       }}
                     >
-                      <Icon icon="chat" size={48} style={{ opacity: 0.5 }} />
+                      <Icon icon={IconNames.LIGHTBULB} size={48} style={{ opacity: 0.5 }} />
                       <p>Hello! I'm your Roam Research assistant.</p>
                       <p style={{ fontSize: "14px", marginTop: "8px" }}>
                         I can help you with your notes and answer questions
