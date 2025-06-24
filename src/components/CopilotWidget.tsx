@@ -6,10 +6,7 @@ import {
   MainContainer,
   ChatContainer,
   MessageList,
-  Message,
   TypingIndicator,
-  Avatar,
-  MessageModel,
 } from "@chatscope/chat-ui-kit-react";
 import "@chatscope/chat-ui-kit-styles/dist/default/styles.min.css";
 import { ChatMessage, CopilotState, PageContext } from "../types";
@@ -17,6 +14,7 @@ import { AIService } from "../services/aiService";
 import { RoamService } from "../services/roamService";
 import { aiSettings } from "../settings";
 import { CustomMessageInput } from "./CustomMessageInput";
+import { MessageRenderer } from "./MessageRenderer";
 
 interface CopilotWidgetProps {
   isOpen: boolean;
@@ -191,18 +189,6 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
     // We could add additional logic here if needed
   };
 
-  // Convert our ChatMessage format to chatscope Message format
-  const convertToChatscopeMessages = (): MessageModel[] => {
-    return state.messages.map((msg) => ({
-      message: msg.content,
-      sentTime: msg.timestamp.toLocaleTimeString(),
-      sender: msg.role === "user" ? "You" : "Roam Copilot",
-      direction: (msg.role === "user" ? "outgoing" : "incoming") as
-        | "outgoing"
-        | "incoming",
-      position: "single" as "single",
-    }));
-  };
 
   if (state.isMinimized) {
     return (
@@ -309,21 +295,45 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
                     </div>
                   )}
 
-                  {convertToChatscopeMessages().map((msg, index) => (
-                    <Message key={index} model={msg}>
-                      {msg.direction === "incoming" && (
-                        <Avatar
-                          src=""
-                          name="RC"
-                          style={{
-                            backgroundColor: "#106ba3",
-                            color: "white",
-                            fontSize: "14px",
-                            fontWeight: "bold",
-                          }}
+                  {state.messages.map((msg, index) => (
+                    <div
+                      key={index}
+                      style={{
+                        display: "flex",
+                        flexDirection: msg.role === "user" ? "row-reverse" : "row",
+                        alignItems: "flex-start",
+                        margin: "8px 0",
+                        gap: "8px"
+                      }}
+                    >
+                      <div
+                        style={{
+                          maxWidth: "70%",
+                          padding: "8px 12px",
+                          borderRadius: "12px",
+                          backgroundColor: msg.role === "user" ? "#106ba3" : "#f1f3f4",
+                          color: msg.role === "user" ? "white" : "#333",
+                          fontSize: "14px",
+                          lineHeight: "1.4",
+                          wordBreak: "break-word"
+                        }}
+                      >
+                        <MessageRenderer 
+                          content={msg.content} 
+                          isUser={msg.role === "user"}
                         />
-                      )}
-                    </Message>
+                        <div
+                          style={{
+                            fontSize: "11px",
+                            opacity: 0.7,
+                            marginTop: "4px",
+                            textAlign: msg.role === "user" ? "right" : "left"
+                          }}
+                        >
+                          {msg.timestamp.toLocaleTimeString()}
+                        </div>
+                      </div>
+                    </div>
                   ))}
 
                   {state.isLoading && (
