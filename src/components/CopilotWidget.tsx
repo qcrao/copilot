@@ -311,7 +311,7 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
                           maxWidth: "70%",
                           padding: "8px 12px",
                           borderRadius: "12px",
-                          backgroundColor: msg.role === "user" ? "#106ba3" : "#f1f3f4",
+                          backgroundColor: msg.role === "user" ? "#393A3D" : "#f1f3f4",
                           color: msg.role === "user" ? "white" : "#333",
                           fontSize: "14px",
                           lineHeight: "1.4",
@@ -337,7 +337,28 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
                   ))}
 
                   {state.isLoading && (
-                    <TypingIndicator content="Roam Copilot is thinking..." />
+                    <div style={{ display: "flex", alignItems: "flex-start", margin: "8px 0", gap: "8px" }}>
+                      <div
+                        style={{
+                          maxWidth: "70%",
+                          padding: "8px 12px",
+                          borderRadius: "12px",
+                          backgroundColor: "#f1f3f4",
+                          color: "#393A3D",
+                          fontSize: "14px",
+                          lineHeight: "1.4"
+                        }}
+                      >
+                        <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+                          <span>Roam Copilot is thinking</span>
+                          <div style={{ display: "flex", gap: "2px" }}>
+                            <span style={{ animation: "blink 1.4s infinite both", animationDelay: "0s" }}>.</span>
+                            <span style={{ animation: "blink 1.4s infinite both", animationDelay: "0.2s" }}>.</span>
+                            <span style={{ animation: "blink 1.4s infinite both", animationDelay: "0.4s" }}>.</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
                   )}
                 </MessageList>
               </ChatContainer>
