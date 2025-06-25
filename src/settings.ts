@@ -34,9 +34,18 @@ export function loadInitialSettings(extensionAPI: any) {
     }
   });
 
+  // Determine current model: use saved model if valid, otherwise first available model
+  const availableModels = getAvailableModelsWithKeys(apiKeys);
+  let currentModel = savedCurrentModel || "gpt-4o-mini";
+  
+  // If the saved model doesn't have an API key, use the first available model
+  if (!availableModels.some(m => m.model === currentModel)) {
+    currentModel = availableModels.length > 0 ? availableModels[0].model : "gpt-4o-mini";
+  }
+
   multiProviderSettings = {
     apiKeys,
-    currentModel: savedCurrentModel || "gpt-4o-mini",
+    currentModel,
     temperature: savedTemperature ? parseFloat(savedTemperature) : 0.7,
     maxTokens: savedMaxTokens ? parseInt(savedMaxTokens) : 2000,
   };
@@ -61,13 +70,12 @@ function getModelsForProvider(providerId: string) {
   return provider ? provider.models : [];
 }
 
-// Helper function to get all available models (only providers with API keys)
-export function getAvailableModels(): Array<{model: string, provider: string, providerName: string}> {
+// Helper function to get available models with given API keys
+function getAvailableModelsWithKeys(apiKeys: { [providerId: string]: string }): Array<{model: string, provider: string, providerName: string}> {
   const availableModels: Array<{model: string, provider: string, providerName: string}> = [];
   
   AI_PROVIDERS.forEach(provider => {
-    const hasApiKey = multiProviderSettings.apiKeys[provider.id] && 
-                     multiProviderSettings.apiKeys[provider.id].trim() !== '';
+    const hasApiKey = apiKeys[provider.id] && apiKeys[provider.id].trim() !== '';
     
     if (hasApiKey) {
       provider.models.forEach(model => {
@@ -81,6 +89,11 @@ export function getAvailableModels(): Array<{model: string, provider: string, pr
   });
   
   return availableModels;
+}
+
+// Helper function to get all available models (only providers with API keys)
+export function getAvailableModels(): Array<{model: string, provider: string, providerName: string}> {
+  return getAvailableModelsWithKeys(multiProviderSettings.apiKeys);
 }
 
 // Helper function to update model dropdown

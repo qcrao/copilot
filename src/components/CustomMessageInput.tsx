@@ -17,7 +17,19 @@ export const CustomMessageInput: React.FC<CustomMessageInputProps> = ({
   onModelChange,
 }) => {
   const [value, setValue] = useState("");
-  const [selectedModel, setSelectedModel] = useState(multiProviderSettings.currentModel);
+  
+  // Get all available models from providers with API keys
+  const availableModels = getAvailableModels();
+  
+  // Ensure selectedModel is valid (has API key)
+  const getValidModel = () => {
+    if (availableModels.some(m => m.model === multiProviderSettings.currentModel)) {
+      return multiProviderSettings.currentModel;
+    }
+    return availableModels.length > 0 ? availableModels[0].model : "";
+  };
+  
+  const [selectedModel, setSelectedModel] = useState(getValidModel());
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   // Auto-resize textarea
@@ -28,6 +40,49 @@ export const CustomMessageInput: React.FC<CustomMessageInputProps> = ({
       textarea.style.height = `${Math.min(textarea.scrollHeight, 120)}px`;
     }
   }, [value]);
+
+  // Update selectedModel when available models change
+  useEffect(() => {
+    const validModel = getValidModel();
+    if (validModel !== selectedModel) {
+      setSelectedModel(validModel);
+      if (validModel) {
+        multiProviderSettings.currentModel = validModel;
+        // Save to extension settings
+        if (typeof window !== "undefined" && (window as any).roamAlphaAPI) {
+          try {
+            const extensionAPI = (window as any).roamAlphaAPI.ui.commandPalette;
+            if (extensionAPI && extensionAPI.settings) {
+              extensionAPI.settings.set("copilot-current-model", validModel);
+            }
+          } catch (error) {
+            console.log("Could not save model setting:", error);
+          }
+        }
+      }
+    }
+  }, [availableModels.length]);
+
+  // Initialize selectedModel on component mount
+  useEffect(() => {
+    const validModel = getValidModel();
+    if (validModel && validModel !== multiProviderSettings.currentModel) {
+      setSelectedModel(validModel);
+      multiProviderSettings.currentModel = validModel;
+      
+      // Save to extension settings
+      if (typeof window !== "undefined" && (window as any).roamAlphaAPI) {
+        try {
+          const extensionAPI = (window as any).roamAlphaAPI.ui.commandPalette;
+          if (extensionAPI && extensionAPI.settings) {
+            extensionAPI.settings.set("copilot-current-model", validModel);
+          }
+        } catch (error) {
+          console.log("Could not save model setting:", error);
+        }
+      }
+    }
+  }, []);
 
   const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {
@@ -67,9 +122,6 @@ export const CustomMessageInput: React.FC<CustomMessageInputProps> = ({
 
   const canSend = value.trim().length > 0 && !disabled;
 
-  // Get all available models from providers with API keys
-  const availableModels = getAvailableModels();
-
   return (
     <div className="input-container">
       <div className="input-box">
@@ -92,7 +144,7 @@ export const CustomMessageInput: React.FC<CustomMessageInputProps> = ({
             disabled={disabled}
           >
             {availableModels.length === 0 ? (
-              <option value="">No API keys configured</option>
+              <option value="">No keys</option>
             ) : (
               availableModels.map((modelInfo) => (
                 <option key={`${modelInfo.provider}-${modelInfo.model}`} value={modelInfo.model}>

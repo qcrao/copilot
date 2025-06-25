@@ -227,6 +227,7 @@ TITLE CREATION GUIDELINES:
 - Consider these formats: questions, unexpected insights, personal revelations, practical benefits
 - For Chinese content: prefer concise, thought-provoking titles that reflect深度思考
 - For English content: balance curiosity with clarity and benefit
+- IMPORTANT: Never add colons (:) after titles or section headings in your responses
 
 RESPONSE STYLE:
 - Start responses with a personalized greeting when appropriate
