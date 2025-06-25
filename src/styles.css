@@ -42,12 +42,14 @@
 .roam-copilot-expanded {
   /* Dynamic sizing based on screen size */
   width: min(
-    max(400px, min(35vw, 600px)), /* Between 400px and 35% of viewport width, max 600px */
-    calc(100vw - 40px) /* Never exceed viewport minus padding */
+    max(400px, min(35vw, 600px)),
+    /* Between 400px and 35% of viewport width, max 600px */ calc(100vw - 40px)
+      /* Never exceed viewport minus padding */
   );
   height: min(
-    max(600px, min(70vh, 800px)), /* Between 600px and 70% of viewport height, max 800px */
-    calc(100vh - 40px) /* Never exceed viewport minus padding */
+    max(600px, min(70vh, 800px)),
+    /* Between 600px and 70% of viewport height, max 800px */ calc(100vh - 40px)
+      /* Never exceed viewport minus padding */
   );
   max-width: 600px; /* Increased max width for larger screens */
   max-height: 800px; /* Increased max height for larger screens */
@@ -338,10 +340,15 @@
 
 /* Blinking animation for loading dots */
 @keyframes blink {
-  0%, 20%, 50%, 80%, 100% {
+  0%,
+  20%,
+  50%,
+  80%,
+  100% {
     opacity: 1;
   }
-  40%, 60% {
+  40%,
+  60% {
     opacity: 0.3;
   }
 }
@@ -402,6 +409,7 @@
 .roam-copilot-expanded .cs-main-container {
   /* Ensure the chat container doesn't overflow when conversation list is shown */
   overflow: hidden;
+  border: none;
 }
 
 /* Conversation list toggle animation */
@@ -414,7 +422,7 @@
   .conversation-list-panel {
     width: 240px !important;
   }
-  
+
   .roam-copilot-expanded {
     /* On smaller screens, reduce the conversation list width */
     min-width: 320px;
@@ -425,7 +433,7 @@
   .conversation-list-panel {
     width: 200px !important;
   }
-  
+
   .roam-copilot-expanded {
     min-width: 280px;
   }
