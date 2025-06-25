@@ -1,5 +1,5 @@
 // src/components/CopilotWidget.tsx
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { Button, Icon, Spinner } from "@blueprintjs/core";
 import { IconNames } from "@blueprintjs/icons";
 import {
@@ -44,6 +44,19 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
   const [currentConversationId, setCurrentConversationId] = useState<string | null>(null);
   const [inputValue, setInputValue] = useState("");
   const [dateNotesCache, setDateNotesCache] = useState<{[date: string]: string}>({});
+  const [windowPosition, setWindowPosition] = useState<{top: number, left: number} | null>(null);
+  const [windowSize, setWindowSize] = useState<{width: number, height: number}>({
+    width: Math.min(window.innerWidth * 0.5, 1200),
+    height: Math.min(window.innerHeight * 0.8, 1000)
+  });
+  const [isResizing, setIsResizing] = useState(false);
+  const [resizeHandle, setResizeHandle] = useState<string | null>(null);
+  const [startMousePos, setStartMousePos] = useState<{x: number, y: number}>({x: 0, y: 0});
+  const [startWindowSize, setStartWindowSize] = useState<{width: number, height: number}>({width: 0, height: 0});
+  const [startWindowPos, setStartWindowPos] = useState<{top: number, left: number}>({top: 0, left: 0});
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragStartPos, setDragStartPos] = useState<{x: number, y: number}>({x: 0, y: 0});
+  const [dragStartWindowPos, setDragStartWindowPos] = useState<{top: number, left: number}>({top: 0, left: 0});
 
   useEffect(() => {
     setState((prev) => ({
@@ -51,7 +64,12 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
       isOpen,
       isMinimized: !isOpen,
     }));
-  }, [isOpen]);
+    
+    // Calculate window position when opening (center of screen)
+    if (isOpen && !windowPosition) {
+      setWindowPosition(calculateCenterPosition());
+    }
+  }, [isOpen, windowPosition, windowSize]);
 
   useEffect(() => {
     if (isOpen) {
@@ -307,6 +325,24 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
     setShowConversationList(prev => !prev);
   };
 
+  const calculateCenterPosition = () => {
+    // Position window so its bottom-right corner aligns with icon center
+    const iconMargin = 20;
+    const iconSize = 60;
+    const iconCenterX = window.innerWidth - iconMargin - iconSize / 2;
+    const iconCenterY = window.innerHeight - iconMargin - iconSize / 2;
+    
+    // Calculate window position
+    const left = iconCenterX - windowSize.width;
+    const top = iconCenterY - windowSize.height;
+    
+    // Ensure window doesn't go off-screen (but prioritize icon alignment)
+    const finalLeft = Math.max(20, left);
+    const finalTop = Math.max(20, top);
+    
+    return { top: finalTop, left: finalLeft };
+  };
+
   const handlePromptSelect = (prompt: string) => {
     // Populate the input with the selected prompt
     setInputValue(prompt);
@@ -349,11 +385,162 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
     };
   }, [showConversationList]);
 
+  // Resize handlers
+  const handleResizeStart = (e: React.MouseEvent, handle: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    setIsResizing(true);
+    setResizeHandle(handle);
+    setStartMousePos({ x: e.clientX, y: e.clientY });
+    setStartWindowSize({ width: windowSize.width, height: windowSize.height });
+    setStartWindowPos({ 
+      top: windowPosition?.top || 0, 
+      left: windowPosition?.left || 0 
+    });
+    
+    document.body.style.cursor = getCursor(handle);
+    document.body.style.userSelect = 'none';
+  };
 
+  const handleResizeMove = useCallback((e: MouseEvent) => {
+    if (!isResizing || !resizeHandle) return;
+    
+    const deltaX = e.clientX - startMousePos.x;
+    const deltaY = e.clientY - startMousePos.y;
+    
+    // Apply constraints
+    const minWidth = 400;
+    const minHeight = 500;
+    const maxWidth = window.innerWidth - 40;
+    const maxHeight = window.innerHeight - 40;
+    
+    let newWidth = startWindowSize.width;
+    let newHeight = startWindowSize.height;
+    let newTop = startWindowPos.top;
+    let newLeft = startWindowPos.left;
+    
+    if (resizeHandle === 'nw') {
+      // Northwest: resize from top-left corner
+      newWidth = Math.max(minWidth, Math.min(maxWidth, startWindowSize.width - deltaX));
+      newHeight = Math.max(minHeight, Math.min(maxHeight, startWindowSize.height - deltaY));
+      newLeft = startWindowPos.left + (startWindowSize.width - newWidth);
+      newTop = startWindowPos.top + (startWindowSize.height - newHeight);
+    } else if (resizeHandle === 'se') {
+      // Southeast: resize from bottom-right corner
+      newWidth = Math.max(minWidth, Math.min(maxWidth, startWindowSize.width + deltaX));
+      newHeight = Math.max(minHeight, Math.min(maxHeight, startWindowSize.height + deltaY));
+    }
+    
+    // Ensure window stays within screen bounds
+    newLeft = Math.max(20, Math.min(newLeft, window.innerWidth - newWidth - 20));
+    newTop = Math.max(20, Math.min(newTop, window.innerHeight - newHeight - 20));
+    
+    setWindowSize({ width: newWidth, height: newHeight });
+    setWindowPosition({ top: newTop, left: newLeft });
+  }, [isResizing, resizeHandle, startMousePos.x, startMousePos.y, startWindowSize.width, startWindowSize.height, startWindowPos.top, startWindowPos.left]);
+
+  const handleResizeEnd = useCallback(() => {
+    setIsResizing(false);
+    setResizeHandle(null);
+    document.body.style.cursor = '';
+    document.body.style.userSelect = '';
+  }, []);
+
+  const getCursor = (handle: string) => {
+    switch (handle) {
+      case 'nw': return 'nw-resize';
+      case 'se': return 'se-resize';
+      default: return 'default';
+    }
+  };
+
+  // Window drag handlers
+  const handleDragStart = (e: React.MouseEvent) => {
+    // Don't start drag if clicking on buttons
+    if ((e.target as Element).closest('button')) return;
+    
+    e.preventDefault();
+    e.stopPropagation();
+    
+    setIsDragging(true);
+    setDragStartPos({ x: e.clientX, y: e.clientY });
+    setDragStartWindowPos({ 
+      top: windowPosition?.top || 0, 
+      left: windowPosition?.left || 0 
+    });
+    
+    document.body.style.cursor = 'move';
+    document.body.style.userSelect = 'none';
+  };
+
+  const handleDragMove = useCallback((e: MouseEvent) => {
+    if (!isDragging) return;
+    
+    const deltaX = e.clientX - dragStartPos.x;
+    const deltaY = e.clientY - dragStartPos.y;
+    
+    const newLeft = dragStartWindowPos.left + deltaX;
+    const newTop = dragStartWindowPos.top + deltaY;
+    
+    // Ensure window doesn't go completely off-screen
+    const minVisible = 100; // Keep at least 100px visible
+    const maxLeft = window.innerWidth - minVisible;
+    const maxTop = window.innerHeight - minVisible;
+    const minLeft = -windowSize.width + minVisible;
+    const minTop = 0; // Don't go above screen top
+    
+    const finalLeft = Math.max(minLeft, Math.min(newLeft, maxLeft));
+    const finalTop = Math.max(minTop, Math.min(newTop, maxTop));
+    
+    setWindowPosition({ top: finalTop, left: finalLeft });
+  }, [isDragging, dragStartPos.x, dragStartPos.y, dragStartWindowPos.left, dragStartWindowPos.top, windowSize.width]);
+
+  const handleDragEnd = useCallback(() => {
+    setIsDragging(false);
+    document.body.style.cursor = '';
+    document.body.style.userSelect = '';
+  }, []);
+
+  // Manage resize event listeners
+  useEffect(() => {
+    if (isResizing) {
+      document.addEventListener('mousemove', handleResizeMove);
+      document.addEventListener('mouseup', handleResizeEnd);
+      
+      return () => {
+        document.removeEventListener('mousemove', handleResizeMove);
+        document.removeEventListener('mouseup', handleResizeEnd);
+      };
+    }
+  }, [isResizing, handleResizeMove, handleResizeEnd]);
+
+  // Manage drag event listeners
+  useEffect(() => {
+    if (isDragging) {
+      document.addEventListener('mousemove', handleDragMove);
+      document.addEventListener('mouseup', handleDragEnd);
+      
+      return () => {
+        document.removeEventListener('mousemove', handleDragMove);
+        document.removeEventListener('mouseup', handleDragEnd);
+      };
+    }
+  }, [isDragging, handleDragMove, handleDragEnd]);
+
+  // Cleanup resize state on unmount
+  useEffect(() => {
+    return () => {
+      if (isResizing) {
+        document.body.style.cursor = '';
+        document.body.style.userSelect = '';
+      }
+    };
+  }, []);
 
   if (state.isMinimized) {
     return (
-      <div className="roam-copilot-container">
+      <div className="roam-copilot-minimized-container">
         <div
           className="roam-copilot-minimized"
           onMouseEnter={() => setIsHoveringMinimized(true)}
@@ -367,8 +554,8 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              width: "100%",
-              height: "100%",
+              width: "60px",
+              height: "60px",
               cursor: "pointer"
             }}
           >
@@ -407,7 +594,27 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
 
   return (
     <div className="roam-copilot-container">
-      <div className="roam-copilot-expanded" style={{ position: "relative" }}>
+      <div 
+        className="roam-copilot-expanded" 
+        style={{ 
+          position: "fixed",
+          top: windowPosition?.top || '50%',
+          left: windowPosition?.left || '50%',
+          transform: windowPosition ? 'none' : 'translate(-50%, -50%)',
+          width: windowSize.width,
+          height: windowSize.height
+        }}
+      >
+        {/* Resize Handles */}
+        <div 
+          className="resize-handle resize-nw" 
+          onMouseDown={(e) => handleResizeStart(e, 'nw')}
+        />
+        <div 
+          className="resize-handle resize-se" 
+          onMouseDown={(e) => handleResizeStart(e, 'se')}
+        />
+        
         {/* Conversation List Panel */}
         <ConversationList
           isVisible={showConversationList}
@@ -425,7 +632,11 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
             flexDirection: "column"
           }}
         >
-          <div className="roam-copilot-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%" }}>
+          <div 
+            className="roam-copilot-header" 
+            style={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%", cursor: isDragging ? 'move' : 'default' }}
+            onMouseDown={handleDragStart}
+          >
             <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
               <Button
                 minimal
