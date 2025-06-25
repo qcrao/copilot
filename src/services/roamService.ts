@@ -7,17 +7,37 @@ export class RoamService {
    */
   static getCurrentGraphName(): string | null {
     try {
-      // Try to get graph name from URL
-      const urlMatch = window.location.href.match(/\/app\/([^\/]+)/);
+      console.log("Getting graph name from URL:", window.location.href);
+      console.log("Pathname:", window.location.pathname);
+      console.log("Hash:", window.location.hash);
+      
+      // Try to get graph name from URL - check both href and hash
+      const urlMatch = window.location.href.match(/\/app\/([^\/\?#]+)/);
       if (urlMatch) {
-        return urlMatch[1];
+        console.log("Graph name from href:", urlMatch[1]);
+        return decodeURIComponent(urlMatch[1]);
+      }
+
+      // Try to get from hash (Roam often uses hash routing)
+      const hashMatch = window.location.hash.match(/\/app\/([^\/\?#]+)/);
+      if (hashMatch) {
+        console.log("Graph name from hash:", hashMatch[1]);
+        return decodeURIComponent(hashMatch[1]);
       }
 
       // Fallback: try to get from roam API or other methods
       // Some roam installations might have different URL patterns
-      const pathMatch = window.location.pathname.match(/\/app\/([^\/]+)/);
+      const pathMatch = window.location.pathname.match(/\/app\/([^\/\?#]+)/);
       if (pathMatch) {
-        return pathMatch[1];
+        console.log("Graph name from pathname:", pathMatch[1]);
+        return decodeURIComponent(pathMatch[1]);
+      }
+
+      // Try alternative patterns
+      const altMatch = window.location.href.match(/#\/app\/([^\/\?#]+)/);
+      if (altMatch) {
+        console.log("Graph name from alt pattern:", altMatch[1]);
+        return decodeURIComponent(altMatch[1]);
       }
 
       console.log(
