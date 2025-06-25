@@ -367,13 +367,14 @@ export class RoamService {
         if (uid && textElement) {
           const string = textElement.textContent || "";
 
-          // Only include blocks that are actually visible
+          // Only include blocks that are actually visible (more lenient)
           const rect = element.getBoundingClientRect();
+          // Include blocks that are at least partially visible
           if (
-            rect.top >= 0 &&
-            rect.left >= 0 &&
-            rect.bottom <= window.innerHeight &&
-            rect.right <= window.innerWidth
+            rect.bottom > 0 && // Bottom is below the top of viewport
+            rect.top < window.innerHeight && // Top is above the bottom of viewport
+            rect.right > 0 && // Right edge is to the right of left edge of viewport
+            rect.left < window.innerWidth // Left edge is to the left of right edge of viewport
           ) {
             visibleBlocks.push({
               uid,
@@ -427,10 +428,35 @@ export class RoamService {
           day: "numeric",
           year: "numeric",
         }), // Month dd, yyyy
+        // Add ordinal format like "June 25th, 2025"
+        today.toLocaleDateString("en-US", {
+          month: "long",
+          day: "numeric",
+          year: "numeric",
+        }).replace(/(\d+),/, (match, day) => {
+          const dayNum = parseInt(day);
+          let suffix = 'th';
+          if (dayNum % 10 === 1 && dayNum !== 11) suffix = 'st';
+          else if (dayNum % 10 === 2 && dayNum !== 12) suffix = 'nd';
+          else if (dayNum % 10 === 3 && dayNum !== 13) suffix = 'rd';
+          return `${dayNum}${suffix},`;
+        }), // Month ddth, yyyy
         today.toISOString().split("T")[0], // yyyy-mm-dd
+        // Also try common alternative formats
+        `${today.getDate()}${getOrdinalSuffix(today.getDate())} ${today.toLocaleDateString("en-US", { month: "long" })}, ${today.getFullYear()}`, // ddth Month, yyyy
       ];
 
+      // Helper function for ordinal suffix
+      function getOrdinalSuffix(day: number): string {
+        if (day % 10 === 1 && day !== 11) return 'st';
+        if (day % 10 === 2 && day !== 12) return 'nd';
+        if (day % 10 === 3 && day !== 13) return 'rd';
+        return 'th';
+      }
+
       for (const format of dateFormats) {
+        console.log("Trying date format:", format);
+        
         const query = `
           [:find ?uid
            :where
@@ -438,7 +464,9 @@ export class RoamService {
            [?e :block/uid ?uid]]
         `;
 
+        console.log("Executing query:", query);
         const result = window.roamAlphaAPI.q(query);
+        console.log("Query result:", result);
         if (result && result.length > 0) {
           const uid = result[0][0];
           const blocks = await this.getPageBlocks(uid);
@@ -511,9 +539,11 @@ export class RoamService {
 
     console.log("Page context summary:", {
       currentPage: currentPage?.title || "None",
+      currentPageBlocks: currentPage?.blocks?.length || 0,
       visibleBlocks: visibleBlocks.length,
       selectedText: selectedText ? "Yes" : "No",
       dailyNote: dailyNote?.title || "None",
+      dailyNoteBlocks: dailyNote?.blocks?.length || 0,
       linkedReferences: linkedReferences.length,
     });
 
@@ -775,6 +805,13 @@ export class RoamService {
     }
 
     // Add daily note content
+    console.log("Daily note check:", {
+      hasDailyNote: !!context.dailyNote,
+      dailyNoteTitle: context.dailyNote?.title,
+      dailyNoteBlocks: context.dailyNote?.blocks?.length || 0,
+      dailyNoteBlocksContent: context.dailyNote?.blocks?.map(b => ({ uid: b.uid, string: b.string })) || []
+    });
+    
     if (context.dailyNote && context.dailyNote.blocks.length > 0) {
       const dailyUrls = this.generatePageUrl(
         context.dailyNote.uid,
@@ -785,13 +822,19 @@ export class RoamService {
         : `[[${context.dailyNote.title}]]`;
 
       formattedContext += `**Today's Daily Note (${context.dailyNote.title}):** ${dailyUrlLinks}\n`;
-      formattedContext += this.formatBlocksForAIWithClickableReferences(
+      const dailyContent = this.formatBlocksForAIWithClickableReferences(
         context.dailyNote.blocks,
         0,
         graphName,
         isDesktop
       );
+      console.log("Formatted daily note content:", dailyContent);
+      formattedContext += dailyContent;
       formattedContext += "\n";
+    } else if (context.dailyNote) {
+      console.log("Daily note found but no blocks:", context.dailyNote);
+    } else {
+      console.log("No daily note found in context");
     }
 
     // Add linked references
@@ -817,6 +860,9 @@ export class RoamService {
     }
 
     const finalContext = formattedContext.trim();
+
+    console.log("Final formatted context for AI:", finalContext);
+    console.log("Context length:", finalContext.length, "characters");
 
     // Apply truncation if context is too long
     return this.truncateContext(finalContext, maxTokens);

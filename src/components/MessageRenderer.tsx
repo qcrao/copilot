@@ -7,9 +7,16 @@ interface MessageRendererProps {
 }
 
 export const MessageRenderer: React.FC<MessageRendererProps> = ({ content, isUser = false }) => {
-  // Pre-process content to remove colons from title-like lines and trailing whitespace
+  // Pre-process content to remove colons from title-like lines, handle think tags, and trailing whitespace
   const preprocessContent = (text: string): string => {
-    return text.replace(/^([^：:\n]+?)：\s*$/gm, '$1') // Remove trailing colons from lines that look like titles
+    return text.replace(/<think>([\s\S]*?)<\/think>/gi, (match, content) => {
+                 // Convert think blocks to collapsed expandable sections
+                 return `<details style="margin: 8px 0; padding: 8px; background: rgba(57,58,61,0.1); border-radius: 6px; border-left: 3px solid rgba(57,58,61,0.3);">
+                   <summary style="cursor: pointer; font-weight: 500; color: rgba(57,58,61,0.8); font-size: 0.9em;">🤔 Thinking process (click to expand)</summary>
+                   <div style="margin-top: 8px; padding: 8px; background: rgba(57,58,61,0.05); border-radius: 4px; font-style: italic; color: rgba(57,58,61,0.7); font-size: 0.9em; line-height: 1.4;">${content.trim()}</div>
+                 </details>`;
+               })
+               .replace(/^([^：:\n]+?)：\s*$/gm, '$1') // Remove trailing colons from lines that look like titles
                .replace(/^([^：:\n]+?):\s*$/gm, '$1') // Handle both Chinese and English colons
                .replace(/\s+$/, ''); // Remove all trailing whitespace and empty lines
   };
@@ -19,6 +26,11 @@ export const MessageRenderer: React.FC<MessageRendererProps> = ({ content, isUse
     
     // Define all patterns we want to match (order matters for priority)
     const patterns = [
+      // HTML details/summary blocks: <details>...</details>
+      {
+        regex: /<details[^>]*>([\s\S]*?)<\/details>/gi,
+        type: 'html-details'
+      },
       // Images: ![alt](url) - should be processed before other patterns
       {
         regex: /!\[([^\]]*)\]\(([^)]+)\)/g,
@@ -99,7 +111,15 @@ export const MessageRenderer: React.FC<MessageRendererProps> = ({ content, isUse
     patterns.forEach(pattern => {
       let match;
       while ((match = pattern.regex.exec(text)) !== null) {
-        if (pattern.type === 'image') {
+        if (pattern.type === 'html-details') {
+          allMatches.push({
+            start: match.index,
+            end: match.index + match[0].length,
+            type: pattern.type,
+            text: match[1], // Inner HTML content
+            originalMatch: match[0]
+          });
+        } else if (pattern.type === 'image') {
           allMatches.push({
             start: match.index,
             end: match.index + match[0].length,
@@ -249,6 +269,17 @@ export const MessageRenderer: React.FC<MessageRendererProps> = ({ content, isUse
 
   const renderMatchedElement = (match: any, index: number): React.ReactNode => {
     switch (match.type) {
+      case 'html-details':
+        return (
+          <div
+            key={index}
+            dangerouslySetInnerHTML={{ __html: match.originalMatch }}
+            style={{
+              margin: '8px 0'
+            }}
+          />
+        );
+
       case 'list-item':
         const indentLevel = (match.url?.length || 0) / 2; // Calculate indent from spaces
         return (
