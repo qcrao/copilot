@@ -59,6 +59,47 @@ export interface CopilotState {
   isLoading: boolean;
 }
 
+// Conversation management interfaces
+export interface ConversationMetadata {
+  id: string;
+  title: string;
+  lastUpdated: string;
+  messageCount: number;
+  createdAt: string;
+  tags?: string[];
+}
+
+export interface ConversationData {
+  id: string;
+  messages: ChatMessage[];
+  metadata: ConversationMetadata;
+}
+
+export interface ConversationSettings {
+  maxConversations: number; // 默认50个
+  maxMessagesPerConversation: number; // 默认100条
+  autoCleanup: boolean; // 自动清理旧对话
+  compressionThreshold: number; // 压缩阈值 (字符数)
+  maxAge: number; // 最大保存天数
+}
+
+export interface CompressedMessage {
+  id: string;
+  role: "user" | "assistant";
+  summary: string; // 压缩后的摘要
+  originalLength: number;
+  timestamp: Date;
+  isCompressed: boolean;
+}
+
+export interface ConversationListState {
+  conversations: ConversationMetadata[];
+  currentConversationId: string | null;
+  isLoading: boolean;
+  searchQuery: string;
+  showList: boolean;
+}
+
 // 低价模型精选，适合成本敏感的 Roam 扩展
 export const AI_PROVIDERS: AIProvider[] = [
   {

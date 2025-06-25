@@ -9,12 +9,14 @@ import {
   TypingIndicator,
 } from "@chatscope/chat-ui-kit-react";
 import "@chatscope/chat-ui-kit-styles/dist/default/styles.min.css";
-import { ChatMessage, CopilotState, PageContext } from "../types";
+import { ChatMessage, CopilotState, PageContext, ConversationListState } from "../types";
 import { AIService } from "../services/aiService";
 import { RoamService } from "../services/roamService";
+import { ConversationService } from "../services/conversationService";
 import { aiSettings, multiProviderSettings } from "../settings";
 import { CustomMessageInput } from "./CustomMessageInput";
 import { MessageRenderer } from "./MessageRenderer";
+import { ConversationList } from "./ConversationList";
 
 interface CopilotWidgetProps {
   isOpen: boolean;
@@ -37,6 +39,8 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
   const [pageContext, setPageContext] = useState<PageContext | null>(null);
   const [isHoveringMinimized, setIsHoveringMinimized] = useState(false);
   const [copiedMessageIndex, setCopiedMessageIndex] = useState<number | null>(null);
+  const [showConversationList, setShowConversationList] = useState(false);
+  const [currentConversationId, setCurrentConversationId] = useState<string | null>(null);
 
   useEffect(() => {
     setState((prev) => ({
@@ -218,6 +222,91 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
     }
   };
 
+  // Auto-save current conversation when messages change
+  useEffect(() => {
+    if (state.messages.length === 0) return;
+    
+    const saveConversation = async () => {
+      try {
+        if (currentConversationId) {
+          // Update existing conversation
+          await ConversationService.updateConversation(currentConversationId, state.messages);
+        } else {
+          // Save new conversation
+          const newConversationId = await ConversationService.saveConversation(state.messages);
+          setCurrentConversationId(newConversationId);
+        }
+        console.log("Conversation auto-saved");
+      } catch (error) {
+        console.error("Failed to auto-save conversation:", error);
+      }
+    };
+
+    // Debounce the save operation
+    const timeoutId = setTimeout(saveConversation, 2000);
+    return () => clearTimeout(timeoutId);
+  }, [state.messages, currentConversationId]);
+
+  const handleConversationSelect = async (conversationId: string) => {
+    try {
+      setState(prev => ({ ...prev, isLoading: true }));
+      
+      // Load conversation messages
+      const messages = await ConversationService.loadConversationMessages(conversationId, 0, 100);
+      
+      setState(prev => ({
+        ...prev,
+        messages,
+        isLoading: false
+      }));
+      
+      setCurrentConversationId(conversationId);
+      console.log("Loaded conversation:", conversationId, messages.length, "messages");
+    } catch (error) {
+      console.error("Failed to load conversation:", error);
+      setState(prev => ({ ...prev, isLoading: false }));
+    }
+  };
+
+  const handleNewConversation = () => {
+    setState(prev => ({
+      ...prev,
+      messages: []
+    }));
+    setCurrentConversationId(null);
+    console.log("Started new conversation");
+  };
+
+  const toggleConversationList = () => {
+    setShowConversationList(prev => !prev);
+  };
+
+  // Handle clicks outside conversation list to close it
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (!showConversationList) return;
+      
+      const target = event.target as Element;
+      const conversationPanel = document.querySelector('.conversation-list-panel');
+      const menuButton = document.querySelector('[title*="chat list"]');
+      
+      // Don't close if clicking on the conversation panel itself or the menu button
+      if (conversationPanel && conversationPanel.contains(target)) return;
+      if (menuButton && menuButton.contains(target)) return;
+      
+      // Close the conversation list
+      setShowConversationList(false);
+    };
+
+    if (showConversationList) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showConversationList]);
+
 
 
   if (state.isMinimized) {
@@ -276,20 +365,59 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
 
   return (
     <div className="roam-copilot-container">
-      <div className="roam-copilot-expanded">
-        <div className="roam-copilot-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%" }}>
-          <span className="flex items-center gap-2">
-            <Icon icon={IconNames.LIGHTBULB} size={16} />
-            Roam Copilot
-          </span>
-          <Button
-            minimal
-            small
-            icon="minus"
-            onClick={onToggle}
-            title="Minimize"
-          />
-        </div>
+      <div className="roam-copilot-expanded" style={{ position: "relative" }}>
+        {/* Conversation List Panel */}
+        <ConversationList
+          isVisible={showConversationList}
+          onToggle={toggleConversationList}
+          currentConversationId={currentConversationId}
+          onConversationSelect={handleConversationSelect}
+          onNewConversation={handleNewConversation}
+        />
+
+        {/* Main Chat Area */}
+        <div 
+          style={{ 
+            height: "100%",
+            display: "flex",
+            flexDirection: "column"
+          }}
+        >
+          <div className="roam-copilot-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+              <Button
+                minimal
+                small
+                icon="menu"
+                onClick={toggleConversationList}
+                title={showConversationList ? "Hide chat list" : "Show chat list"}
+                style={{ marginRight: "4px" }}
+              />
+              <Icon icon={IconNames.LIGHTBULB} size={16} />
+              <span>Roam Copilot</span>
+              {currentConversationId && (
+                <span style={{ fontSize: "12px", color: "#666", marginLeft: "8px", display: "flex", alignItems: "center", gap: "4px" }}>
+                  <span 
+                    style={{ 
+                      width: "8px", 
+                      height: "8px", 
+                      borderRadius: "50%", 
+                      backgroundColor: "#69B58E",
+                      display: "inline-block"
+                    }}
+                  ></span>
+                  Saved
+                </span>
+              )}
+            </div>
+            <Button
+              minimal
+              small
+              icon="minus"
+              onClick={onToggle}
+              title="Minimize"
+            />
+          </div>
 
         <div
           style={{
@@ -447,6 +575,7 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
             disabled={state.isLoading}
             onModelChange={handleModelChange}
           />
+        </div>
         </div>
       </div>
     </div>

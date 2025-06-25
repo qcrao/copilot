@@ -24,6 +24,41 @@ declare global {
       data: {
         q: (query: string) => any[];
       };
+      util: {
+        generateUID: () => string;
+      };
+      createPage: (config: {
+        page: {
+          title: string;
+          uid: string;
+        };
+      }) => Promise<void>;
+      createBlock: (config: {
+        location: {
+          "parent-uid": string;
+          order: number | "first" | "last";
+        };
+        block: {
+          string: string;
+          uid: string;
+        };
+      }) => Promise<void>;
+      updateBlock: (config: {
+        block: {
+          uid: string;
+          string: string;
+        };
+      }) => Promise<void>;
+      deleteBlock: (config: {
+        block: {
+          uid: string;
+        };
+      }) => Promise<void>;
+      deletePage: (config: {
+        page: {
+          uid: string;
+        };
+      }) => Promise<void>;
     };
   }
 }

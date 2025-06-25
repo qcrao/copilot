@@ -1,0 +1,268 @@
+// src/components/ConversationList.tsx
+import React, { useState, useEffect, useCallback } from "react";
+import { Button, Icon, InputGroup, Spinner } from "@blueprintjs/core";
+import { IconNames } from "@blueprintjs/icons";
+import { ConversationMetadata, ConversationListState } from "../types";
+import { ConversationService } from "../services/conversationService";
+import { ConversationItem } from "./ConversationItem";
+
+interface ConversationListProps {
+  isVisible: boolean;
+  onToggle: () => void;
+  currentConversationId: string | null;
+  onConversationSelect: (conversationId: string) => void;
+  onNewConversation: () => void;
+}
+
+export const ConversationList: React.FC<ConversationListProps> = ({
+  isVisible,
+  onToggle,
+  currentConversationId,
+  onConversationSelect,
+  onNewConversation
+}) => {
+  const [state, setState] = useState<ConversationListState>({
+    conversations: [],
+    currentConversationId,
+    isLoading: false,
+    searchQuery: "",
+    showList: isVisible
+  });
+
+  const loadConversations = useCallback(async () => {
+    setState(prev => ({ ...prev, isLoading: true }));
+    try {
+      const conversations = await ConversationService.loadConversations();
+      setState(prev => ({
+        ...prev,
+        conversations,
+        isLoading: false
+      }));
+    } catch (error) {
+      console.error("Failed to load conversations:", error);
+      setState(prev => ({ ...prev, isLoading: false }));
+    }
+  }, []);
+
+  // Load conversations on mount
+  useEffect(() => {
+    loadConversations();
+  }, [loadConversations]);
+
+  // Update current conversation ID when prop changes
+  useEffect(() => {
+    setState(prev => ({
+      ...prev,
+      currentConversationId
+    }));
+  }, [currentConversationId]);
+
+  // Update visibility when prop changes and refresh list when shown
+  useEffect(() => {
+    setState(prev => ({
+      ...prev,
+      showList: isVisible
+    }));
+    
+    // Auto-refresh when conversation list is shown
+    if (isVisible) {
+      loadConversations();
+    }
+  }, [isVisible, loadConversations]);
+
+  const handleDeleteConversation = useCallback(async (conversationId: string) => {
+    try {
+      await ConversationService.deleteConversation(conversationId);
+      
+      // Reload conversations
+      await loadConversations();
+      
+      // If deleted conversation was current, start new conversation
+      if (conversationId === currentConversationId) {
+        onNewConversation();
+      }
+    } catch (error) {
+      console.error("Failed to delete conversation:", error);
+      throw error;
+    }
+  }, [currentConversationId, onNewConversation, loadConversations]);
+
+  const handleSearchChange = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
+    setState(prev => ({
+      ...prev,
+      searchQuery: event.target.value
+    }));
+  }, []);
+
+  const filteredConversations = state.conversations.filter(conv =>
+    conv.title.toLowerCase().includes(state.searchQuery.toLowerCase()) ||
+    (conv.tags && conv.tags.some(tag => 
+      tag.toLowerCase().includes(state.searchQuery.toLowerCase())
+    ))
+  );
+
+  const handleConversationClick = useCallback((conversationId: string) => {
+    onConversationSelect(conversationId);
+  }, [onConversationSelect]);
+
+  return (
+    <div
+      className="conversation-list-panel"
+      style={{
+        position: "absolute",
+        left: "0",
+        top: "0",
+        bottom: "0",
+        width: "280px",
+        backgroundColor: "white",
+        borderRight: "1px solid #e5e7eb",
+        display: "flex",
+        flexDirection: "column",
+        zIndex: 1000,
+        boxShadow: "2px 0 12px rgba(0,0,0,0.15)",
+        transform: isVisible ? "translateX(0)" : "translateX(-100%)",
+        transition: "transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)"
+      }}
+    >
+      {/* Header */}
+      <div
+        style={{
+          padding: "16px",
+          borderBottom: "1px solid #f3f4f6",
+          backgroundColor: "#f8f9fa",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between"
+        }}
+      >
+        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+          <Icon icon="chat" size={16} color="#393a3d" />
+          <span style={{ fontSize: "14px", fontWeight: "600", color: "#393a3d" }}>
+            Chat History
+          </span>
+        </div>
+        
+        <div style={{ display: "flex", gap: "4px" }}>
+          <Button
+            minimal
+            small
+            icon="plus"
+            onClick={onNewConversation}
+            title="New Chat"
+            style={{ color: "#393a3d" }}
+          />
+          <Button
+            minimal
+            small
+            icon="refresh"
+            onClick={loadConversations}
+            title="Refresh List"
+            style={{ color: "#393a3d" }}
+          />
+          <Button
+            minimal
+            small
+            icon="chevron-left"
+            onClick={onToggle}
+            title="Hide Chat List"
+            style={{ color: "#393a3d" }}
+          />
+        </div>
+      </div>
+
+      {/* Search */}
+      <div style={{ padding: "12px 16px" }}>
+        <InputGroup
+          placeholder="Search conversations..."
+          value={state.searchQuery}
+          onChange={handleSearchChange}
+          leftIcon="search"
+          style={{
+            fontSize: "13px",
+            height: "36px"
+          }}
+        />
+      </div>
+
+      {/* Conversation List */}
+      <div
+        style={{
+          flex: 1,
+          overflowY: "auto",
+          padding: "0 12px",
+          paddingBottom: "12px"
+        }}
+      >
+        {state.isLoading ? (
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "center",
+              alignItems: "center",
+              height: "100px"
+            }}
+          >
+            <Spinner size={24} />
+          </div>
+        ) : filteredConversations.length === 0 ? (
+          <div
+            style={{
+              textAlign: "center",
+              color: "#666",
+              fontSize: "13px",
+              padding: "40px 20px",
+              lineHeight: "1.5"
+            }}
+          >
+            {state.searchQuery ? (
+              <>
+                <Icon icon="search" size={32} style={{ opacity: 0.3, marginBottom: "12px" }} />
+                <div>No matching conversations found</div>
+              </>
+            ) : (
+              <>
+                <Icon icon="chat" size={32} style={{ opacity: 0.3, marginBottom: "12px" }} />
+                <div>No saved conversations yet</div>
+                <div style={{ marginTop: "8px", fontSize: "12px" }}>
+                  Conversations will be auto-saved after chatting
+                </div>
+              </>
+            )}
+          </div>
+        ) : (
+          <div>
+            {filteredConversations.map((conversation) => (
+              <ConversationItem
+                key={conversation.id}
+                conversation={conversation}
+                isActive={conversation.id === currentConversationId}
+                onClick={() => handleConversationClick(conversation.id)}
+                onDelete={handleDeleteConversation}
+              />
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Footer Stats */}
+      {filteredConversations.length > 0 && (
+        <div
+          style={{
+            padding: "12px 16px",
+            borderTop: "1px solid #f3f4f6",
+            backgroundColor: "#f8f9fa",
+            fontSize: "11px",
+            color: "#666",
+            textAlign: "center"
+          }}
+        >
+          {state.searchQuery ? (
+            `Found ${filteredConversations.length} conversations`
+          ) : (
+            `Total ${state.conversations.length} conversations`
+          )}
+        </div>
+      )}
+    </div>
+  );
+};

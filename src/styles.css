@@ -345,3 +345,147 @@
     opacity: 0.3;
   }
 }
+
+/* Conversation List Styles */
+.conversation-list-panel {
+  /* Conversation list specific scrollbar */
+  scrollbar-width: thin;
+  scrollbar-color: rgba(57, 58, 61, 0.6) rgba(0, 0, 0, 0.02);
+}
+
+.conversation-list-panel::-webkit-scrollbar {
+  width: 6px;
+}
+
+.conversation-list-panel::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.02);
+  border-radius: 3px;
+}
+
+.conversation-list-panel::-webkit-scrollbar-thumb {
+  background: rgba(57, 58, 61, 0.4);
+  border-radius: 3px;
+  transition: background-color 0.2s ease;
+}
+
+.conversation-list-panel::-webkit-scrollbar-thumb:hover {
+  background: rgba(57, 58, 61, 0.6);
+}
+
+.conversation-item {
+  transition: all 0.2s ease;
+  border-left: 3px solid transparent;
+}
+
+.conversation-item:hover {
+  background-color: #f5f5f5 !important;
+  transform: translateX(2px);
+}
+
+.conversation-item.active {
+  background-color: #f5f5f5 !important;
+  border-left-color: #393a3d !important;
+}
+
+.conversation-item.active:hover {
+  background-color: #f5f5f5 !important;
+}
+
+/* Adjust main copilot expanded area for conversation list */
+.roam-copilot-expanded {
+  /* Ensure the expanded area can accommodate the conversation list */
+  min-width: 400px;
+  max-width: calc(100vw - 40px);
+}
+
+/* When conversation list is shown, adjust the main chat area */
+.roam-copilot-expanded .cs-main-container {
+  /* Ensure the chat container doesn't overflow when conversation list is shown */
+  overflow: hidden;
+}
+
+/* Conversation list toggle animation */
+.conversation-list-toggle {
+  transition: all 0.3s ease;
+}
+
+/* Responsive adjustments for conversation list */
+@media (max-width: 800px) {
+  .conversation-list-panel {
+    width: 240px !important;
+  }
+  
+  .roam-copilot-expanded {
+    /* On smaller screens, reduce the conversation list width */
+    min-width: 320px;
+  }
+}
+
+@media (max-width: 600px) {
+  .conversation-list-panel {
+    width: 200px !important;
+  }
+  
+  .roam-copilot-expanded {
+    min-width: 280px;
+  }
+}
+
+/* Search input in conversation list */
+.conversation-list-panel .bp3-input-group {
+  border-radius: 6px;
+}
+
+.conversation-list-panel .bp3-input {
+  background-color: #f8f9fa;
+  border: 1px solid #e5e7eb;
+  font-size: 13px;
+}
+
+.conversation-list-panel .bp3-input:focus {
+  background-color: white;
+  border-color: #393a3d;
+  box-shadow: 0 0 0 2px rgba(57, 58, 61, 0.1);
+}
+
+/* Conversation item animations */
+.conversation-item .bp3-button {
+  transition: all 0.2s ease;
+}
+
+.conversation-item .bp3-button:hover {
+  transform: scale(1.1);
+}
+
+/* Loading states for conversation list */
+.conversation-list-loading {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100px;
+  color: #666;
+}
+
+/* Empty state for conversation list */
+.conversation-list-empty {
+  text-align: center;
+  color: #666;
+  font-size: 13px;
+  padding: 40px 20px;
+  line-height: 1.5;
+}
+
+.conversation-list-empty .bp3-icon {
+  opacity: 0.3;
+  margin-bottom: 12px;
+}
+
+/* Stats footer in conversation list */
+.conversation-list-stats {
+  padding: 12px 16px;
+  border-top: 1px solid #f3f4f6;
+  background-color: #f8f9fa;
+  font-size: 11px;
+  color: #666;
+  text-align: center;
+}
