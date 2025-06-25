@@ -1,6 +1,14 @@
 // src/components/ConversationList.tsx
 import React, { useState, useEffect, useCallback } from "react";
-import { Button, Icon, InputGroup, Spinner } from "@blueprintjs/core";
+import {
+  Button,
+  Icon,
+  InputGroup,
+  Spinner,
+  Toast,
+  Toaster,
+  Position,
+} from "@blueprintjs/core";
 import { IconNames } from "@blueprintjs/icons";
 import { ConversationMetadata, ConversationListState } from "../types";
 import { ConversationService } from "../services/conversationService";
@@ -19,28 +27,39 @@ export const ConversationList: React.FC<ConversationListProps> = ({
   onToggle,
   currentConversationId,
   onConversationSelect,
-  onNewConversation
+  onNewConversation,
 }) => {
   const [state, setState] = useState<ConversationListState>({
     conversations: [],
     currentConversationId,
     isLoading: false,
     searchQuery: "",
-    showList: isVisible
+    showList: isVisible,
   });
 
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [refreshSuccess, setRefreshSuccess] = useState(false);
+
   const loadConversations = useCallback(async () => {
-    setState(prev => ({ ...prev, isLoading: true }));
+    setIsRefreshing(true);
+    setState((prev) => ({ ...prev, isLoading: true }));
+
     try {
       const conversations = await ConversationService.loadConversations();
-      setState(prev => ({
+      setState((prev) => ({
         ...prev,
         conversations,
-        isLoading: false
+        isLoading: false,
       }));
+
+      // Show success feedback
+      setRefreshSuccess(true);
+      setTimeout(() => setRefreshSuccess(false), 1500);
     } catch (error) {
       console.error("Failed to load conversations:", error);
-      setState(prev => ({ ...prev, isLoading: false }));
+      setState((prev) => ({ ...prev, isLoading: false }));
+    } finally {
+      setIsRefreshing(false);
     }
   }, []);
 
@@ -51,59 +70,70 @@ export const ConversationList: React.FC<ConversationListProps> = ({
 
   // Update current conversation ID when prop changes
   useEffect(() => {
-    setState(prev => ({
+    setState((prev) => ({
       ...prev,
-      currentConversationId
+      currentConversationId,
     }));
   }, [currentConversationId]);
 
   // Update visibility when prop changes and refresh list when shown
   useEffect(() => {
-    setState(prev => ({
+    setState((prev) => ({
       ...prev,
-      showList: isVisible
+      showList: isVisible,
     }));
-    
+
     // Auto-refresh when conversation list is shown
     if (isVisible) {
       loadConversations();
     }
   }, [isVisible, loadConversations]);
 
-  const handleDeleteConversation = useCallback(async (conversationId: string) => {
-    try {
-      await ConversationService.deleteConversation(conversationId);
-      
-      // Reload conversations
-      await loadConversations();
-      
-      // If deleted conversation was current, start new conversation
-      if (conversationId === currentConversationId) {
-        onNewConversation();
+  const handleDeleteConversation = useCallback(
+    async (conversationId: string) => {
+      try {
+        await ConversationService.deleteConversation(conversationId);
+
+        // Reload conversations
+        await loadConversations();
+
+        // If deleted conversation was current, start new conversation
+        if (conversationId === currentConversationId) {
+          onNewConversation();
+        }
+      } catch (error) {
+        console.error("Failed to delete conversation:", error);
+        throw error;
       }
-    } catch (error) {
-      console.error("Failed to delete conversation:", error);
-      throw error;
-    }
-  }, [currentConversationId, onNewConversation, loadConversations]);
-
-  const handleSearchChange = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
-    setState(prev => ({
-      ...prev,
-      searchQuery: event.target.value
-    }));
-  }, []);
-
-  const filteredConversations = state.conversations.filter(conv =>
-    conv.title.toLowerCase().includes(state.searchQuery.toLowerCase()) ||
-    (conv.tags && conv.tags.some(tag => 
-      tag.toLowerCase().includes(state.searchQuery.toLowerCase())
-    ))
+    },
+    [currentConversationId, onNewConversation, loadConversations]
   );
 
-  const handleConversationClick = useCallback((conversationId: string) => {
-    onConversationSelect(conversationId);
-  }, [onConversationSelect]);
+  const handleSearchChange = useCallback(
+    (event: React.ChangeEvent<HTMLInputElement>) => {
+      setState((prev) => ({
+        ...prev,
+        searchQuery: event.target.value,
+      }));
+    },
+    []
+  );
+
+  const filteredConversations = state.conversations.filter(
+    (conv) =>
+      conv.title.toLowerCase().includes(state.searchQuery.toLowerCase()) ||
+      (conv.tags &&
+        conv.tags.some((tag) =>
+          tag.toLowerCase().includes(state.searchQuery.toLowerCase())
+        ))
+  );
+
+  const handleConversationClick = useCallback(
+    (conversationId: string) => {
+      onConversationSelect(conversationId);
+    },
+    [onConversationSelect]
+  );
 
   return (
     <div
@@ -121,7 +151,7 @@ export const ConversationList: React.FC<ConversationListProps> = ({
         zIndex: 1000,
         boxShadow: "2px 0 12px rgba(0,0,0,0.15)",
         transform: isVisible ? "translateX(0)" : "translateX(-100%)",
-        transition: "transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)"
+        transition: "transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
       }}
     >
       {/* Header */}
@@ -132,16 +162,18 @@ export const ConversationList: React.FC<ConversationListProps> = ({
           backgroundColor: "#f8f9fa",
           display: "flex",
           alignItems: "center",
-          justifyContent: "space-between"
+          justifyContent: "space-between",
         }}
       >
         <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
           <Icon icon="chat" size={16} color="#393a3d" />
-          <span style={{ fontSize: "14px", fontWeight: "600", color: "#393a3d" }}>
+          <span
+            style={{ fontSize: "14px", fontWeight: "600", color: "#393a3d" }}
+          >
             Chat History
           </span>
         </div>
-        
+
         <div style={{ display: "flex", gap: "4px" }}>
           <Button
             minimal
@@ -154,10 +186,21 @@ export const ConversationList: React.FC<ConversationListProps> = ({
           <Button
             minimal
             small
-            icon="refresh"
+            icon={refreshSuccess ? "tick" : "refresh"}
             onClick={loadConversations}
-            title="Refresh List"
-            style={{ color: "#393a3d" }}
+            title={
+              isRefreshing
+                ? "Refreshing..."
+                : refreshSuccess
+                ? "Refreshed!"
+                : "Refresh List"
+            }
+            disabled={isRefreshing}
+            className={isRefreshing ? "refresh-spinning" : ""}
+            style={{
+              color: refreshSuccess ? "#0f9960" : "#393a3d",
+              transition: "color 0.2s ease",
+            }}
           />
           <Button
             minimal
@@ -179,7 +222,7 @@ export const ConversationList: React.FC<ConversationListProps> = ({
           leftIcon="search"
           style={{
             fontSize: "13px",
-            height: "36px"
+            height: "36px",
           }}
         />
       </div>
@@ -190,7 +233,7 @@ export const ConversationList: React.FC<ConversationListProps> = ({
           flex: 1,
           overflowY: "auto",
           padding: "0 12px",
-          paddingBottom: "12px"
+          paddingBottom: "12px",
         }}
       >
         {state.isLoading ? (
@@ -199,7 +242,7 @@ export const ConversationList: React.FC<ConversationListProps> = ({
               display: "flex",
               justifyContent: "center",
               alignItems: "center",
-              height: "100px"
+              height: "100px",
             }}
           >
             <Spinner size={24} />
@@ -211,17 +254,25 @@ export const ConversationList: React.FC<ConversationListProps> = ({
               color: "#666",
               fontSize: "13px",
               padding: "40px 20px",
-              lineHeight: "1.5"
+              lineHeight: "1.5",
             }}
           >
             {state.searchQuery ? (
               <>
-                <Icon icon="search" size={32} style={{ opacity: 0.3, marginBottom: "12px" }} />
+                <Icon
+                  icon="search"
+                  size={32}
+                  style={{ opacity: 0.3, marginBottom: "12px" }}
+                />
                 <div>No matching conversations found</div>
               </>
             ) : (
               <>
-                <Icon icon="chat" size={32} style={{ opacity: 0.3, marginBottom: "12px" }} />
+                <Icon
+                  icon="chat"
+                  size={32}
+                  style={{ opacity: 0.3, marginBottom: "12px" }}
+                />
                 <div>No saved conversations yet</div>
                 <div style={{ marginTop: "8px", fontSize: "12px" }}>
                   Conversations will be auto-saved after chatting
@@ -245,24 +296,20 @@ export const ConversationList: React.FC<ConversationListProps> = ({
       </div>
 
       {/* Footer Stats */}
-      {filteredConversations.length > 0 && (
-        <div
-          style={{
-            padding: "12px 16px",
-            borderTop: "1px solid #f3f4f6",
-            backgroundColor: "#f8f9fa",
-            fontSize: "11px",
-            color: "#666",
-            textAlign: "center"
-          }}
-        >
-          {state.searchQuery ? (
-            `Found ${filteredConversations.length} conversations`
-          ) : (
-            `Total ${state.conversations.length} conversations`
-          )}
-        </div>
-      )}
+      <div
+        style={{
+          padding: "12px 16px",
+          borderTop: "1px solid #f3f4f6",
+          backgroundColor: "#f8f9fa",
+          fontSize: "11px",
+          color: "#666",
+          textAlign: "center",
+        }}
+      >
+        {filteredConversations.length} conversation
+        {filteredConversations.length !== 1 ? "s" : ""}
+        {state.searchQuery && ` (filtered from ${state.conversations.length})`}
+      </div>
     </div>
   );
 };

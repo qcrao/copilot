@@ -465,6 +465,45 @@
   transform: scale(1.1);
 }
 
+/* Refresh button animations */
+.conversation-list-panel .bp3-button[title="Refresh List"] {
+  transition: all 0.2s ease;
+}
+
+.conversation-list-panel
+  .bp3-button[title="Refresh List"]:not(:disabled):hover {
+  background-color: rgba(57, 58, 61, 0.1);
+  transform: scale(1.1);
+}
+
+.conversation-list-panel .bp3-button[title="Refresh List"]:disabled {
+  opacity: 0.8;
+}
+
+/* Success state for refresh button */
+.conversation-list-panel .bp3-button[title="Refresh List"] .bp3-icon {
+  transition: all 0.2s ease;
+}
+
+/* Smooth rotation keyframes */
+@keyframes refreshSpin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.refresh-spinning .bp3-icon {
+  animation: refreshSpin 1s linear infinite;
+}
+
+/* Override the button's transform when spinning */
+.refresh-spinning {
+  transform: none !important;
+}
+
 /* Loading states for conversation list */
 .conversation-list-loading {
   display: flex;
