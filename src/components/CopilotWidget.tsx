@@ -185,7 +185,7 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
 
       // Get model-specific token limit for context
       const currentModel = multiProviderSettings.currentModel;
-      const provider = AIService.getProviderForModel(currentModel);
+      const provider = await AIService.getProviderForModel(currentModel);
       const maxContextTokens = RoamService.getModelTokenLimit(
         provider?.provider?.id || 'openai', 
         currentModel

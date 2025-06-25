@@ -5,9 +5,10 @@ import { RoamService } from "./roamService";
 
 export class AIService {
   // Helper function to get provider for a specific model
-  static getProviderForModel(
+  static async getProviderForModel(
     model: string
-  ): { provider: any; apiKey: string } | null {
+  ): Promise<{ provider: any; apiKey: string } | null> {
+    // First check static models for all providers
     for (const provider of AI_PROVIDERS) {
       if (provider.models.includes(model)) {
         // Ollama doesn't need API key
@@ -21,6 +22,20 @@ export class AIService {
         }
       }
     }
+
+    // If not found in static models, check if it's an Ollama dynamic model
+    const ollamaProvider = AI_PROVIDERS.find(p => p.id === "ollama");
+    if (ollamaProvider && ollamaProvider.supportsDynamicModels) {
+      try {
+        const dynamicModels = await this.getOllamaModels();
+        if (dynamicModels.includes(model)) {
+          return { provider: ollamaProvider, apiKey: "" };
+        }
+      } catch (error) {
+        console.log("Failed to check Ollama dynamic models:", error);
+      }
+    }
+
     return null;
   }
 
@@ -224,8 +239,15 @@ export class AIService {
       );
     }
 
-    const providerInfo = this.getProviderForModel(model);
+    const providerInfo = await this.getProviderForModel(model);
     if (!providerInfo) {
+      throw new Error(
+        `Model not found or API key not configured for model: ${model}. Please configure the API key in settings.`
+      );
+    }
+
+    // Ollama doesn't need API key validation
+    if (providerInfo.provider.id !== "ollama" && !providerInfo.apiKey) {
       throw new Error(
         `No API key configured for model: ${model}. Please configure the API key in settings.`
       );
