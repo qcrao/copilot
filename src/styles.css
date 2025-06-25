@@ -670,10 +670,11 @@
   position: absolute;
   background: transparent;
   z-index: 999999;
+  border-radius: 3px;
 }
 
 .resize-handle:hover {
-  background: rgba(57, 58, 61, 0.1);
+  background: transparent;
 }
 
 .resize-nw {
@@ -687,34 +688,24 @@
 .resize-nw::after {
   content: '';
   position: absolute;
-  top: 2px;
-  left: 2px;
-  width: 12px;
-  height: 12px;
-  background: repeating-linear-gradient(
-    -45deg,
-    transparent 0px,
-    transparent 1px,
-    #999 1px,
-    #999 2px,
-    transparent 2px,
-    transparent 3px
-  );
-  border-radius: 1px;
-  opacity: 0.6;
+  top: 4px;
+  left: 4px;
+  width: 8px;
+  height: 8px;
+  background-image: 
+    linear-gradient(135deg, #bbb 25%, transparent 25%),
+    linear-gradient(225deg, #bbb 25%, transparent 25%),
+    linear-gradient(45deg, #bbb 25%, transparent 25%),
+    linear-gradient(315deg, #bbb 25%, transparent 25%);
+  background-size: 2px 2px;
+  background-position: 0 0, 1px 0, 1px -1px, 0px 1px;
+  border-radius: 2px;
+  opacity: 0.5;
+  transition: opacity 0.2s ease;
 }
 
 .resize-nw:hover::after {
-  opacity: 1;
-  background: repeating-linear-gradient(
-    -45deg,
-    transparent 0px,
-    transparent 1px,
-    #666 1px,
-    #666 2px,
-    transparent 2px,
-    transparent 3px
-  );
+  opacity: 0.8;
 }
 
 .resize-se {
@@ -728,33 +719,23 @@
 .resize-se::after {
   content: '';
   position: absolute;
-  bottom: 2px;
-  right: 2px;
-  width: 12px;
-  height: 12px;
-  background: repeating-linear-gradient(
-    45deg,
-    transparent 0px,
-    transparent 1px,
-    #999 1px,
-    #999 2px,
-    transparent 2px,
-    transparent 3px
-  );
-  border-radius: 1px;
-  opacity: 0.6;
+  bottom: 4px;
+  right: 4px;
+  width: 8px;
+  height: 8px;
+  background-image: 
+    linear-gradient(135deg, #bbb 25%, transparent 25%),
+    linear-gradient(225deg, #bbb 25%, transparent 25%),
+    linear-gradient(45deg, #bbb 25%, transparent 25%),
+    linear-gradient(315deg, #bbb 25%, transparent 25%);
+  background-size: 2px 2px;
+  background-position: 0 0, 1px 0, 1px -1px, 0px 1px;
+  border-radius: 2px;
+  opacity: 0.5;
+  transition: opacity 0.2s ease;
 }
 
 .resize-se:hover::after {
-  opacity: 1;
-  background: repeating-linear-gradient(
-    45deg,
-    transparent 0px,
-    transparent 1px,
-    #666 1px,
-    #666 2px,
-    transparent 2px,
-    transparent 3px
-  );
+  opacity: 0.8;
 }
 
