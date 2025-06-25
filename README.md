@@ -135,34 +135,56 @@ ollama pull qwen2.5:14b
 
 1. Open Roam Research settings
 2. Go to the "Roam Copilot" tab
-3. Configure **Ollama Service URL** (default: `http://localhost:11434`)
+3. Configure **Ollama Service URL** (default: `ø`)
 4. Select an Ollama model from the dropdown in the chat interface
 
 ### CORS Configuration (Important!)
 
-To allow Roam Research (web app) and browser extensions to access your local Ollama service, you need to configure CORS origins.
+To allow Roam Research (web app) to access your local Ollama service, you need to configure CORS origins.
 
-#### Temporary Setup (needs to be done after each restart)
+#### Setup Steps
 
+1. **Check if Ollama is running**:
 ```bash
-# Set CORS origins to allow Roam Research and browser extensions
-launchctl setenv OLLAMA_ORIGINS "https://roamresearch.com,chrome-extension://*"
+# Check if Ollama service is accessible
+curl http://localhost:11434/
 
-# Restart Ollama (choose one method):
-
-# Method 1: Force kill and restart (most reliable)
-lsof -ti:11434 | xargs kill -9 && sleep 2 && ollama serve
-
-# Method 2: If using Ollama desktop app
-# Click menu bar Ollama icon → "Quit Ollama", then restart the app
-
-# Method 3: Using pkill
-sudo pkill -f ollama && sleep 2 && ollama serve
+# View installed models (two methods)
+ollama list
+curl http://localhost:11434/api/tags
 ```
 
-#### Permanent Setup (recommended)
+2. **Set CORS origins to allow Roam Research access**:
+```bash
+# Allow Roam Research to access Ollama
+launchctl setenv OLLAMA_ORIGINS "https://roamresearch.com"
+```
 
-Create a LaunchAgent to set the environment variable permanently:
+3. **Verify the environment variable is set**:
+```bash
+# Should output: https://roamresearch.com
+launchctl getenv OLLAMA_ORIGINS
+```
+
+4. **Restart Ollama**:
+   - Go to Activity Monitor and quit the Ollama process
+   - Or click the Ollama menu bar icon → "Quit Ollama"
+   - Restart by running `ollama list` (this will automatically start Ollama)
+
+5. **Verify CORS is working**:
+```bash
+# Test CORS configuration (should return 204 status code)
+curl -X OPTIONS http://localhost:11434 \
+     -H "Origin: https://roamresearch.com" \
+     -H "Access-Control-Request-Method: POST" -I
+```
+
+6. **Configure in Roam Copilot**:
+   - In the settings panel, set the Ollama service URL to: `http://localhost:11434`
+
+#### Permanent Setup (Optional)
+
+For persistent CORS configuration across restarts, create a LaunchAgent:
 
 ```bash
 # Create the LaunchAgent plist file
@@ -178,7 +200,7 @@ cat << 'EOF' > ~/Library/LaunchAgents/setenv.OLLAMA_ORIGINS.plist
       <string>/bin/launchctl</string>
       <string>setenv</string>
       <string>OLLAMA_ORIGINS</string>
-      <string>https://roamresearch.com,chrome-extension://*</string>
+      <string>https://roamresearch.com</string>
     </array>
     <key>RunAtLoad</key>
     <true/>
@@ -190,24 +212,6 @@ EOF
 
 # Load the LaunchAgent
 launchctl load ~/Library/LaunchAgents/setenv.OLLAMA_ORIGINS.plist
-
-# Restart your Mac or restart Ollama app for changes to take effect
-```
-
-#### Verification
-
-```bash
-# Check if CORS is set correctly
-launchctl getenv OLLAMA_ORIGINS
-
-# Test CORS (should return 204 status code)
-curl -X OPTIONS http://localhost:11434 \
-  -H "Origin: https://roamresearch.com" \
-  -H "Access-Control-Request-Method: GET" \
-  -I
-
-# Check if Ollama is running
-curl http://localhost:11434/api/tags
 ```
 
 **Note**: This step is essential for the extension to work with Ollama. Without proper CORS configuration, browser security policies will block requests to your local Ollama service.
