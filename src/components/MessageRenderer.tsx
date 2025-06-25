@@ -7,6 +7,12 @@ interface MessageRendererProps {
 }
 
 export const MessageRenderer: React.FC<MessageRendererProps> = ({ content, isUser = false }) => {
+  // Pre-process content to remove colons from title-like lines
+  const preprocessContent = (text: string): string => {
+    return text.replace(/^([^：:\n]+?)：\s*$/gm, '$1') // Remove trailing colons from lines that look like titles
+               .replace(/^([^：:\n]+?):\s*$/gm, '$1'); // Handle both Chinese and English colons
+  };
+
   const parseContent = (text: string): React.ReactNode[] => {
     const elements: React.ReactNode[] = [];
     
@@ -284,6 +290,9 @@ export const MessageRenderer: React.FC<MessageRendererProps> = ({ content, isUse
         };
         const fontSize = fontSizeMap[level] || '1em';
         
+        // Remove trailing colon from heading text
+        const headingText = match.text.replace(/:\s*$/, '');
+        
         return React.createElement(HeadingTag, {
           key: index,
           style: {
@@ -293,7 +302,7 @@ export const MessageRenderer: React.FC<MessageRendererProps> = ({ content, isUse
             margin: '16px 0 8px 0',
             lineHeight: '1.3'
           }
-        }, match.text);
+        }, headingText);
 
       case 'code-block':
         return (
@@ -472,7 +481,8 @@ export const MessageRenderer: React.FC<MessageRendererProps> = ({ content, isUse
   };
 
   const renderContent = () => {
-    const elements = parseContent(content);
+    const processedContent = preprocessContent(content);
+    const elements = parseContent(processedContent);
     return elements.map((element, index) => {
       if (typeof element === 'string') {
         // Handle line breaks in remaining text
