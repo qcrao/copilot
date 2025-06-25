@@ -7,10 +7,11 @@ interface MessageRendererProps {
 }
 
 export const MessageRenderer: React.FC<MessageRendererProps> = ({ content, isUser = false }) => {
-  // Pre-process content to remove colons from title-like lines
+  // Pre-process content to remove colons from title-like lines and trailing whitespace
   const preprocessContent = (text: string): string => {
     return text.replace(/^([^：:\n]+?)：\s*$/gm, '$1') // Remove trailing colons from lines that look like titles
-               .replace(/^([^：:\n]+?):\s*$/gm, '$1'); // Handle both Chinese and English colons
+               .replace(/^([^：:\n]+?):\s*$/gm, '$1') // Handle both Chinese and English colons
+               .replace(/\s+$/, ''); // Remove all trailing whitespace and empty lines
   };
 
   const parseContent = (text: string): React.ReactNode[] => {
