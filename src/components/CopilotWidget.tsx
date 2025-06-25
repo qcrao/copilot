@@ -36,6 +36,7 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
 
   const [pageContext, setPageContext] = useState<PageContext | null>(null);
   const [isHoveringMinimized, setIsHoveringMinimized] = useState(false);
+  const [copiedMessageIndex, setCopiedMessageIndex] = useState<number | null>(null);
 
   useEffect(() => {
     setState((prev) => ({
@@ -197,6 +198,27 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
     // We could add additional logic here if needed
   };
 
+  const handleCopyMessage = async (content: string, messageIndex: number) => {
+    try {
+      await navigator.clipboard.writeText(content);
+      setCopiedMessageIndex(messageIndex);
+      setTimeout(() => setCopiedMessageIndex(null), 2000); // Reset after 2 seconds
+      console.log("Message copied to clipboard");
+    } catch (error) {
+      console.error("Failed to copy message:", error);
+      // Fallback for older browsers
+      const textArea = document.createElement("textarea");
+      textArea.value = content;
+      document.body.appendChild(textArea);
+      textArea.select();
+      document.execCommand("copy");
+      document.body.removeChild(textArea);
+      setCopiedMessageIndex(messageIndex);
+      setTimeout(() => setCopiedMessageIndex(null), 2000);
+    }
+  };
+
+
 
   if (state.isMinimized) {
     return (
@@ -320,28 +342,64 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
                       <div
                         style={{
                           maxWidth: msg.role === "user" ? "75%" : "80%",
-                          padding: "8px 12px",
-                          borderRadius: "12px",
-                          backgroundColor: msg.role === "user" ? "#393A3D" : "#f1f3f4",
-                          color: msg.role === "user" ? "white" : "#333",
-                          fontSize: "14px",
-                          lineHeight: "1.4",
-                          wordBreak: "break-word"
+                          display: "flex",
+                          flexDirection: "column",
+                          alignItems: msg.role === "user" ? "flex-end" : "flex-start"
                         }}
                       >
-                        <MessageRenderer 
-                          content={msg.content} 
-                          isUser={msg.role === "user"}
-                        />
+                        {/* Timestamp above bubble */}
                         <div
                           style={{
                             fontSize: "11px",
                             opacity: 0.7,
-                            marginTop: "4px",
-                            textAlign: msg.role === "user" ? "right" : "left"
+                            color: "#666",
+                            marginBottom: "4px",
+                            paddingLeft: msg.role === "user" ? "0" : "4px",
+                            paddingRight: msg.role === "user" ? "4px" : "0"
                           }}
                         >
                           {msg.timestamp.toLocaleTimeString()}
+                        </div>
+
+                        {/* Message bubble */}
+                        <div
+                          style={{
+                            padding: "8px 12px",
+                            borderRadius: "12px",
+                            backgroundColor: msg.role === "user" ? "#393A3D" : "#f1f3f4",
+                            color: msg.role === "user" ? "white" : "#333",
+                            fontSize: "14px",
+                            lineHeight: "1.4",
+                            wordBreak: "break-word"
+                          }}
+                        >
+                          <MessageRenderer 
+                            content={msg.content} 
+                            isUser={msg.role === "user"}
+                          />
+                        </div>
+                        
+                        {/* Action buttons below bubble */}
+                        <div
+                          style={{
+                            marginTop: "4px",
+                            paddingLeft: msg.role === "user" ? "0" : "4px",
+                            paddingRight: msg.role === "user" ? "4px" : "0"
+                          }}
+                        >
+                          <Button
+                            minimal
+                            small
+                            icon={copiedMessageIndex === index ? "tick" : "duplicate"}
+                            onClick={() => handleCopyMessage(msg.content, index)}
+                            style={{
+                              minWidth: "24px",
+                              minHeight: "24px",
+                              color: "#666",
+                              opacity: 0.7
+                            }}
+                            title="Copy message"
+                          />
                         </div>
                       </div>
                     </div>
