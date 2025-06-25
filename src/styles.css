@@ -489,3 +489,72 @@
   color: #666;
   text-align: center;
 }
+
+/* Prompt Template Styles */
+.prompt-card {
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.prompt-card:hover {
+  transform: translateY(-2px);
+}
+
+.prompt-card:active {
+  transform: translateY(0);
+  transition: all 0.1s ease;
+}
+
+/* Responsive adjustments for prompt templates */
+@media (max-width: 600px) {
+  /* Stack cards in single column on mobile */
+  .prompt-templates-grid [style*="grid-template-columns: 1fr 1fr"] {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+/* Modal enhancements */
+.bp3-dialog .bp3-dialog-header {
+  background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.bp3-dialog .bp3-dialog-body {
+  background: white;
+}
+
+/* Date selector enhancements */
+.bp3-popover .bp3-popover-content {
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.15);
+}
+
+/* Input focus states */
+.bp3-input:focus,
+.bp3-input-group.bp3-intent-primary .bp3-input {
+  box-shadow: 0 0 0 3px rgba(57, 58, 61, 0.1);
+  border-color: #393a3d;
+}
+
+/* Button enhancements */
+.bp3-button.bp3-intent-primary {
+  background: linear-gradient(135deg, #393a3d 0%, #2a2b2d 100%);
+  border: none;
+  box-shadow: 0 2px 8px rgba(57, 58, 61, 0.3);
+  transition: all 0.2s ease;
+}
+
+.bp3-button.bp3-intent-primary:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(57, 58, 61, 0.4);
+}
+
+/* Accessibility improvements */
+@media (prefers-reduced-motion: reduce) {
+  .prompt-card,
+  .prompt-card:hover {
+    transform: none;
+    transition: box-shadow 0.2s ease;
+  }
+}

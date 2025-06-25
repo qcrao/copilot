@@ -780,4 +780,163 @@ export class RoamService {
 
     return formatted;
   }
+
+  // /**
+  //  * Detect the primary language of text content
+  //  * NOTE: This function is deprecated in favor of manual language settings
+  //  */
+  // static detectLanguage(content: string): string {
+  //   const cleanContent = content.replace(/\s/g, '');
+  //   const totalChars = cleanContent.length;
+    
+  //   if (totalChars === 0) return 'English';
+
+  //   // Chinese characters (including traditional and simplified)
+  //   const chineseChars = (content.match(/[\u4e00-\u9fff]/g) || []).length;
+  //   const chineseRatio = chineseChars / totalChars;
+    
+  //   // Japanese characters (Hiragana, Katakana, Kanji)
+  //   const japaneseChars = (content.match(/[\u3040-\u309f\u30a0-\u30ff\u4e00-\u9faf]/g) || []).length;
+  //   const japaneseRatio = japaneseChars / totalChars;
+    
+  //   // Korean characters (Hangul)
+  //   const koreanChars = (content.match(/[\uac00-\ud7af]/g) || []).length;
+  //   const koreanRatio = koreanChars / totalChars;
+    
+  //   // French characters (accented characters)
+  //   const frenchChars = (content.match(/[àâäéèêëïîôöùûüÿçÀÂÄÉÈÊËÏÎÔÖÙÛÜŸÇ]/g) || []).length;
+  //   const frenchRatio = frenchChars / totalChars;
+    
+  //   // Spanish characters (accented characters)
+  //   const spanishChars = (content.match(/[áéíóúüñÁÉÍÓÚÜÑ¿¡]/g) || []).length;
+  //   const spanishRatio = spanishChars / totalChars;
+    
+  //   // German characters (umlaut and ß)
+  //   const germanChars = (content.match(/[äöüßÄÖÜ]/g) || []).length;
+  //   const germanRatio = germanChars / totalChars;
+
+  //   // Determine language based on ratios
+  //   if (chineseRatio > 0.2) return 'Chinese';
+  //   if (japaneseRatio > 0.2) return 'Japanese';
+  //   if (koreanRatio > 0.2) return 'Korean';
+  //   if (frenchRatio > 0.05) return 'French';
+  //   if (spanishRatio > 0.05) return 'Spanish';
+  //   if (germanRatio > 0.05) return 'German';
+    
+  //   return 'English';
+  // }
+
+  // /**
+  //  * Add language instruction to prompt based on detected language
+  //  * NOTE: This function is deprecated in favor of manual language settings
+  //  */
+  // static addLanguageInstruction(prompt: string, detectedLanguage: string): string {
+  //   return prompt + `\n\nIMPORTANT: Please respond in ${detectedLanguage}, as this appears to be the primary language used in the user's notes.`;
+  // }
+
+  /**
+   * Get notes from a specific date
+   */
+  static async getNotesFromDate(dateString: string): Promise<RoamPage | null> {
+    try {
+      console.log("Getting notes from date:", dateString);
+      
+      // Convert date string to various formats that Roam might use
+      const inputDate = new Date(dateString);
+      if (isNaN(inputDate.getTime())) {
+        console.error("Invalid date string:", dateString);
+        return null;
+      }
+
+      const dateFormats = [
+        // MM-dd-yyyy
+        inputDate.toLocaleDateString("en-US", {
+          month: "2-digit",
+          day: "2-digit", 
+          year: "numeric",
+        }).replace(/\//g, "-"),
+        // Month dd, yyyy
+        inputDate.toLocaleDateString("en-US", {
+          month: "long",
+          day: "numeric",
+          year: "numeric",
+        }),
+        // yyyy-mm-dd
+        inputDate.toISOString().split("T")[0],
+        // dd-MM-yyyy
+        inputDate.toLocaleDateString("en-GB").replace(/\//g, "-"),
+        // Just the year-month-day without leading zeros
+        `${inputDate.getFullYear()}-${inputDate.getMonth() + 1}-${inputDate.getDate()}`,
+        // With ordinal suffix
+        inputDate.toLocaleDateString("en-US", {
+          month: "long", 
+          day: "numeric",
+          year: "numeric"
+        }).replace(/(\d+)/, (match) => {
+          const day = parseInt(match);
+          const suffix = day % 10 === 1 && day !== 11 ? 'st' :
+                        day % 10 === 2 && day !== 12 ? 'nd' :
+                        day % 10 === 3 && day !== 13 ? 'rd' : 'th';
+          return day + suffix;
+        })
+      ];
+
+      for (const format of dateFormats) {
+        console.log("Trying date format:", format);
+        
+        const query = `
+          [:find ?uid
+           :where
+           [?e :node/title "${format}"]
+           [?e :block/uid ?uid]]
+        `;
+
+        const result = window.roamAlphaAPI.q(query);
+        console.log("Query result for", format, ":", result);
+        
+        if (result && result.length > 0) {
+          const uid = result[0][0];
+          const blocks = await this.getPageBlocks(uid);
+
+          return {
+            title: format,
+            uid,
+            blocks,
+          };
+        }
+      }
+
+      console.log("No daily note found for date:", dateString);
+      return null;
+    } catch (error) {
+      console.error("Error getting notes from date:", error);
+      return null;
+    }
+  }
+
+  /**
+   * Get notes from a date range
+   */
+  static async getNotesFromDateRange(startDate: string, endDate: string): Promise<RoamPage[]> {
+    try {
+      const notes: RoamPage[] = [];
+      const start = new Date(startDate);
+      const end = new Date(endDate);
+      
+      const currentDate = new Date(start);
+      while (currentDate <= end) {
+        const dateString = currentDate.toISOString().split('T')[0];
+        const note = await this.getNotesFromDate(dateString);
+        if (note) {
+          notes.push(note);
+        }
+        currentDate.setDate(currentDate.getDate() + 1);
+      }
+      
+      return notes;
+    } catch (error) {
+      console.error("Error getting notes from date range:", error);
+      return [];
+    }
+  }
 }

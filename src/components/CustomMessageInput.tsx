@@ -8,6 +8,9 @@ interface CustomMessageInputProps {
   onSend: (message: string) => void;
   disabled?: boolean;
   onModelChange?: (model: string) => void;
+  value?: string;
+  onChange?: (value: string) => void;
+  onDateSelect?: (date: string, notes: string) => void;
 }
 
 export const CustomMessageInput: React.FC<CustomMessageInputProps> = ({
@@ -15,8 +18,15 @@ export const CustomMessageInput: React.FC<CustomMessageInputProps> = ({
   onSend,
   disabled = false,
   onModelChange,
+  value: controlledValue,
+  onChange,
+  onDateSelect,
 }) => {
-  const [value, setValue] = useState("");
+  const [internalValue, setInternalValue] = useState("");
+  
+  // Use controlled value if provided, otherwise use internal state
+  const value = controlledValue !== undefined ? controlledValue : internalValue;
+  const setValue = controlledValue !== undefined ? (onChange || (() => {})) : setInternalValue;
   
   // Get all available models from providers with API keys
   const availableModels = getAvailableModels();
@@ -122,19 +132,53 @@ export const CustomMessageInput: React.FC<CustomMessageInputProps> = ({
 
   const canSend = value.trim().length > 0 && !disabled;
 
+  // Function to handle date changes and fetch notes
+  const handleDateChange = async (newValue: string) => {
+    setValue(newValue);
+    
+    // Check if there's a date pattern and fetch notes
+    const datePattern = /\[(\d{4}-\d{2}-\d{2})\]/;
+    const match = newValue.match(datePattern);
+    
+    if (match && onDateSelect) {
+      const dateString = match[1];
+      try {
+        const { RoamService } = await import("../services/roamService");
+        const dateNotes = await RoamService.getNotesFromDate(dateString);
+        let notesContent = "";
+        
+        if (dateNotes && dateNotes.blocks.length > 0) {
+          notesContent = RoamService.formatBlocksForAI(dateNotes.blocks, 0);
+        }
+        
+        onDateSelect(dateString, notesContent);
+      } catch (error) {
+        console.error("Error fetching date notes:", error);
+        onDateSelect(dateString, "");
+      }
+    }
+  };
+
+  // Render input - simple textarea for all cases
+  const renderInput = () => {
+    return (
+      <textarea
+        ref={textareaRef}
+        className="input-textarea"
+        placeholder={placeholder}
+        value={value}
+        onChange={(e) => handleDateChange(e.target.value)}
+        onKeyDown={handleKeyDown}
+        disabled={disabled}
+        rows={1}
+      />
+    );
+  };
+
   return (
     <div className="input-container">
       <div className="input-box">
-        <textarea
-          ref={textareaRef}
-          className="input-textarea"
-          placeholder={placeholder}
-          value={value}
-          onChange={(e) => setValue(e.target.value)}
-          onKeyDown={handleKeyDown}
-          disabled={disabled}
-          rows={1}
-        />
+        {renderInput()}
 
         <div className="input-toolbar">
           <select
@@ -179,6 +223,7 @@ export const CustomMessageInput: React.FC<CustomMessageInputProps> = ({
           </button>
         </div>
       </div>
+
     </div>
   );
 };

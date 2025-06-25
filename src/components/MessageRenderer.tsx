@@ -19,6 +19,11 @@ export const MessageRenderer: React.FC<MessageRendererProps> = ({ content, isUse
     
     // Define all patterns we want to match (order matters for priority)
     const patterns = [
+      // Images: ![alt](url) - should be processed before other patterns
+      {
+        regex: /!\[([^\]]*)\]\(([^)]+)\)/g,
+        type: 'image'
+      },
       // List items: - item (must be at start of line, includes nested lists)
       {
         regex: /^(\s*)-\s+(.+)$/gm,
@@ -94,7 +99,16 @@ export const MessageRenderer: React.FC<MessageRendererProps> = ({ content, isUse
     patterns.forEach(pattern => {
       let match;
       while ((match = pattern.regex.exec(text)) !== null) {
-        if (pattern.type === 'list-item') {
+        if (pattern.type === 'image') {
+          allMatches.push({
+            start: match.index,
+            end: match.index + match[0].length,
+            type: pattern.type,
+            text: match[1], // Alt text
+            url: match[2], // Image URL
+            originalMatch: match[0]
+          });
+        } else if (pattern.type === 'list-item') {
           allMatches.push({
             start: match.index,
             end: match.index + match[0].length,
@@ -325,6 +339,39 @@ export const MessageRenderer: React.FC<MessageRendererProps> = ({ content, isUse
           </pre>
         );
 
+      case 'image':
+        return (
+          <div key={index} style={{ margin: '8px 0' }}>
+            <img
+              src={match.url}
+              alt={match.text || 'Image'}
+              style={{
+                maxWidth: '100%',
+                height: 'auto',
+                borderRadius: '6px',
+                border: `1px solid ${isUser ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.2)'}`,
+                boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
+              }}
+              onError={(e) => {
+                // Replace with placeholder on error
+                e.currentTarget.style.display = 'none';
+                const placeholder = document.createElement('div');
+                placeholder.style.cssText = `
+                  background-color: ${isUser ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.1)'};
+                  padding: 12px;
+                  border-radius: 6px;
+                  border: 1px solid ${isUser ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.2)'};
+                  text-align: center;
+                  color: ${isUser ? 'rgba(255,255,255,0.7)' : 'rgba(57,58,61,0.7)'};
+                  font-size: 12px;
+                `;
+                placeholder.textContent = `🖼️ Image: ${match.text || match.url}`;
+                e.currentTarget.parentNode?.insertBefore(placeholder, e.currentTarget);
+              }}
+            />
+          </div>
+        );
+
       case 'markdown-link':
         return (
           <a
@@ -486,8 +533,9 @@ export const MessageRenderer: React.FC<MessageRendererProps> = ({ content, isUse
     const elements = parseContent(processedContent);
     return elements.map((element, index) => {
       if (typeof element === 'string') {
-        // Handle line breaks in remaining text
-        return element.split('\n').map((line, lineIndex, arr) => (
+        // Handle line breaks in remaining text - normalize multiple consecutive newlines
+        const normalizedText = element.replace(/\n{3,}/g, '\n\n'); // Replace 3+ newlines with double newline
+        return normalizedText.split('\n').map((line, lineIndex, arr) => (
           <React.Fragment key={`${index}-${lineIndex}`}>
             {line}
             {lineIndex < arr.length - 1 && <br />}

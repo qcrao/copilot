@@ -16,6 +16,7 @@ export let multiProviderSettings: MultiProviderSettings = {
   currentModel: "gpt-4o-mini",
   temperature: 0.7,
   maxTokens: 2000,
+  responseLanguage: "English",
 };
 
 export let aiSettings: AISettings = { ...DEFAULT_SETTINGS };
@@ -25,6 +26,7 @@ export function loadInitialSettings(extensionAPI: any) {
   const savedCurrentModel = extensionAPI.settings.get("copilot-current-model");
   const savedTemperature = extensionAPI.settings.get("copilot-temperature");
   const savedMaxTokens = extensionAPI.settings.get("copilot-max-tokens");
+  const savedResponseLanguage = extensionAPI.settings.get("copilot-response-language");
 
   // Load API keys for all providers
   const apiKeys: { [providerId: string]: string } = {};
@@ -49,6 +51,7 @@ export function loadInitialSettings(extensionAPI: any) {
     currentModel,
     temperature: savedTemperature ? parseFloat(savedTemperature) : 0.7,
     maxTokens: savedMaxTokens ? parseInt(savedMaxTokens) : 2000,
+    responseLanguage: savedResponseLanguage || "English",
   };
 
   // Keep legacy settings for backward compatibility
@@ -260,6 +263,23 @@ export function initPanelConfig(extensionAPI: any) {
     tabTitle: "Roam Copilot",
     settings: [
       ...providerSettings,
+      {
+        id: "copilot-response-language",
+        name: "Response Language",
+        description: "Language for AI responses",
+        action: {
+          type: "select",
+          items: ["English", "Chinese", "Japanese", "Korean", "French", "Spanish", "German"],
+          value: multiProviderSettings.responseLanguage || "English",
+          onChange: (evt: any) => {
+            const value = evt?.target?.value;
+            if (value) {
+              multiProviderSettings.responseLanguage = value;
+              extensionAPI.settings.set("copilot-response-language", value);
+            }
+          },
+        },
+      },
       {
         id: "copilot-temperature",
         name: "Temperature",

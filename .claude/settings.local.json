@@ -16,7 +16,9 @@
       "Bash(npx tsc:*)",
       "Bash(npx webpack:*)",
       "WebFetch(domain:openai.com)",
-      "WebFetch(domain:groq.com)"
+      "WebFetch(domain:groq.com)",
+      "Bash(npx eslint:*)",
+      "Bash(true)"
     ],
     "deny": []
   }

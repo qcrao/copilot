@@ -17,6 +17,7 @@ import { aiSettings, multiProviderSettings } from "../settings";
 import { CustomMessageInput } from "./CustomMessageInput";
 import { MessageRenderer } from "./MessageRenderer";
 import { ConversationList } from "./ConversationList";
+import { PromptTemplatesGrid } from "./PromptTemplatesGrid";
 
 interface CopilotWidgetProps {
   isOpen: boolean;
@@ -41,6 +42,8 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
   const [copiedMessageIndex, setCopiedMessageIndex] = useState<number | null>(null);
   const [showConversationList, setShowConversationList] = useState(false);
   const [currentConversationId, setCurrentConversationId] = useState<string | null>(null);
+  const [inputValue, setInputValue] = useState("");
+  const [dateNotesCache, setDateNotesCache] = useState<{[date: string]: string}>({});
 
   useEffect(() => {
     setState((prev) => ({
@@ -146,7 +149,28 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
 
     const userMessage = message.trim();
 
-    // Add user message
+    // Clear input value
+    setInputValue("");
+
+    // Check if message contains date references and add cached notes
+    let finalUserMessage = userMessage;
+    const datePattern = /\[(\d{4}-\d{2}-\d{2})\]/g;
+    const dateMatches = userMessage.match(datePattern);
+    
+    if (dateMatches) {
+      for (const dateMatch of dateMatches) {
+        const dateString = dateMatch.slice(1, -1); // Remove brackets
+        const cachedNotes = dateNotesCache[dateString];
+        
+        if (cachedNotes) {
+          finalUserMessage += `\n\nHere are my notes from ${dateString}:\n${cachedNotes}`;
+        } else {
+          finalUserMessage += `\n\nNote: No notes found for ${dateString}.`;
+        }
+      }
+    }
+
+    // Add user message (display the original without notes)
     addMessage({
       role: "user",
       content: userMessage,
@@ -171,14 +195,16 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
         ? RoamService.formatContextForAI(freshContext, maxContextTokens)
         : "No context available";
 
+
       console.log("Sending message with context:", {
         currentPage: freshContext?.currentPage?.title,
         blocksCount: freshContext?.currentPage?.blocks?.length || 0,
         model: currentModel,
+        dateNotesIncluded: dateMatches ? dateMatches.length : 0,
       });
 
       const response = await AIService.sendMessageWithCurrentModel(
-        userMessage,
+        finalUserMessage,
         contextString
       );
 
@@ -279,6 +305,22 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
 
   const toggleConversationList = () => {
     setShowConversationList(prev => !prev);
+  };
+
+  const handlePromptSelect = (prompt: string) => {
+    // Populate the input with the selected prompt
+    setInputValue(prompt);
+  };
+
+  const handleDateSelect = (date: string, notes: string) => {
+    // Cache the notes for this date
+    setDateNotesCache(prev => ({
+      ...prev,
+      [date]: notes
+    }));
+    
+    // Update input value with new date
+    setInputValue(prev => prev.replace(/\[\d{4}-\d{2}-\d{2}\]/, `[${date}]`));
   };
 
   // Handle clicks outside conversation list to close it
@@ -393,6 +435,14 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
                 title={showConversationList ? "Hide chat list" : "Show chat list"}
                 style={{ marginRight: "4px" }}
               />
+              <Button
+                minimal
+                small
+                icon="plus"
+                onClick={handleNewConversation}
+                title="New Chat"
+                style={{ marginRight: "4px" }}
+              />
               <Icon icon={IconNames.LIGHTBULB} size={16} />
               <span>Roam Copilot</span>
               {currentConversationId && (
@@ -433,23 +483,8 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
               <ChatContainer>
                 <MessageList>
                   {state.messages.length === 0 && (
-                    <div
-                      style={{
-                        textAlign: "center",
-                        color: "#666",
-                        padding: "40px 20px",
-                        display: "flex",
-                        flexDirection: "column",
-                        alignItems: "center",
-                        gap: "12px",
-                      }}
-                    >
-                      <Icon icon={IconNames.LIGHTBULB} size={48} style={{ opacity: 0.5 }} />
-                      <p>Hello! I'm your Roam Research assistant.</p>
-                      <p style={{ fontSize: "14px", marginTop: "8px" }}>
-                        I can help you with your notes and answer questions
-                        based on your current page content.
-                      </p>
+                    <div style={{ height: "100%", overflow: "auto" }}>
+                      <PromptTemplatesGrid onPromptSelect={handlePromptSelect} />
                     </div>
                   )}
 
@@ -574,6 +609,9 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
             onSend={handleSendMessage}
             disabled={state.isLoading}
             onModelChange={handleModelChange}
+            value={inputValue}
+            onChange={setInputValue}
+            onDateSelect={handleDateSelect}
           />
         </div>
         </div>

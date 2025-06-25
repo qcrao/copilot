@@ -22,6 +22,7 @@ export interface MultiProviderSettings {
   currentModel: string;
   temperature?: number;
   maxTokens?: number;
+  responseLanguage?: string;
 }
 
 export interface ChatMessage {
@@ -98,6 +99,35 @@ export interface ConversationListState {
   isLoading: boolean;
   searchQuery: string;
   showList: boolean;
+}
+
+// Prompt Template interfaces
+export interface PromptVariable {
+  name: string;
+  type: 'text' | 'date' | 'select';
+  placeholder: string;
+  options?: string[];
+  required: boolean;
+}
+
+export interface PromptTemplate {
+  id: string;
+  title: string;
+  description: string;
+  prompt: string;
+  category: 'writing' | 'analysis' | 'planning' | 'research' | 'reflection';
+  icon: string;
+  color: string;
+  requiresContext: boolean;
+  contextType?: 'current-page' | 'date-range' | 'selected-text';
+  variables?: PromptVariable[];
+}
+
+export interface PromptTemplateState {
+  selectedTemplate: PromptTemplate | null;
+  isModalOpen: boolean;
+  variableValues: Record<string, any>;
+  isProcessing: boolean;
 }
 
 // 低价模型精选，适合成本敏感的 Roam 扩展

@@ -146,6 +146,13 @@ export class AIService {
       throw new Error(`No API key configured for model: ${model}. Please configure the API key in settings.`);
     }
 
+    // Add language instruction based on user's manual setting if it's not English
+    let finalUserMessage = userMessage;
+    const responseLanguage = multiProviderSettings.responseLanguage || "English";
+    if (responseLanguage !== "English") {
+      finalUserMessage = userMessage + `\n\nIMPORTANT: Please respond in ${responseLanguage}.`;
+    }
+
     // Create temporary settings object for the selected model
     const tempSettings: AISettings = {
       provider: providerInfo.provider.id,
@@ -155,7 +162,7 @@ export class AIService {
       maxTokens: multiProviderSettings.maxTokens || 2000,
     };
 
-    return this.sendMessage(tempSettings, userMessage, context);
+    return this.sendMessage(tempSettings, finalUserMessage, context);
   }
 
   static async sendMessage(
