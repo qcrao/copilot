@@ -1,325 +1,164 @@
-# Last Year Today
-
-Last Year Today is a Roam Research extension that automatically shows you what you wrote on the same day in previous years. It helps you reflect on your past thoughts, track your progress, and rediscover valuable insights from your journal entries.
-
-![historical-pages](https://github.com/qcrao/last-year-today/blob/main/assets/historical-pages.png?raw=true)
-
-## Features
-
-1. **Automatic Daily Updates**
-
-   - Automatically opens your historical pages at a configurable time each day
-   - Displays entries from previous years in the right sidebar
-   - Customizable number of years to look back (1-10 years)
-
-2. **Visual Distinction**
-
-   - Historical pages are visually distinct with custom styling
-   - Beautiful borders and hourglass icons for easy identification
-   - Clean and intuitive interface
-
-3. **Flexible Controls**
-   - Command palette integration for manual control
-   - Open and close historical pages on demand
-   - Configurable settings through the Roam Research settings panel
-
-## Installation
-
-1. In Roam Research, go to Settings > Roam Depot > Community extensions
-2. Search for "Last Year Today"
-3. Click "Install"
-
-## Configuration
-
-After installation, configure the extension in the Roam Research settings panel:
-
-1. **Years Back**: Choose how many years to look back (1-10 years)
-
-   - Default: 1 year
-   - Maximum: 10 years
-
-2. **Hour to Open Last Year Today Page**: Set when the historical pages should automatically open
-   - Default: 9 AM
-   - Range: 0-23 (24-hour format)
-
-![settings](https://github.com/qcrao/last-year-today/blob/main/assets/settings.png?raw=true)
-
-## Usage
-
-### Automatic Updates
-
-The extension will automatically open your historical pages in the right sidebar at your configured time each day. Each historical page will be displayed in chronological order, from oldest to newest.
-
-### Manual Controls
-
-You can also control the extension manually through the command palette (Cmd/Ctrl + P):
-
-1. **Open Last Year Today**
-
-   - Opens historical pages in the right sidebar
-   - Shows pages from previous years for the current date
-
-2. **Close Last Year Today**
-   - Closes all historical page windows
-   - Cleans up the sidebar
-
-![command-palette](https://github.com/qcrao/last-year-today/blob/main/assets/command-palette.png?raw=true)
-
-### Visual Indicators
-
-Historical pages are marked with:
-
-- Distinctive borders
-- Hourglass icon (⏳)
-- Highlighted date headers
-- Subtle shadows for depth
-
-![historical-page](https://github.com/qcrao/last-year-today/blob/main/assets/historical-page.png?raw=true)
-
 # Roam Copilot
 
-A powerful AI companion for Roam Research that helps you discover insights from your notes and encourages your writing journey.
+Roam Copilot is a powerful AI assistant designed to seamlessly integrate with Roam Research. It provides a context-aware chat interface that helps you brainstorm, analyze, and connect your ideas directly within your Roam graph.
+
+**A key feature of this extension is its support for local AI models**, allowing you to use powerful language models privately and offline.
+
+<!-- TODO: Add a hero screenshot or a short GIF of Roam Copilot in action. -->
 
 ## Features
 
-- **Multi-Provider AI Support**: OpenAI, Anthropic, Groq, xAI, and **Ollama (Local)**
-- **Context-Aware Conversations**: Automatically includes your current page, selected text, and daily notes
-- **Conversation Management**: Save, load, and organize your chat history
-- **Prompt Templates**: Pre-built templates for common writing and analysis tasks
-- **Historical Note Analysis**: Query notes from specific dates or date ranges
-- **Clickable Source References**: Direct links back to your Roam blocks and pages
+- **Context-Aware Chat**: Roam Copilot automatically reads the content of your current Roam page to provide relevant and intelligent responses.
+- **Local First**: Full support for local AI models running on your machine via Ollama.
+- **Floating, Draggable, and Resizable Interface**: The chat window is designed to be non-intrusive. You can move it, resize it, and minimize it as needed.
+- **Conversation History**: All your conversations are saved, allowing you to revisit and continue them at any time.
+- **Multi-Provider Support**: Switch between different AI providers, including OpenAI, Anthropic, and Grok, in addition to local models.
+- **Prompt Templates**: Get started quickly with a variety of pre-built prompt templates for common tasks.
+- **Date-Based Note Analysis**: Ask questions about your notes from a specific date.
+- **Command Palette Integration**: Control Roam Copilot using the Roam Command Palette.
 
-## AI Providers
+## Getting Started
 
-### Cloud Providers
+### Prerequisites
 
-- **OpenAI**: GPT-4o-mini, GPT-3.5-turbo
-- **Anthropic**: Claude 3 Haiku, Claude 3.5 Haiku
-- **Groq**: Llama 3.1 8B, Gemma 2 9B (Ultra fast & cheap)
-- **xAI**: Grok 3 Mini, Grok Beta
-
-### Local Provider
-
-- **Ollama**: Run AI models locally on your machine
-
-## Setting Up Ollama (Local AI)
-
-Ollama allows you to run AI models locally on your computer, providing privacy and no API costs.
+- [Roam Research](https://roamresearch.com/)
+- A modern web browser
+- (Optional) [Ollama](https://ollama.ai/) for running local models.
 
 ### Installation
 
-1. **Download Ollama**: Visit [ollama.com](https://ollama.com/) and download for your platform
-2. **Install Ollama**: Follow the installation instructions for your operating system
-3. **Start Ollama**: Run `ollama serve` in your terminal (usually starts automatically)
+1.  **Enable the extension**: Follow the standard procedure for enabling a Roam Research extension.
+2.  **Configure API Keys**: For cloud-based models, open the settings and add your API keys.
 
-### Download Models
+### Using Local Models (Ollama)
 
-Choose from popular models:
+To use Roam Copilot with a local Ollama instance, you must configure Ollama to accept requests from Roam Research. This is a critical security step required by Ollama. Here is a detailed guide to get it working:
+
+**1. Check if Ollama is Running**
+
+Open your terminal and run the following command. You should see a response from the Ollama server.
 
 ```bash
-# Lightweight models (good for most tasks)
-ollama pull llama3.2:3b
-ollama pull phi3:3.8b
-
-# Medium models (balanced performance)
-ollama pull llama3.1:8b
-ollama pull qwen2.5:7b
-ollama pull mistral:7b
-
-# Large models (best quality, requires more RAM)
-ollama pull llama3.1:70b
-ollama pull qwen2.5:14b
+curl http://localhost:11434/
 ```
 
-### Configuration in Roam Copilot
+**2. List Your Installed Models**
 
-1. Open Roam Research settings
-2. Go to the "Roam Copilot" tab
-3. Configure **Ollama Service URL** (default: `ø`)
-4. Select an Ollama model from the dropdown in the chat interface
+Verify which models you have available locally.
 
-### CORS Configuration (Important!)
-
-To allow Roam Research (web app) to access your local Ollama service, you need to configure CORS origins.
-
-#### Setup Steps
-
-1. **Check if Ollama is running**:
 ```bash
-# Check if Ollama service is accessible
-curl http://localhost:11434/
-
-# View installed models (two methods)
 ollama list
+# or via the API
 curl http://localhost:11434/api/tags
 ```
 
-2. **Set CORS origins to allow Roam Research access**:
+**3. Set the Allowed Origin for Roam Research**
+
+This is the most important step. You need to tell Ollama to accept connections from `https://roamresearch.com`.
+
+*Note: The following `launchctl` command is specific to macOS. For other operating systems, you will need to set the `OLLAMA_ORIGINS` environment variable in the appropriate way for your system (e.g., in your shell profile or via systemd).*
+
 ```bash
-# Allow Roam Research to access Ollama
+# On macOS:
 launchctl setenv OLLAMA_ORIGINS "https://roamresearch.com"
 ```
 
-3. **Verify the environment variable is set**:
+**4. Verify the Environment Variable**
+
+Confirm that the variable was set correctly.
+
 ```bash
-# Should output: https://roamresearch.com
+# On macOS:
 launchctl getenv OLLAMA_ORIGINS
 ```
+This command should output: `https://roamresearch.com`
 
-4. **Restart Ollama**:
-   - Go to Activity Monitor and quit the Ollama process
-   - Or click the Ollama menu bar icon → "Quit Ollama"
-   - Restart by running `ollama list` (this will automatically start Ollama)
+**5. Restart Ollama**
 
-5. **Verify CORS is working**:
+For the changes to take effect, you must restart the Ollama server. The easiest way is to use the Activity Monitor on macOS to find and quit the "Ollama" process, and then restart the application. Running `ollama list` in the terminal will also restart the server if it's not running.
+
+**6. Verify CORS Configuration**
+
+You can double-check that the CORS policy is correctly applied by sending a test request from the terminal.
+
 ```bash
-# Test CORS configuration (should return 204 status code)
 curl -X OPTIONS http://localhost:11434 \
      -H "Origin: https://roamresearch.com" \
      -H "Access-Control-Request-Method: POST" -I
 ```
+If successful, you should see headers like `Access-Control-Allow-Origin: https://roamresearch.com` in the response.
 
-6. **Configure in Roam Copilot**:
-   - In the settings panel, set the Ollama service URL to: `http://localhost:11434`
+**7. Configure Roam Copilot Settings**
 
-#### Permanent Setup (Optional)
+Finally, open the Roam Copilot settings in Roam Research and set the Ollama address to:
 
-For persistent CORS configuration across restarts, create a LaunchAgent:
-
-```bash
-# Create the LaunchAgent plist file
-cat << 'EOF' > ~/Library/LaunchAgents/setenv.OLLAMA_ORIGINS.plist
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-  <dict>
-    <key>Label</key>
-    <string>setenv.OLLAMA_ORIGINS</string>
-    <key>ProgramArguments</key>
-    <array>
-      <string>/bin/launchctl</string>
-      <string>setenv</string>
-      <string>OLLAMA_ORIGINS</string>
-      <string>https://roamresearch.com</string>
-    </array>
-    <key>RunAtLoad</key>
-    <true/>
-    <key>ServiceIPC</key>
-    <false/>
-  </dict>
-</plist>
-EOF
-
-# Load the LaunchAgent
-launchctl load ~/Library/LaunchAgents/setenv.OLLAMA_ORIGINS.plist
+```
+http://localhost:11434
 ```
 
-**Note**: This step is essential for the extension to work with Ollama. Without proper CORS configuration, browser security policies will block requests to your local Ollama service.
+<!-- TODO: Add screenshot of the settings panel showing the Ollama address field. -->
 
-### Supported Ollama Models
+You should now be able to select and use your local Ollama models from within Roam Copilot.
 
-The extension includes presets for common models:
+## How to Use
 
-- **llama3.1:8b** / **llama3.1:70b** - Meta's Llama 3.1 (excellent general purpose)
-- **llama3.2:3b** - Smaller, faster Llama model
-- **qwen2.5:7b** / **qwen2.5:14b** - Alibaba's Qwen (great for multilingual)
-- **mistral:7b** - Mistral AI's efficient model
-- **codellama:7b** - Specialized for code and technical content
-- **gemma2:9b** - Google's Gemma 2
-- **phi3:3.8b** - Microsoft's compact but capable model
+### Opening and Closing the Copilot
 
-### Troubleshooting Ollama
+You can open, close, and toggle the Roam Copilot in two ways:
 
-If you encounter connection issues:
+1.  **Click the Icon**: A lightbulb icon will appear in the bottom-right corner of your Roam window. Click it to open the Copilot.
+2.  **Command Palette**: Open the Roam Command Palette (`Cmd+P` or `Ctrl+P`) and search for "Roam Copilot" to find the `Toggle`, `Open`, and `Close` commands.
 
-1. **Check Ollama is running**: `ollama list` should show your installed models
-2. **Verify service URL**: Default is `http://localhost:11434`
-3. **Ensure model is downloaded**: Use `ollama pull model-name` to download
-4. **Check firewall**: Make sure port 11434 is not blocked
-5. **Configure CORS**: Set `OLLAMA_ORIGINS` environment variable (see CORS Configuration above)
-6. **Check browser console**: Look for CORS errors in browser developer tools
-7. **Restart Ollama properly**:
-   - Use `sudo pkill -f ollama` then wait 2 seconds, then `ollama serve`
-   - Or quit the Ollama app and restart it manually
-   - Make sure to set the environment variable before restarting
+<!-- TODO: Add screenshot of the command palette with the Roam Copilot commands. -->
 
-**Common Errors**:
+### The Chat Interface
 
-- **CORS Error**: "Access to fetch at 'http://localhost:11434' from origin 'https://roamresearch.com' has been blocked by CORS policy"
+The chat interface is designed to be intuitive and powerful.
 
-  - **Solution**: Configure CORS origins as described above and ensure Ollama is properly restarted
+<!-- TODO: Add screenshot of the main chat interface. -->
 
-- **Port Already in Use**: "Error: listen tcp 127.0.0.1:11434: bind: address already in use"
+- **Chat History**: On the left, you can browse and select previous conversations.
+- **New Chat**: Start a new conversation at any time.
+- **Minimize**: Minimize the chat window to the icon.
+- **Context-Awareness**: The Copilot automatically uses the content of your current Roam page as context for the conversation.
 
-  - **Solution**: Kill the process using port 11434:
+### Using Prompt Templates
 
-    ```bash
-    # Method 1: Kill process by port
-    lsof -ti:11434 | xargs kill -9 && sleep 2 && ollama serve
+When you start a new chat, you'll see a grid of prompt templates. Click on a template to start a conversation with a pre-defined prompt.
 
-    # Method 2: Find and kill Ollama processes
-    sudo pkill -f ollama && sleep 2 && ollama serve
+<!-- TODO: Add screenshot of the prompt templates grid. -->
 
-    # Method 3: Check what's using the port
-    lsof -i :11434
-    ```
+### Analyzing Notes from a Specific Date
 
-- **Environment Variable Not Persisting**: CORS settings reset after restart
+You can ask the Copilot to analyze your notes from a specific date. Use the "Daily Summary" prompt template or simply type a message that includes a date in the format `[YYYY-MM-DD]`.
 
-  - **Solution**: Use the permanent setup with LaunchAgent as described above
+<!-- TODO: Add screenshot showing a query with a date. -->
 
-- **Models Not Loading**: Extension shows "Loading models..." indefinitely
+### Settings
 
-  - **Solution**: Check if Ollama is running and accessible:
+You can configure the AI models and other settings from the settings panel.
 
-    ```bash
-    # Test basic connection
-    curl http://localhost:11434/api/tags
-
-    # Check if models are available
-    ollama list
-    ```
-
-**Environment Variable Check**: Verify the CORS setting is applied:
-
-```bash
-# Check using launchctl (recommended)
-launchctl getenv OLLAMA_ORIGINS
-
-# Alternative check (may not work for GUI apps)
-echo $OLLAMA_ORIGINS
-```
-
-Expected output: `https://roamresearch.com,chrome-extension://*`
-
-## Installation
-
-1. Download the extension files
-2. In Roam Research, go to Settings → Extensions
-3. Add the extension using the provided configuration
-4. Configure your AI provider API keys or Ollama setup
-
-## Usage
-
-1. **Open Copilot**: Click the lightbulb icon in the bottom-right corner
-2. **Select Model**: Choose your preferred AI model from the dropdown
-3. **Start Chatting**: Ask questions about your notes or request writing help
-4. **Use Context**: The AI automatically sees your current page and selected text
-5. **Save Conversations**: Your chats are automatically saved and can be revisited
-
-## Privacy & Security
-
-- **Cloud Providers**: Your data is sent to the respective AI services
-- **Ollama (Local)**: All processing happens on your machine - no data leaves your computer
-- **API Keys**: Stored locally in your Roam Research settings
+<!-- TODO: Add screenshot of the settings panel. -->
 
 ## Development
 
-```bash
-npm install
-npm run build
-```
+To get started with development:
+
+1.  Clone the repository.
+2.  Install the dependencies:
+    ```bash
+    npm install
+    ```
+3.  Build the extension:
+    ```bash
+    sh build.sh
+    ```
+4.  Load the extension in Roam Research.
+
+## Contributing
+
+Contributions are welcome! Please feel free to submit a pull request or open an issue.
 
 ## License
 
-MIT License - see LICENSE file for details.
+This project is licensed under the [MIT License](LICENSE).
