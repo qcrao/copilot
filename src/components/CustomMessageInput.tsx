@@ -31,6 +31,7 @@ export const CustomMessageInput: React.FC<CustomMessageInputProps> = ({
     Array<{ model: string; provider: string; providerName: string }>
   >([]);
   const [isLoadingModels, setIsLoadingModels] = useState(true);
+  const [isComposing, setIsComposing] = useState(false);
 
   // Update local state when controlled value changes
   useEffect(() => {
@@ -175,12 +176,23 @@ export const CustomMessageInput: React.FC<CustomMessageInputProps> = ({
 
   const canSend = value.trim().length > 0 && !disabled;
 
-  // Function to handle date changes and fetch notes
-  const handleDateChange = async (newValue: string) => {
-    if (controlledValue === undefined) {
-      setValue(newValue);
-    } else if (onChange) {
+  // Function to handle input changes
+  const handleInputChange = (newValue: string) => {
+    // Always update local state for display
+    setValue(newValue);
+    
+    // For controlled mode: only notify parent when not composing to avoid interrupting Chinese input
+    // For uncontrolled mode: always update (handled by local state above)
+    if (controlledValue !== undefined && onChange && !isComposing) {
       onChange(newValue);
+    }
+  };
+
+  // Function to handle date changes and fetch notes (only called when not composing)
+  const handleDateChange = async (newValue: string) => {
+    // Don't process date patterns while composing (Chinese input)
+    if (isComposing) {
+      return;
     }
 
     // Check if there's a date pattern and fetch notes
@@ -206,6 +218,35 @@ export const CustomMessageInput: React.FC<CustomMessageInputProps> = ({
     }
   };
 
+  // Handle composition events for Chinese input
+  const handleCompositionStart = () => {
+    setIsComposing(true);
+  };
+
+  const handleCompositionEnd = (e: React.CompositionEvent<HTMLTextAreaElement>) => {
+    setIsComposing(false);
+    const newValue = e.currentTarget.value;
+    
+    // Update local state and notify parent component after composition ends
+    setValue(newValue);
+    if (controlledValue !== undefined && onChange) {
+      onChange(newValue);
+    }
+    
+    // Process date patterns after composition ends
+    handleDateChange(newValue);
+  };
+
+  const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const newValue = e.target.value;
+    handleInputChange(newValue);
+    
+    // Only process date patterns if not composing
+    if (!isComposing) {
+      handleDateChange(newValue);
+    }
+  };
+
   // Render input - simple textarea for all cases
   const renderInput = () => {
     return (
@@ -214,7 +255,9 @@ export const CustomMessageInput: React.FC<CustomMessageInputProps> = ({
         className="input-textarea"
         placeholder={placeholder}
         value={value}
-        onChange={(e) => handleDateChange(e.target.value)}
+        onChange={handleChange}
+        onCompositionStart={handleCompositionStart}
+        onCompositionEnd={handleCompositionEnd}
         onKeyDown={handleKeyDown}
         disabled={disabled}
         rows={1}
