@@ -138,6 +138,80 @@ ollama pull qwen2.5:14b
 3. Configure **Ollama Service URL** (default: `http://localhost:11434`)
 4. Select an Ollama model from the dropdown in the chat interface
 
+### CORS Configuration (Important!)
+
+To allow Roam Research (web app) and browser extensions to access your local Ollama service, you need to configure CORS origins.
+
+#### Temporary Setup (needs to be done after each restart)
+
+```bash
+# Set CORS origins to allow Roam Research and browser extensions
+launchctl setenv OLLAMA_ORIGINS "https://roamresearch.com,chrome-extension://*"
+
+# Restart Ollama (choose one method):
+
+# Method 1: Force kill and restart (most reliable)
+lsof -ti:11434 | xargs kill -9 && sleep 2 && ollama serve
+
+# Method 2: If using Ollama desktop app
+# Click menu bar Ollama icon → "Quit Ollama", then restart the app
+
+# Method 3: Using pkill
+sudo pkill -f ollama && sleep 2 && ollama serve
+```
+
+#### Permanent Setup (recommended)
+
+Create a LaunchAgent to set the environment variable permanently:
+
+```bash
+# Create the LaunchAgent plist file
+cat << 'EOF' > ~/Library/LaunchAgents/setenv.OLLAMA_ORIGINS.plist
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+  <dict>
+    <key>Label</key>
+    <string>setenv.OLLAMA_ORIGINS</string>
+    <key>ProgramArguments</key>
+    <array>
+      <string>/bin/launchctl</string>
+      <string>setenv</string>
+      <string>OLLAMA_ORIGINS</string>
+      <string>https://roamresearch.com,chrome-extension://*</string>
+    </array>
+    <key>RunAtLoad</key>
+    <true/>
+    <key>ServiceIPC</key>
+    <false/>
+  </dict>
+</plist>
+EOF
+
+# Load the LaunchAgent
+launchctl load ~/Library/LaunchAgents/setenv.OLLAMA_ORIGINS.plist
+
+# Restart your Mac or restart Ollama app for changes to take effect
+```
+
+#### Verification
+
+```bash
+# Check if CORS is set correctly
+launchctl getenv OLLAMA_ORIGINS
+
+# Test CORS (should return 204 status code)
+curl -X OPTIONS http://localhost:11434 \
+  -H "Origin: https://roamresearch.com" \
+  -H "Access-Control-Request-Method: GET" \
+  -I
+
+# Check if Ollama is running
+curl http://localhost:11434/api/tags
+```
+
+**Note**: This step is essential for the extension to work with Ollama. Without proper CORS configuration, browser security policies will block requests to your local Ollama service.
+
 ### Supported Ollama Models
 
 The extension includes presets for common models:
@@ -158,6 +232,61 @@ If you encounter connection issues:
 2. **Verify service URL**: Default is `http://localhost:11434`
 3. **Ensure model is downloaded**: Use `ollama pull model-name` to download
 4. **Check firewall**: Make sure port 11434 is not blocked
+5. **Configure CORS**: Set `OLLAMA_ORIGINS` environment variable (see CORS Configuration above)
+6. **Check browser console**: Look for CORS errors in browser developer tools
+7. **Restart Ollama properly**:
+   - Use `sudo pkill -f ollama` then wait 2 seconds, then `ollama serve`
+   - Or quit the Ollama app and restart it manually
+   - Make sure to set the environment variable before restarting
+
+**Common Errors**:
+
+- **CORS Error**: "Access to fetch at 'http://localhost:11434' from origin 'https://roamresearch.com' has been blocked by CORS policy"
+
+  - **Solution**: Configure CORS origins as described above and ensure Ollama is properly restarted
+
+- **Port Already in Use**: "Error: listen tcp 127.0.0.1:11434: bind: address already in use"
+
+  - **Solution**: Kill the process using port 11434:
+
+    ```bash
+    # Method 1: Kill process by port
+    lsof -ti:11434 | xargs kill -9 && sleep 2 && ollama serve
+
+    # Method 2: Find and kill Ollama processes
+    sudo pkill -f ollama && sleep 2 && ollama serve
+
+    # Method 3: Check what's using the port
+    lsof -i :11434
+    ```
+
+- **Environment Variable Not Persisting**: CORS settings reset after restart
+
+  - **Solution**: Use the permanent setup with LaunchAgent as described above
+
+- **Models Not Loading**: Extension shows "Loading models..." indefinitely
+
+  - **Solution**: Check if Ollama is running and accessible:
+
+    ```bash
+    # Test basic connection
+    curl http://localhost:11434/api/tags
+
+    # Check if models are available
+    ollama list
+    ```
+
+**Environment Variable Check**: Verify the CORS setting is applied:
+
+```bash
+# Check using launchctl (recommended)
+launchctl getenv OLLAMA_ORIGINS
+
+# Alternative check (may not work for GUI apps)
+echo $OLLAMA_ORIGINS
+```
+
+Expected output: `https://roamresearch.com,chrome-extension://*`
 
 ## Installation
 
