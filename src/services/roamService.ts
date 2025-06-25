@@ -20,7 +20,10 @@ export class RoamService {
         return pathMatch[1];
       }
 
-      console.log("Could not determine graph name from URL:", window.location.href);
+      console.log(
+        "Could not determine graph name from URL:",
+        window.location.href
+      );
       return null;
     } catch (error) {
       console.error("Error getting graph name:", error);
@@ -37,14 +40,14 @@ export class RoamService {
       if (!graphName) {
         return null;
       }
-      
+
       // Clean up the graph name for display
       // Remove any URL encoding but keep original casing
       let userName = decodeURIComponent(graphName);
-      
+
       // Only replace underscores and hyphens with spaces, but preserve original casing
-      userName = userName.replace(/[_-]/g, ' ');
-      
+      userName = userName.replace(/[_-]/g, " ");
+
       return userName;
     } catch (error) {
       console.error("Error getting user name:", error);
@@ -59,12 +62,12 @@ export class RoamService {
     try {
       // Check for desktop app indicators
       return (
-        window.location.protocol === 'roam:' ||
-        window.location.href.startsWith('roam://') ||
+        window.location.protocol === "roam:" ||
+        window.location.href.startsWith("roam://") ||
         // Check for Electron environment
-        (typeof window !== 'undefined' && 
-         (window as any).process && 
-         (window as any).process.type === 'renderer') ||
+        (typeof window !== "undefined" &&
+          (window as any).process &&
+          (window as any).process.type === "renderer") ||
         // Check user agent for desktop indicators
         /Electron|roam/i.test(navigator.userAgent)
       );
@@ -77,7 +80,10 @@ export class RoamService {
   /**
    * Generate clickable URL for a block
    */
-  static generateBlockUrl(blockUid: string, graphName?: string): { webUrl: string; desktopUrl: string } | null {
+  static generateBlockUrl(
+    blockUid: string,
+    graphName?: string
+  ): { webUrl: string; desktopUrl: string } | null {
     const graph = graphName || this.getCurrentGraphName();
     if (!graph) {
       console.log("Cannot generate URLs without graph name");
@@ -93,7 +99,10 @@ export class RoamService {
   /**
    * Generate clickable URL for a page
    */
-  static generatePageUrl(pageUid: string, graphName?: string): { webUrl: string; desktopUrl: string } | null {
+  static generatePageUrl(
+    pageUid: string,
+    graphName?: string
+  ): { webUrl: string; desktopUrl: string } | null {
     const graph = graphName || this.getCurrentGraphName();
     if (!graph) {
       console.log("Cannot generate URLs without graph name");
@@ -116,8 +125,9 @@ export class RoamService {
       let title = "";
 
       // Try to get from API (might be async)
-      const apiResult = window.roamAlphaAPI?.ui?.mainWindow?.getOpenPageOrBlockUid?.();
-      if (apiResult && typeof apiResult === 'object' && 'then' in apiResult) {
+      const apiResult =
+        window.roamAlphaAPI?.ui?.mainWindow?.getOpenPageOrBlockUid?.();
+      if (apiResult && typeof apiResult === "object" && "then" in apiResult) {
         currentPageUid = await apiResult;
       } else {
         currentPageUid = apiResult || null;
@@ -522,36 +532,102 @@ export class RoamService {
   static getModelTokenLimit(provider: string, model: string): number {
     const modelLimits: { [key: string]: { [key: string]: number } } = {
       openai: {
-        'gpt-4o-mini': 24000,  // 128k context window, very cost-effective
-        'gpt-3.5-turbo': 2000, // 4k context window, keep conservative
+        "gpt-4o-mini": 24000, // 128k context window, very cost-effective
+        "gpt-3.5-turbo": 2000, // 4k context window, keep conservative
       },
       anthropic: {
-        'claude-3-haiku-20240307': 180000,     // Claude 3 Haiku - 200k context
-        'claude-3-5-haiku-20241022': 180000,   // Claude 3.5 Haiku - 200k context  
+        "claude-3-haiku-20240307": 180000, // Claude 3 Haiku - 200k context
+        "claude-3-5-haiku-20241022": 180000, // Claude 3.5 Haiku - 200k context
       },
       groq: {
-        'llama-3.1-8b-instant': 24000,    // 128k context window, ultra fast & cheap
-        'gemma2-9b-it': 6000,             // 8k context window, very fast
+        "llama-3.1-8b-instant": 24000, // 128k context window, ultra fast & cheap
+        "gemma2-9b-it": 6000, // 8k context window, very fast
       },
       xai: {
-        'grok-beta': 24000,        // 131k context window
-        'grok-3-mini': 24000,      // 128k context window, most cost-effective
-      }
+        "grok-beta": 24000, // 131k context window
+        "grok-3-mini": 24000, // 128k context window, most cost-effective
+      },
     };
 
     const providerLimits = modelLimits[provider];
     if (!providerLimits) {
+      // For Ollama, provide intelligent defaults based on model name patterns
+      if (provider === "ollama") {
+        return this.getOllamaTokenLimit(model);
+      }
       console.warn(`Unknown provider: ${provider}, using default limit`);
       return 6000; // Default fallback
     }
 
     const limit = providerLimits[model];
     if (!limit) {
-      console.warn(`Unknown model: ${model} for provider: ${provider}, using default limit`);
+      console.warn(
+        `Unknown model: ${model} for provider: ${provider}, using default limit`
+      );
       return 6000; // Default fallback
     }
 
     return limit;
+  }
+
+  /**
+   * Get token limit for Ollama models based on model name patterns
+   */
+  static getOllamaTokenLimit(model: string): number {
+    const modelName = model.toLowerCase();
+
+    // Large models (70B+)
+    if (modelName.includes("70b") || modelName.includes("72b")) {
+      return 24000; // 128k context
+    }
+
+    // Medium-large models (13B-34B)
+    if (
+      modelName.includes("13b") ||
+      modelName.includes("14b") ||
+      modelName.includes("34b")
+    ) {
+      return 16000; // 32k context
+    }
+
+    // Medium models (7B-9B)
+    if (
+      modelName.includes("7b") ||
+      modelName.includes("8b") ||
+      modelName.includes("9b")
+    ) {
+      return 12000; // 16k context, conservative
+    }
+
+    // Small models (3B-4B)
+    if (modelName.includes("3b") || modelName.includes("4b")) {
+      return 8000; // 8k context
+    }
+
+    // Very small models (1B-2B)
+    if (modelName.includes("1b") || modelName.includes("2b")) {
+      return 4000; // 4k context
+    }
+
+    // Special cases
+    if (modelName.includes("code") || modelName.includes("deepseek")) {
+      return 16000; // Code models usually have larger context
+    }
+
+    if (modelName.includes("qwen")) {
+      return 16000; // Qwen models typically have 32k context
+    }
+
+    if (modelName.includes("mistral")) {
+      return 8000; // Mistral models, conservative
+    }
+
+    if (modelName.includes("llama")) {
+      return 12000; // Llama models, conservative default
+    }
+
+    // Default for unknown Ollama models
+    return 8000;
   }
 
   /**
@@ -564,62 +640,80 @@ export class RoamService {
   /**
    * Truncate context to fit within token limit
    */
-  static truncateContext(formattedContext: string, maxTokens: number = 6000): string {
+  static truncateContext(
+    formattedContext: string,
+    maxTokens: number = 6000
+  ): string {
     const currentTokens = this.estimateTokenCount(formattedContext);
-    
+
     if (currentTokens <= maxTokens) {
       return formattedContext;
     }
 
     // Calculate how much we need to reduce
-    const targetLength = Math.floor(formattedContext.length * (maxTokens / currentTokens));
-    
+    const targetLength = Math.floor(
+      formattedContext.length * (maxTokens / currentTokens)
+    );
+
     // Split into sections
-    const sections = formattedContext.split('\n\n');
-    let result = '';
+    const sections = formattedContext.split("\n\n");
+    let result = "";
     let addedSections = 0;
-    
+
     // Always include selected text and current page title if they exist
-    const selectedTextSection = sections.find(s => s.startsWith('**Selected Text:**'));
-    const currentPageSection = sections.find(s => s.startsWith('**Current Page:'));
-    
+    const selectedTextSection = sections.find((s) =>
+      s.startsWith("**Selected Text:**")
+    );
+    const currentPageSection = sections.find((s) =>
+      s.startsWith("**Current Page:")
+    );
+
     if (selectedTextSection) {
-      result += selectedTextSection + '\n\n';
+      result += selectedTextSection + "\n\n";
     }
-    
+
     if (currentPageSection) {
-      result += currentPageSection + '\n\n';
+      result += currentPageSection + "\n\n";
       addedSections = 1;
     }
 
     // Add other sections until we approach the limit
     for (const section of sections) {
-      if (section === selectedTextSection || section === currentPageSection) continue;
-      
-      const testResult = result + section + '\n\n';
+      if (section === selectedTextSection || section === currentPageSection)
+        continue;
+
+      const testResult = result + section + "\n\n";
       if (this.estimateTokenCount(testResult) > targetLength) {
         // If this is page content, try to include partial content
-        if (section.startsWith('**Page Content:**') || section.startsWith('**Visible Content:**')) {
-          const lines = section.split('\n');
+        if (
+          section.startsWith("**Page Content:**") ||
+          section.startsWith("**Visible Content:**")
+        ) {
+          const lines = section.split("\n");
           const header = lines[0];
-          let partialContent = header + '\n';
-          
+          let partialContent = header + "\n";
+
           for (let i = 1; i < lines.length; i++) {
-            const testPartial = result + partialContent + lines[i] + '\n' + '... (content truncated)\n\n';
+            const testPartial =
+              result +
+              partialContent +
+              lines[i] +
+              "\n" +
+              "... (content truncated)\n\n";
             if (this.estimateTokenCount(testPartial) > targetLength) break;
-            partialContent += lines[i] + '\n';
+            partialContent += lines[i] + "\n";
           }
-          
-          if (partialContent !== header + '\n') {
-            result += partialContent + '... (content truncated)\n\n';
+
+          if (partialContent !== header + "\n") {
+            result += partialContent + "... (content truncated)\n\n";
           }
         }
         break;
       }
-      
-      result += section + '\n\n';
+
+      result += section + "\n\n";
       addedSections++;
-      
+
       // Limit number of sections to prevent too much context
       if (addedSections >= 3) break;
     }
@@ -649,9 +743,14 @@ export class RoamService {
     };
 
     if (context.currentPage) {
-      const pageUrls = this.generatePageUrl(context.currentPage.uid, graphName || undefined);
-      const urlLinks = pageUrls ? formatUrls(pageUrls.webUrl, pageUrls.desktopUrl) : `[[${context.currentPage.title}]]`;
-      
+      const pageUrls = this.generatePageUrl(
+        context.currentPage.uid,
+        graphName || undefined
+      );
+      const urlLinks = pageUrls
+        ? formatUrls(pageUrls.webUrl, pageUrls.desktopUrl)
+        : `[[${context.currentPage.title}]]`;
+
       formattedContext += `**Current Page: "${context.currentPage.title}"** ${urlLinks}\n\n`;
 
       if (context.currentPage.blocks.length > 0) {
@@ -666,18 +765,28 @@ export class RoamService {
       }
     } else if (context.visibleBlocks.length > 0) {
       formattedContext += "**Visible Content:**\n";
-      formattedContext += this.formatBlocksForAIWithClickableReferences(context.visibleBlocks, 0, graphName, isDesktop);
+      formattedContext += this.formatBlocksForAIWithClickableReferences(
+        context.visibleBlocks,
+        0,
+        graphName,
+        isDesktop
+      );
       formattedContext += "\n";
     }
 
     // Add daily note content
     if (context.dailyNote && context.dailyNote.blocks.length > 0) {
-      const dailyUrls = this.generatePageUrl(context.dailyNote.uid, graphName || undefined);
-      const dailyUrlLinks = dailyUrls ? formatUrls(dailyUrls.webUrl, dailyUrls.desktopUrl) : `[[${context.dailyNote.title}]]`;
-      
+      const dailyUrls = this.generatePageUrl(
+        context.dailyNote.uid,
+        graphName || undefined
+      );
+      const dailyUrlLinks = dailyUrls
+        ? formatUrls(dailyUrls.webUrl, dailyUrls.desktopUrl)
+        : `[[${context.dailyNote.title}]]`;
+
       formattedContext += `**Today's Daily Note (${context.dailyNote.title}):** ${dailyUrlLinks}\n`;
       formattedContext += this.formatBlocksForAIWithClickableReferences(
-        context.dailyNote.blocks, 
+        context.dailyNote.blocks,
         0,
         graphName,
         isDesktop
@@ -689,9 +798,14 @@ export class RoamService {
     if (context.linkedReferences.length > 0) {
       formattedContext += `**Linked References (${context.linkedReferences.length} references):**\n`;
       for (const ref of context.linkedReferences.slice(0, 10)) {
-        const blockUrls = this.generateBlockUrl(ref.uid, graphName || undefined);
-        const blockUrlLinks = blockUrls ? formatUrls(blockUrls.webUrl, blockUrls.desktopUrl) : `((${ref.uid}))`;
-        
+        const blockUrls = this.generateBlockUrl(
+          ref.uid,
+          graphName || undefined
+        );
+        const blockUrlLinks = blockUrls
+          ? formatUrls(blockUrls.webUrl, blockUrls.desktopUrl)
+          : `((${ref.uid}))`;
+
         formattedContext += `- ${ref.string} ${blockUrlLinks}\n`;
       }
       if (context.linkedReferences.length > 10) {
@@ -703,7 +817,7 @@ export class RoamService {
     }
 
     const finalContext = formattedContext.trim();
-    
+
     // Apply truncation if context is too long
     return this.truncateContext(finalContext, maxTokens);
   }
@@ -711,14 +825,19 @@ export class RoamService {
   /**
    * Format blocks recursively for AI with clickable source references
    */
-  static formatBlocksForAIWithClickableReferences(blocks: RoamBlock[], level: number, graphName?: string | null, isDesktop?: boolean): string {
+  static formatBlocksForAIWithClickableReferences(
+    blocks: RoamBlock[],
+    level: number,
+    graphName?: string | null,
+    isDesktop?: boolean
+  ): string {
     let formatted = "";
     const indent = "  ".repeat(level);
 
     for (const block of blocks) {
       if (block.string.trim()) {
         let blockReference = `((${block.uid}))`;
-        
+
         if (graphName) {
           const blockUrls = this.generateBlockUrl(block.uid, graphName);
           if (blockUrls) {
@@ -729,11 +848,16 @@ export class RoamService {
             }
           }
         }
-        
+
         formatted += `${indent}- ${block.string} ${blockReference}\n`;
 
         if (block.children && block.children.length > 0) {
-          formatted += this.formatBlocksForAIWithClickableReferences(block.children, level + 1, graphName, isDesktop);
+          formatted += this.formatBlocksForAIWithClickableReferences(
+            block.children,
+            level + 1,
+            graphName,
+            isDesktop
+          );
         }
       }
     }
@@ -744,7 +868,11 @@ export class RoamService {
   /**
    * Format blocks recursively for AI with source references (legacy method)
    */
-  static formatBlocksForAIWithReferences(blocks: RoamBlock[], level: number, pageTitle?: string): string {
+  static formatBlocksForAIWithReferences(
+    blocks: RoamBlock[],
+    level: number,
+    pageTitle?: string
+  ): string {
     let formatted = "";
     const indent = "  ".repeat(level);
 
@@ -753,7 +881,11 @@ export class RoamService {
         formatted += `${indent}- ${block.string} [Block Reference: ((${block.uid}))]\n`;
 
         if (block.children && block.children.length > 0) {
-          formatted += this.formatBlocksForAIWithReferences(block.children, level + 1, pageTitle);
+          formatted += this.formatBlocksForAIWithReferences(
+            block.children,
+            level + 1,
+            pageTitle
+          );
         }
       }
     }
@@ -788,29 +920,29 @@ export class RoamService {
   // static detectLanguage(content: string): string {
   //   const cleanContent = content.replace(/\s/g, '');
   //   const totalChars = cleanContent.length;
-    
+
   //   if (totalChars === 0) return 'English';
 
   //   // Chinese characters (including traditional and simplified)
   //   const chineseChars = (content.match(/[\u4e00-\u9fff]/g) || []).length;
   //   const chineseRatio = chineseChars / totalChars;
-    
+
   //   // Japanese characters (Hiragana, Katakana, Kanji)
   //   const japaneseChars = (content.match(/[\u3040-\u309f\u30a0-\u30ff\u4e00-\u9faf]/g) || []).length;
   //   const japaneseRatio = japaneseChars / totalChars;
-    
+
   //   // Korean characters (Hangul)
   //   const koreanChars = (content.match(/[\uac00-\ud7af]/g) || []).length;
   //   const koreanRatio = koreanChars / totalChars;
-    
+
   //   // French characters (accented characters)
   //   const frenchChars = (content.match(/[àâäéèêëïîôöùûüÿçÀÂÄÉÈÊËÏÎÔÖÙÛÜŸÇ]/g) || []).length;
   //   const frenchRatio = frenchChars / totalChars;
-    
+
   //   // Spanish characters (accented characters)
   //   const spanishChars = (content.match(/[áéíóúüñÁÉÍÓÚÜÑ¿¡]/g) || []).length;
   //   const spanishRatio = spanishChars / totalChars;
-    
+
   //   // German characters (umlaut and ß)
   //   const germanChars = (content.match(/[äöüßÄÖÜ]/g) || []).length;
   //   const germanRatio = germanChars / totalChars;
@@ -822,7 +954,7 @@ export class RoamService {
   //   if (frenchRatio > 0.05) return 'French';
   //   if (spanishRatio > 0.05) return 'Spanish';
   //   if (germanRatio > 0.05) return 'German';
-    
+
   //   return 'English';
   // }
 
@@ -840,7 +972,7 @@ export class RoamService {
   static async getNotesFromDate(dateString: string): Promise<RoamPage | null> {
     try {
       console.log("Getting notes from date:", dateString);
-      
+
       // Convert date string to various formats that Roam might use
       const inputDate = new Date(dateString);
       if (isNaN(inputDate.getTime())) {
@@ -850,11 +982,13 @@ export class RoamService {
 
       const dateFormats = [
         // MM-dd-yyyy
-        inputDate.toLocaleDateString("en-US", {
-          month: "2-digit",
-          day: "2-digit", 
-          year: "numeric",
-        }).replace(/\//g, "-"),
+        inputDate
+          .toLocaleDateString("en-US", {
+            month: "2-digit",
+            day: "2-digit",
+            year: "numeric",
+          })
+          .replace(/\//g, "-"),
         // Month dd, yyyy
         inputDate.toLocaleDateString("en-US", {
           month: "long",
@@ -866,24 +1000,33 @@ export class RoamService {
         // dd-MM-yyyy
         inputDate.toLocaleDateString("en-GB").replace(/\//g, "-"),
         // Just the year-month-day without leading zeros
-        `${inputDate.getFullYear()}-${inputDate.getMonth() + 1}-${inputDate.getDate()}`,
+        `${inputDate.getFullYear()}-${
+          inputDate.getMonth() + 1
+        }-${inputDate.getDate()}`,
         // With ordinal suffix
-        inputDate.toLocaleDateString("en-US", {
-          month: "long", 
-          day: "numeric",
-          year: "numeric"
-        }).replace(/(\d+)/, (match) => {
-          const day = parseInt(match);
-          const suffix = day % 10 === 1 && day !== 11 ? 'st' :
-                        day % 10 === 2 && day !== 12 ? 'nd' :
-                        day % 10 === 3 && day !== 13 ? 'rd' : 'th';
-          return day + suffix;
-        })
+        inputDate
+          .toLocaleDateString("en-US", {
+            month: "long",
+            day: "numeric",
+            year: "numeric",
+          })
+          .replace(/(\d+)/, (match) => {
+            const day = parseInt(match);
+            const suffix =
+              day % 10 === 1 && day !== 11
+                ? "st"
+                : day % 10 === 2 && day !== 12
+                ? "nd"
+                : day % 10 === 3 && day !== 13
+                ? "rd"
+                : "th";
+            return day + suffix;
+          }),
       ];
 
       for (const format of dateFormats) {
         console.log("Trying date format:", format);
-        
+
         const query = `
           [:find ?uid
            :where
@@ -893,7 +1036,7 @@ export class RoamService {
 
         const result = window.roamAlphaAPI.q(query);
         console.log("Query result for", format, ":", result);
-        
+
         if (result && result.length > 0) {
           const uid = result[0][0];
           const blocks = await this.getPageBlocks(uid);
@@ -917,22 +1060,25 @@ export class RoamService {
   /**
    * Get notes from a date range
    */
-  static async getNotesFromDateRange(startDate: string, endDate: string): Promise<RoamPage[]> {
+  static async getNotesFromDateRange(
+    startDate: string,
+    endDate: string
+  ): Promise<RoamPage[]> {
     try {
       const notes: RoamPage[] = [];
       const start = new Date(startDate);
       const end = new Date(endDate);
-      
+
       const currentDate = new Date(start);
       while (currentDate <= end) {
-        const dateString = currentDate.toISOString().split('T')[0];
+        const dateString = currentDate.toISOString().split("T")[0];
         const note = await this.getNotesFromDate(dateString);
         if (note) {
           notes.push(note);
         }
         currentDate.setDate(currentDate.getDate() + 1);
       }
-      
+
       return notes;
     } catch (error) {
       console.error("Error getting notes from date range:", error);

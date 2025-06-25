@@ -17,6 +17,7 @@ export let multiProviderSettings: MultiProviderSettings = {
   temperature: 0.7,
   maxTokens: 2000,
   responseLanguage: "English",
+  ollamaBaseUrl: "http://localhost:11434", // Default Ollama address
 };
 
 export let aiSettings: AISettings = { ...DEFAULT_SETTINGS };
@@ -26,24 +27,32 @@ export function loadInitialSettings(extensionAPI: any) {
   const savedCurrentModel = extensionAPI.settings.get("copilot-current-model");
   const savedTemperature = extensionAPI.settings.get("copilot-temperature");
   const savedMaxTokens = extensionAPI.settings.get("copilot-max-tokens");
-  const savedResponseLanguage = extensionAPI.settings.get("copilot-response-language");
+  const savedResponseLanguage = extensionAPI.settings.get(
+    "copilot-response-language"
+  );
+  const savedOllamaBaseUrl = extensionAPI.settings.get(
+    "copilot-ollama-base-url"
+  );
 
   // Load API keys for all providers
   const apiKeys: { [providerId: string]: string } = {};
-  AI_PROVIDERS.forEach(provider => {
-    const savedKey = extensionAPI.settings.get(`copilot-api-key-${provider.id}`);
+  AI_PROVIDERS.forEach((provider) => {
+    const savedKey = extensionAPI.settings.get(
+      `copilot-api-key-${provider.id}`
+    );
     if (savedKey) {
       apiKeys[provider.id] = savedKey;
     }
   });
 
-  // Determine current model: use saved model if valid, otherwise first available model
-  const availableModels = getAvailableModelsWithKeys(apiKeys);
+  // For initial loading, use synchronous model checking
+  const availableModels = getSyncAvailableModelsWithKeys(apiKeys);
   let currentModel = savedCurrentModel || "gpt-4o-mini";
-  
+
   // If the saved model doesn't have an API key, use the first available model
-  if (!availableModels.some(m => m.model === currentModel)) {
-    currentModel = availableModels.length > 0 ? availableModels[0].model : "gpt-4o-mini";
+  if (!availableModels.some((m) => m.model === currentModel)) {
+    currentModel =
+      availableModels.length > 0 ? availableModels[0].model : "gpt-4o-mini";
   }
 
   multiProviderSettings = {
@@ -52,6 +61,7 @@ export function loadInitialSettings(extensionAPI: any) {
     temperature: savedTemperature ? parseFloat(savedTemperature) : 0.7,
     maxTokens: savedMaxTokens ? parseInt(savedMaxTokens) : 2000,
     responseLanguage: savedResponseLanguage || "English",
+    ollamaBaseUrl: savedOllamaBaseUrl || "http://localhost:11434",
   };
 
   // Keep legacy settings for backward compatibility
@@ -63,9 +73,45 @@ export function loadInitialSettings(extensionAPI: any) {
     provider: savedProvider || DEFAULT_SETTINGS.provider,
     model: savedModel || DEFAULT_SETTINGS.model,
     apiKey: savedApiKey || DEFAULT_SETTINGS.apiKey,
-    temperature: multiProviderSettings.temperature || DEFAULT_SETTINGS.temperature,
+    temperature:
+      multiProviderSettings.temperature || DEFAULT_SETTINGS.temperature,
     maxTokens: multiProviderSettings.maxTokens || DEFAULT_SETTINGS.maxTokens,
   };
+}
+
+// Synchronous version for initial loading (uses fallback models for Ollama)
+function getSyncAvailableModelsWithKeys(apiKeys: {
+  [providerId: string]: string;
+}): Array<{ model: string; provider: string; providerName: string }> {
+  const availableModels: Array<{
+    model: string;
+    provider: string;
+    providerName: string;
+  }> = [];
+
+  AI_PROVIDERS.forEach((provider) => {
+    // Ollama doesn't need API key, directly available
+    const hasApiKey =
+      provider.id === "ollama" ||
+      (apiKeys[provider.id] && apiKeys[provider.id].trim() !== "");
+
+    if (hasApiKey) {
+      // For Ollama, skip if no models defined (will be loaded dynamically)
+      if (provider.id === "ollama" && provider.models.length === 0) {
+        return;
+      }
+
+      provider.models.forEach((model) => {
+        availableModels.push({
+          model,
+          provider: provider.id,
+          providerName: provider.name,
+        });
+      });
+    }
+  });
+
+  return availableModels;
 }
 
 // Helper function to get models for current provider
@@ -75,29 +121,59 @@ function getModelsForProvider(providerId: string) {
 }
 
 // Helper function to get available models with given API keys
-function getAvailableModelsWithKeys(apiKeys: { [providerId: string]: string }): Array<{model: string, provider: string, providerName: string}> {
-  const availableModels: Array<{model: string, provider: string, providerName: string}> = [];
-  
-  AI_PROVIDERS.forEach(provider => {
-    const hasApiKey = apiKeys[provider.id] && apiKeys[provider.id].trim() !== '';
-    
+async function getAvailableModelsWithKeys(apiKeys: {
+  [providerId: string]: string;
+}): Promise<Array<{ model: string; provider: string; providerName: string }>> {
+  const availableModels: Array<{
+    model: string;
+    provider: string;
+    providerName: string;
+  }> = [];
+
+  for (const provider of AI_PROVIDERS) {
+    // Ollama doesn't need API key, directly available
+    const hasApiKey =
+      provider.id === "ollama" ||
+      (apiKeys[provider.id] && apiKeys[provider.id].trim() !== "");
+
     if (hasApiKey) {
-      provider.models.forEach(model => {
+      let models = provider.models;
+
+      // For Ollama, try to fetch dynamic models
+      if (provider.id === "ollama" && provider.supportsDynamicModels) {
+        try {
+          const { AIService } = await import("./services/aiService");
+          const dynamicModels = await AIService.getOllamaModels();
+          if (dynamicModels.length > 0) {
+            models = dynamicModels;
+          }
+        } catch (error) {
+          console.log(
+            "Failed to fetch dynamic Ollama models, using fallback:",
+            error
+          );
+          // Use fallback models from provider config
+        }
+      }
+
+      models.forEach((model) => {
         availableModels.push({
           model,
           provider: provider.id,
-          providerName: provider.name
+          providerName: provider.name,
         });
       });
     }
-  });
-  
+  }
+
   return availableModels;
 }
 
 // Helper function to get all available models (only providers with API keys)
-export function getAvailableModels(): Array<{model: string, provider: string, providerName: string}> {
-  return getAvailableModelsWithKeys(multiProviderSettings.apiKeys);
+export async function getAvailableModels(): Promise<
+  Array<{ model: string; provider: string; providerName: string }>
+> {
+  return await getAvailableModelsWithKeys(multiProviderSettings.apiKeys);
 }
 
 // Helper function to update model dropdown
@@ -109,67 +185,76 @@ function updateModelDropdown(extensionAPI: any, providerId: string) {
       aiSettings.model = provider.models[0];
       extensionAPI.settings.set("copilot-model", aiSettings.model);
     }
-    
+
     // Try to update model dropdown directly via DOM
     setTimeout(() => {
       try {
         console.log("Searching for model dropdown...");
-        
+
         // Strategy 1: Find all select elements and log them
-        const allSelects = document.querySelectorAll('select');
+        const allSelects = document.querySelectorAll("select");
         console.log("Found", allSelects.length, "select elements");
-        
+
         let modelSelect: HTMLSelectElement | null = null;
-        
+
         // Strategy 2: Look for select elements and examine their options
         allSelects.forEach((select, index) => {
           if (select instanceof HTMLSelectElement) {
-            const options = Array.from(select.options).map(opt => opt.value);
+            const options = Array.from(select.options).map((opt) => opt.value);
             console.log(`Select ${index}:`, options);
-            
+
             // Check if this select contains any AI model names
-            if (options.some(opt => 
-              opt.includes('gpt') || opt.includes('claude') || 
-              opt.includes('llama') || opt.includes('grok') || opt.includes('gemma')
-            )) {
+            if (
+              options.some(
+                (opt) =>
+                  opt.includes("gpt") ||
+                  opt.includes("claude") ||
+                  opt.includes("llama") ||
+                  opt.includes("grok") ||
+                  opt.includes("gemma")
+              )
+            ) {
               modelSelect = select;
               console.log("Found model select at index", index);
             }
           }
         });
-        
+
         // Strategy 3: Look for elements with specific IDs or classes
         if (!modelSelect) {
           const potentialSelects = [
-            document.getElementById('copilot-model'),
+            document.getElementById("copilot-model"),
             document.querySelector('[data-setting-id="copilot-model"]'),
-            document.querySelector('.copilot-model'),
+            document.querySelector(".copilot-model"),
             document.querySelector('select[name*="model"]'),
-            document.querySelector('select[id*="model"]')
+            document.querySelector('select[id*="model"]'),
           ].filter(Boolean) as HTMLSelectElement[];
-          
+
           if (potentialSelects.length > 0) {
             modelSelect = potentialSelects[0];
             console.log("Found model select via specific selector");
           }
         }
-        
+
         // Strategy 4: Look for the second select element (assuming first is provider)
         if (!modelSelect && allSelects.length >= 2) {
           modelSelect = allSelects[1] as HTMLSelectElement;
           console.log("Using second select element as model dropdown");
         }
-        
+
         if (modelSelect) {
           console.log("Found model select, updating options");
-          console.log("Current options before update:", Array.from(modelSelect.options).map(opt => opt.value));
-          
+          console.log(
+            "Current options before update:",
+            Array.from(modelSelect.options).map((opt) => opt.value)
+          );
+
           // Clear existing options
-          modelSelect.innerHTML = '';
-          
+          modelSelect.innerHTML = "";
+
           // Add new options
-          provider.models.forEach(model => {
-            const option = document.createElement('option');
+          provider.models.forEach((model) => {
+            const option = document.createElement("option");
             option.value = model;
             option.textContent = model;
             if (model === aiSettings.model) {
@@ -179,17 +264,27 @@ function updateModelDropdown(extensionAPI: any, providerId: string) {
               modelSelect.appendChild(option);
             }
           });
-          
+
           console.log("Updated model dropdown with:", provider.models);
-          
+
           // Trigger change event
           if (modelSelect) {
-            const changeEvent = new Event('change', { bubbles: true });
+            const changeEvent = new Event("change", { bubbles: true });
             modelSelect.dispatchEvent(changeEvent);
           }
         } else {
           console.log("Could not find model dropdown in DOM");
-          console.log("Available elements:", Array.from(document.querySelectorAll('*')).map(el => el.tagName + (el.id ? '#' + el.id : '') + (el.className ? '.' + el.className.split(' ').join('.') : '')).slice(0, 20));
+          console.log(
+            "Available elements:",
+            Array.from(document.querySelectorAll("*"))
+              .map(
+                (el) =>
+                  el.tagName +
+                  (el.id ? "#" + el.id : "") +
+                  (el.className ? "." + el.className.split(" ").join(".") : "")
+              )
+              .slice(0, 20)
+          );
         }
       } catch (error) {
         console.log("DOM update failed:", error);
@@ -201,43 +296,109 @@ function updateModelDropdown(extensionAPI: any, providerId: string) {
 export function initPanelConfig(extensionAPI: any) {
   // Create settings for all providers
   const providerSettings: any[] = [];
-  
-  AI_PROVIDERS.forEach(provider => {
-    // Build description with clickable links
+
+  AI_PROVIDERS.forEach((provider) => {
+    // Ollama is a local service, doesn't need API key, but needs service address configuration
+    if (provider.id === "ollama") {
+      providerSettings.push({
+        id: `copilot-ollama-base-url`,
+        name: `${provider.name} Service URL`,
+        description: React.createElement(
+          React.Fragment,
+          {},
+          "Enter your local Ollama service URL",
+          React.createElement("br"),
+          React.createElement("small", {}, "Default: http://localhost:11434"),
+          React.createElement("br"),
+          React.createElement(
+            "a",
+            {
+              href: "https://ollama.com/",
+              target: "_blank",
+              rel: "noopener noreferrer",
+            },
+            "📥 Download Ollama"
+          ),
+          " | ",
+          React.createElement(
+            "a",
+            {
+              href: "https://ollama.com/library",
+              target: "_blank",
+              rel: "noopener noreferrer",
+            },
+            "🤖 Browse Models"
+          )
+        ),
+        action: {
+          type: "input",
+          placeholder: "http://localhost:11434",
+          value:
+            multiProviderSettings.ollamaBaseUrl || "http://localhost:11434",
+          onChange: (evt: any) => {
+            const value = evt?.target?.value;
+            if (value !== undefined) {
+              multiProviderSettings.ollamaBaseUrl =
+                value || "http://localhost:11434";
+              extensionAPI.settings.set(
+                "copilot-ollama-base-url",
+                multiProviderSettings.ollamaBaseUrl
+              );
+            }
+          },
+        },
+      });
+      return; // Skip API key setting for Ollama
+    }
+
+    // Build description with clickable links for API-based providers
     const links: React.ReactElement[] = [];
     if (provider.apiKeyUrl) {
       links.push(
-        React.createElement('a', {
-          key: 'api-key',
-          href: provider.apiKeyUrl,
-          target: '_blank',
-          rel: 'noopener noreferrer'
-        }, '🔑 Get API Key')
+        React.createElement(
+          "a",
+          {
+            key: "api-key",
+            href: provider.apiKeyUrl,
+            target: "_blank",
+            rel: "noopener noreferrer",
+          },
+          "🔑 Get API Key"
+        )
       );
     }
     if (provider.billingUrl) {
       links.push(
-        React.createElement('a', {
-          key: 'billing',
-          href: provider.billingUrl,
-          target: '_blank',
-          rel: 'noopener noreferrer'
-        }, '💳 View Usage')
+        React.createElement(
+          "a",
+          {
+            key: "billing",
+            href: provider.billingUrl,
+            target: "_blank",
+            rel: "noopener noreferrer",
+          },
+          "💳 View Usage"
+        )
       );
     }
 
-    const description = links.length > 0 
-      ? React.createElement(React.Fragment, {}, 
-          `Enter your ${provider.name} API key`, 
-          React.createElement('br'),
-          ...links.map((link, index) => 
-            React.createElement(React.Fragment, { key: index }, 
-              index > 0 ? ' | ' : '',
-              link
+    const description =
+      links.length > 0
+        ? React.createElement(
+            React.Fragment,
+            {},
+            `Enter your ${provider.name} API key`,
+            React.createElement("br"),
+            ...links.map((link, index) =>
+              React.createElement(
+                React.Fragment,
+                { key: index },
+                index > 0 ? " | " : "",
+                link
+              )
             )
           )
-        )
-      : `Enter your ${provider.name} API key`;
+        : `Enter your ${provider.name} API key`;
 
     // Add API key input setting
     providerSettings.push({
@@ -269,7 +430,15 @@ export function initPanelConfig(extensionAPI: any) {
         description: "Language for AI responses",
         action: {
           type: "select",
-          items: ["English", "Chinese", "Japanese", "Korean", "French", "Spanish", "German"],
+          items: [
+            "English",
+            "Chinese",
+            "Japanese",
+            "Korean",
+            "French",
+            "Spanish",
+            "German",
+          ],
           value: multiProviderSettings.responseLanguage || "English",
           onChange: (evt: any) => {
             const value = evt?.target?.value;
@@ -315,7 +484,10 @@ export function initPanelConfig(extensionAPI: any) {
             const tokens = parseInt(value);
             if (!isNaN(tokens) && tokens > 0) {
               multiProviderSettings.maxTokens = tokens;
-              extensionAPI.settings.set("copilot-max-tokens", tokens.toString());
+              extensionAPI.settings.set(
+                "copilot-max-tokens",
+                tokens.toString()
+              );
             }
           },
         },

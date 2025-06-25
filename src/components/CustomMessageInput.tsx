@@ -1,6 +1,10 @@
 // src/components/CustomMessageInput.tsx
 import React, { useState, useRef, useEffect, KeyboardEvent } from "react";
-import { aiSettings, multiProviderSettings, getAvailableModels } from "../settings";
+import {
+  aiSettings,
+  multiProviderSettings,
+  getAvailableModels,
+} from "../settings";
 import { AI_PROVIDERS } from "../types";
 
 interface CustomMessageInputProps {
@@ -22,23 +26,53 @@ export const CustomMessageInput: React.FC<CustomMessageInputProps> = ({
   onChange,
   onDateSelect,
 }) => {
-  const [internalValue, setInternalValue] = useState("");
-  
-  // Use controlled value if provided, otherwise use internal state
-  const value = controlledValue !== undefined ? controlledValue : internalValue;
-  const setValue = controlledValue !== undefined ? (onChange || (() => {})) : setInternalValue;
-  
+  const [value, setValue] = useState(controlledValue || "");
+  const [availableModels, setAvailableModels] = useState<
+    Array<{ model: string; provider: string; providerName: string }>
+  >([]);
+  const [isLoadingModels, setIsLoadingModels] = useState(true);
+
+  // Update local state when controlled value changes
+  useEffect(() => {
+    if (controlledValue !== undefined) {
+      setValue(controlledValue);
+    }
+  }, [controlledValue]);
+
   // Get all available models from providers with API keys
-  const availableModels = getAvailableModels();
-  
+  useEffect(() => {
+    const loadModels = async () => {
+      setIsLoadingModels(true);
+      try {
+        const models = await getAvailableModels();
+        setAvailableModels(models);
+      } catch (error) {
+        console.error("Failed to load available models:", error);
+        setAvailableModels([]);
+      } finally {
+        setIsLoadingModels(false);
+      }
+    };
+
+    loadModels();
+
+    // Reload models when Ollama base URL changes
+    const interval = setInterval(loadModels, 30000); // Refresh every 30 seconds
+    return () => clearInterval(interval);
+  }, [multiProviderSettings.ollamaBaseUrl]);
+
   // Ensure selectedModel is valid (has API key)
   const getValidModel = () => {
-    if (availableModels.some(m => m.model === multiProviderSettings.currentModel)) {
+    if (
+      availableModels.some(
+        (m) => m.model === multiProviderSettings.currentModel
+      )
+    ) {
       return multiProviderSettings.currentModel;
     }
     return availableModels.length > 0 ? availableModels[0].model : "";
   };
-  
+
   const [selectedModel, setSelectedModel] = useState(getValidModel());
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -53,11 +87,37 @@ export const CustomMessageInput: React.FC<CustomMessageInputProps> = ({
 
   // Update selectedModel when available models change
   useEffect(() => {
-    const validModel = getValidModel();
-    if (validModel !== selectedModel) {
-      setSelectedModel(validModel);
-      if (validModel) {
+    if (!isLoadingModels && availableModels.length > 0) {
+      const validModel = getValidModel();
+      if (validModel !== selectedModel) {
+        setSelectedModel(validModel);
+        if (validModel) {
+          multiProviderSettings.currentModel = validModel;
+          // Save to extension settings
+          if (typeof window !== "undefined" && (window as any).roamAlphaAPI) {
+            try {
+              const extensionAPI = (window as any).roamAlphaAPI.ui
+                .commandPalette;
+              if (extensionAPI && extensionAPI.settings) {
+                extensionAPI.settings.set("copilot-current-model", validModel);
+              }
+            } catch (error) {
+              console.log("Could not save model setting:", error);
+            }
+          }
+        }
+      }
+    }
+  }, [availableModels, isLoadingModels, selectedModel]);
+
+  // Initialize selectedModel on component mount
+  useEffect(() => {
+    if (!isLoadingModels && availableModels.length > 0) {
+      const validModel = getValidModel();
+      if (validModel && validModel !== multiProviderSettings.currentModel) {
+        setSelectedModel(validModel);
         multiProviderSettings.currentModel = validModel;
+
         // Save to extension settings
         if (typeof window !== "undefined" && (window as any).roamAlphaAPI) {
           try {
@@ -71,28 +131,7 @@ export const CustomMessageInput: React.FC<CustomMessageInputProps> = ({
         }
       }
     }
-  }, [availableModels.length]);
-
-  // Initialize selectedModel on component mount
-  useEffect(() => {
-    const validModel = getValidModel();
-    if (validModel && validModel !== multiProviderSettings.currentModel) {
-      setSelectedModel(validModel);
-      multiProviderSettings.currentModel = validModel;
-      
-      // Save to extension settings
-      if (typeof window !== "undefined" && (window as any).roamAlphaAPI) {
-        try {
-          const extensionAPI = (window as any).roamAlphaAPI.ui.commandPalette;
-          if (extensionAPI && extensionAPI.settings) {
-            extensionAPI.settings.set("copilot-current-model", validModel);
-          }
-        } catch (error) {
-          console.log("Could not save model setting:", error);
-        }
-      }
-    }
-  }, []);
+  }, [isLoadingModels, availableModels]);
 
   const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {
@@ -105,7 +144,11 @@ export const CustomMessageInput: React.FC<CustomMessageInputProps> = ({
     const message = value.trim();
     if (message && !disabled) {
       onSend(message);
-      setValue("");
+      if (controlledValue === undefined) {
+        setValue("");
+      } else if (onChange) {
+        onChange("");
+      }
     }
   };
 
@@ -134,23 +177,27 @@ export const CustomMessageInput: React.FC<CustomMessageInputProps> = ({
 
   // Function to handle date changes and fetch notes
   const handleDateChange = async (newValue: string) => {
-    setValue(newValue);
-    
+    if (controlledValue === undefined) {
+      setValue(newValue);
+    } else if (onChange) {
+      onChange(newValue);
+    }
+
     // Check if there's a date pattern and fetch notes
     const datePattern = /\[(\d{4}-\d{2}-\d{2})\]/;
     const match = newValue.match(datePattern);
-    
+
     if (match && onDateSelect) {
       const dateString = match[1];
       try {
         const { RoamService } = await import("../services/roamService");
         const dateNotes = await RoamService.getNotesFromDate(dateString);
         let notesContent = "";
-        
+
         if (dateNotes && dateNotes.blocks.length > 0) {
           notesContent = RoamService.formatBlocksForAI(dateNotes.blocks, 0);
         }
-        
+
         onDateSelect(dateString, notesContent);
       } catch (error) {
         console.error("Error fetching date notes:", error);
@@ -185,13 +232,25 @@ export const CustomMessageInput: React.FC<CustomMessageInputProps> = ({
             value={selectedModel}
             onChange={(e) => handleModelChange(e.target.value)}
             className="model-selector"
-            disabled={disabled}
+            disabled={disabled || isLoadingModels}
           >
-            {availableModels.length === 0 ? (
+            {isLoadingModels ? (
+              <option value="">Loading models...</option>
+            ) : availableModels.length === 0 ? (
               <option value="">No keys</option>
             ) : (
               availableModels.map((modelInfo) => (
-                <option key={`${modelInfo.provider}-${modelInfo.model}`} value={modelInfo.model}>
+                <option
+                  key={`${modelInfo.provider}-${modelInfo.model}`}
+                  value={modelInfo.model}
+                  style={{
+                    fontWeight:
+                      modelInfo.provider === "ollama" ? "bold" : "normal",
+                    color:
+                      modelInfo.provider === "ollama" ? "#2E7D32" : "inherit",
+                  }}
+                >
+                  {modelInfo.provider === "ollama" ? "🏠 " : ""}
                   {modelInfo.model}
                 </option>
               ))
@@ -223,7 +282,6 @@ export const CustomMessageInput: React.FC<CustomMessageInputProps> = ({
           </button>
         </div>
       </div>
-
     </div>
   );
 };

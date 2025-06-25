@@ -5,11 +5,18 @@ import { RoamService } from "./roamService";
 
 export class AIService {
   // Helper function to get provider for a specific model
-  static getProviderForModel(model: string): {provider: any, apiKey: string} | null {
+  static getProviderForModel(
+    model: string
+  ): { provider: any; apiKey: string } | null {
     for (const provider of AI_PROVIDERS) {
       if (provider.models.includes(model)) {
+        // Ollama doesn't need API key
+        if (provider.id === "ollama") {
+          return { provider, apiKey: "" };
+        }
+
         const apiKey = multiProviderSettings.apiKeys[provider.id];
-        if (apiKey && apiKey.trim() !== '') {
+        if (apiKey && apiKey.trim() !== "") {
           return { provider, apiKey };
         }
       }
@@ -17,15 +24,18 @@ export class AIService {
     return null;
   }
 
-  private static async callOpenAI(settings: AISettings, messages: any[]): Promise<string> {
-    const provider = AI_PROVIDERS.find(p => p.id === 'openai');
-    if (!provider?.baseUrl) throw new Error('OpenAI provider not configured');
+  private static async callOpenAI(
+    settings: AISettings,
+    messages: any[]
+  ): Promise<string> {
+    const provider = AI_PROVIDERS.find((p) => p.id === "openai");
+    if (!provider?.baseUrl) throw new Error("OpenAI provider not configured");
 
     const response = await fetch(`${provider.baseUrl}/chat/completions`, {
-      method: 'POST',
+      method: "POST",
       headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${settings.apiKey}`,
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${settings.apiKey}`,
       },
       body: JSON.stringify({
         model: settings.model,
@@ -37,27 +47,35 @@ export class AIService {
 
     if (!response.ok) {
       const error = await response.json().catch(() => ({}));
-      throw new Error(`OpenAI API error: ${response.status} ${error.error?.message || response.statusText}`);
+      throw new Error(
+        `OpenAI API error: ${response.status} ${
+          error.error?.message || response.statusText
+        }`
+      );
     }
 
     const data = await response.json();
-    return data.choices[0]?.message?.content || 'No response generated';
+    return data.choices[0]?.message?.content || "No response generated";
   }
 
-  private static async callAnthropic(settings: AISettings, messages: any[]): Promise<string> {
-    const provider = AI_PROVIDERS.find(p => p.id === 'anthropic');
-    if (!provider?.baseUrl) throw new Error('Anthropic provider not configured');
+  private static async callAnthropic(
+    settings: AISettings,
+    messages: any[]
+  ): Promise<string> {
+    const provider = AI_PROVIDERS.find((p) => p.id === "anthropic");
+    if (!provider?.baseUrl)
+      throw new Error("Anthropic provider not configured");
 
     // Convert messages format for Anthropic
-    const systemMessage = messages.find(m => m.role === 'system');
-    const conversationMessages = messages.filter(m => m.role !== 'system');
+    const systemMessage = messages.find((m) => m.role === "system");
+    const conversationMessages = messages.filter((m) => m.role !== "system");
 
     const response = await fetch(`${provider.baseUrl}/messages`, {
-      method: 'POST',
+      method: "POST",
       headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': settings.apiKey,
-        'anthropic-version': '2023-06-01',
+        "Content-Type": "application/json",
+        "x-api-key": settings.apiKey,
+        "anthropic-version": "2023-06-01",
       },
       body: JSON.stringify({
         model: settings.model,
@@ -70,22 +88,29 @@ export class AIService {
 
     if (!response.ok) {
       const error = await response.json().catch(() => ({}));
-      throw new Error(`Anthropic API error: ${response.status} ${error.error?.message || response.statusText}`);
+      throw new Error(
+        `Anthropic API error: ${response.status} ${
+          error.error?.message || response.statusText
+        }`
+      );
     }
 
     const data = await response.json();
-    return data.content[0]?.text || 'No response generated';
+    return data.content[0]?.text || "No response generated";
   }
 
-  private static async callGroq(settings: AISettings, messages: any[]): Promise<string> {
-    const provider = AI_PROVIDERS.find(p => p.id === 'groq');
-    if (!provider?.baseUrl) throw new Error('Groq provider not configured');
+  private static async callGroq(
+    settings: AISettings,
+    messages: any[]
+  ): Promise<string> {
+    const provider = AI_PROVIDERS.find((p) => p.id === "groq");
+    if (!provider?.baseUrl) throw new Error("Groq provider not configured");
 
     const response = await fetch(`${provider.baseUrl}/chat/completions`, {
-      method: 'POST',
+      method: "POST",
       headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${settings.apiKey}`,
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${settings.apiKey}`,
       },
       body: JSON.stringify({
         model: settings.model,
@@ -97,22 +122,29 @@ export class AIService {
 
     if (!response.ok) {
       const error = await response.json().catch(() => ({}));
-      throw new Error(`Groq API error: ${response.status} ${error.error?.message || response.statusText}`);
+      throw new Error(
+        `Groq API error: ${response.status} ${
+          error.error?.message || response.statusText
+        }`
+      );
     }
 
     const data = await response.json();
-    return data.choices[0]?.message?.content || 'No response generated';
+    return data.choices[0]?.message?.content || "No response generated";
   }
 
-  private static async callXAI(settings: AISettings, messages: any[]): Promise<string> {
-    const provider = AI_PROVIDERS.find(p => p.id === 'xai');
-    if (!provider?.baseUrl) throw new Error('xAI provider not configured');
+  private static async callXAI(
+    settings: AISettings,
+    messages: any[]
+  ): Promise<string> {
+    const provider = AI_PROVIDERS.find((p) => p.id === "xai");
+    if (!provider?.baseUrl) throw new Error("xAI provider not configured");
 
     const response = await fetch(`${provider.baseUrl}/chat/completions`, {
-      method: 'POST',
+      method: "POST",
       headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${settings.apiKey}`,
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${settings.apiKey}`,
       },
       body: JSON.stringify({
         model: settings.model,
@@ -124,11 +156,60 @@ export class AIService {
 
     if (!response.ok) {
       const error = await response.json().catch(() => ({}));
-      throw new Error(`xAI API error: ${response.status} ${error.error?.message || response.statusText}`);
+      throw new Error(
+        `xAI API error: ${response.status} ${
+          error.error?.message || response.statusText
+        }`
+      );
     }
 
     const data = await response.json();
-    return data.choices[0]?.message?.content || 'No response generated';
+    return data.choices[0]?.message?.content || "No response generated";
+  }
+
+  private static async callOllama(
+    settings: AISettings,
+    messages: any[]
+  ): Promise<string> {
+    // Use user-configured Ollama address, fallback to default if not configured
+    const baseUrl =
+      multiProviderSettings.ollamaBaseUrl || "http://localhost:11434";
+
+    try {
+      const response = await fetch(`${baseUrl}/api/chat`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: settings.model,
+          messages,
+          stream: false,
+          options: {
+            temperature: settings.temperature || 0.7,
+            num_predict: settings.maxTokens || 2000,
+          },
+        }),
+      });
+
+      if (!response.ok) {
+        const error = await response.text().catch(() => "");
+        throw new Error(
+          `Ollama API error: ${response.status} ${error || response.statusText}`
+        );
+      }
+
+      const data = await response.json();
+      return data.message?.content || "No response generated";
+    } catch (error: any) {
+      // Provide more friendly error message for connection failures
+      if (error.message.includes("fetch")) {
+        throw new Error(
+          `Cannot connect to Ollama service (${baseUrl}). Please ensure:\n1. Ollama is installed and running\n2. Service URL is configured correctly\n3. Model "${settings.model}" is downloaded`
+        );
+      }
+      throw error;
+    }
   }
 
   // New method that uses the currently selected model from multiProviderSettings
@@ -138,19 +219,25 @@ export class AIService {
   ): Promise<string> {
     const model = multiProviderSettings.currentModel;
     if (!model) {
-      throw new Error('No model selected. Please select a model from the dropdown.');
+      throw new Error(
+        "No model selected. Please select a model from the dropdown."
+      );
     }
 
     const providerInfo = this.getProviderForModel(model);
     if (!providerInfo) {
-      throw new Error(`No API key configured for model: ${model}. Please configure the API key in settings.`);
+      throw new Error(
+        `No API key configured for model: ${model}. Please configure the API key in settings.`
+      );
     }
 
     // Add language instruction based on user's manual setting if it's not English
     let finalUserMessage = userMessage;
-    const responseLanguage = multiProviderSettings.responseLanguage || "English";
+    const responseLanguage =
+      multiProviderSettings.responseLanguage || "English";
     if (responseLanguage !== "English") {
-      finalUserMessage = userMessage + `\n\nIMPORTANT: Please respond in ${responseLanguage}.`;
+      finalUserMessage =
+        userMessage + `\n\nIMPORTANT: Please respond in ${responseLanguage}.`;
     }
 
     // Create temporary settings object for the selected model
@@ -170,18 +257,23 @@ export class AIService {
     userMessage: string,
     context: string
   ): Promise<string> {
-    if (!settings.apiKey) {
-      throw new Error('API key not configured. Please set your API key in the extension settings.');
+    // Ollama doesn't need API key validation
+    if (settings.provider !== "ollama" && !settings.apiKey) {
+      throw new Error(
+        "API key not configured. Please set your API key in the extension settings."
+      );
     }
 
     // Prepare messages
     const messages = [
       {
-        role: 'system',
+        role: "system",
         content: `You are a personal growth companion and writing mentor integrated into Roam Research. Your mission is to help users discover profound insights from their notes while encouraging them to express and share their thoughts through writing.
 
 USER GREETING:
-${RoamService.getUserName() ? `你好, ${RoamService.getUserName()}!` : 'Hello!'} I'm here to help you discover insights from your notes and encourage your writing journey.
+${
+  RoamService.getUserName() ? `你好, ${RoamService.getUserName()}!` : "Hello!"
+} I'm here to help you discover insights from your notes and encourage your writing journey.
 
 CORE MISSION:
 - Analyze the user's notes to uncover deep insights about their thinking patterns, values, and development areas
@@ -274,53 +366,133 @@ IMPORTANT: When referencing information from the context, ALWAYS include the app
 
 When you mention specific insights derived from their notes, include the exact clickable link from the context to allow users to revisit the source material.
 
-Remember: Your dual goal is to help users gain meaningful self-awareness AND encourage them to express their insights through writing, both for personal growth and to benefit others who might learn from their experiences.`
+Remember: Your dual goal is to help users gain meaningful self-awareness AND encourage them to express their insights through writing, both for personal growth and to benefit others who might learn from their experiences.`,
       },
       {
-        role: 'user',
-        content: userMessage
-      }
+        role: "user",
+        content: userMessage,
+      },
     ];
 
     try {
       switch (settings.provider) {
-        case 'openai':
+        case "openai":
           return await this.callOpenAI(settings, messages);
-        case 'anthropic':
+        case "anthropic":
           return await this.callAnthropic(settings, messages);
-        case 'groq':
+        case "groq":
           return await this.callGroq(settings, messages);
-        case 'xai':
+        case "xai":
           return await this.callXAI(settings, messages);
+        case "ollama":
+          return await this.callOllama(settings, messages);
         default:
           throw new Error(`Unsupported AI provider: ${settings.provider}`);
       }
     } catch (error: any) {
-      console.error('AI Service Error:', error);
+      console.error("AI Service Error:", error);
       throw new Error(`Failed to get AI response: ${error.message}`);
     }
   }
 
-  static validateSettings(settings: AISettings): { isValid: boolean; error?: string } {
-    if (!settings.apiKey?.trim()) {
-      return { isValid: false, error: 'API key is required' };
+  /**
+   * Get available Ollama models from the service
+   */
+  static async getOllamaModels(baseUrl?: string): Promise<string[]> {
+    const url =
+      baseUrl ||
+      multiProviderSettings.ollamaBaseUrl ||
+      "http://localhost:11434";
+
+    try {
+      const response = await fetch(`${url}/api/tags`, {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
+
+      if (!response.ok) {
+        console.warn(`Failed to fetch Ollama models: HTTP ${response.status}`);
+        return [];
+      }
+
+      const data = await response.json();
+      const models = data.models?.map((model: any) => model.name) || [];
+      console.log("Ollama models fetched:", models);
+      return models;
+    } catch (error: any) {
+      console.warn("Failed to fetch Ollama models:", error.message);
+      return [];
+    }
+  }
+
+  /**
+   * Test Ollama connection and list available models
+   */
+  static async testOllamaConnection(
+    baseUrl?: string
+  ): Promise<{ isConnected: boolean; models?: string[]; error?: string }> {
+    const url =
+      baseUrl ||
+      multiProviderSettings.ollamaBaseUrl ||
+      "http://localhost:11434";
+
+    try {
+      // Test basic connection
+      const response = await fetch(`${url}/api/tags`, {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
+
+      if (!response.ok) {
+        return {
+          isConnected: false,
+          error: `HTTP ${response.status}: ${response.statusText}`,
+        };
+      }
+
+      const data = await response.json();
+      const models = data.models?.map((model: any) => model.name) || [];
+
+      return {
+        isConnected: true,
+        models,
+      };
+    } catch (error: any) {
+      return {
+        isConnected: false,
+        error: error.message || "Connection failed",
+      };
+    }
+  }
+
+  static validateSettings(settings: AISettings): {
+    isValid: boolean;
+    error?: string;
+  } {
+    // Ollama doesn't need API key validation
+    if (settings.provider !== "ollama" && !settings.apiKey?.trim()) {
+      return { isValid: false, error: "API key is required" };
     }
 
     if (!settings.provider) {
-      return { isValid: false, error: 'AI provider is required' };
+      return { isValid: false, error: "AI provider is required" };
     }
 
     if (!settings.model) {
-      return { isValid: false, error: 'AI model is required' };
+      return { isValid: false, error: "AI model is required" };
     }
 
-    const provider = AI_PROVIDERS.find(p => p.id === settings.provider);
+    const provider = AI_PROVIDERS.find((p) => p.id === settings.provider);
     if (!provider) {
-      return { isValid: false, error: 'Invalid AI provider' };
+      return { isValid: false, error: "Invalid AI provider" };
     }
 
     if (!provider.models.includes(settings.model)) {
-      return { isValid: false, error: 'Invalid model for selected provider' };
+      return { isValid: false, error: "Invalid model for selected provider" };
     }
 
     return { isValid: true };
