@@ -5,7 +5,9 @@ import {
   multiProviderSettings,
   getAvailableModels,
 } from "../settings";
-import { AI_PROVIDERS } from "../types";
+import { AI_PROVIDERS, PromptTemplate } from "../types";
+import { PROMPT_TEMPLATES } from "../data/promptTemplates";
+import { PromptMenu } from "./PromptMenu";
 
 interface CustomMessageInputProps {
   placeholder?: string;
@@ -32,6 +34,13 @@ export const CustomMessageInput: React.FC<CustomMessageInputProps> = ({
   >([]);
   const [isLoadingModels, setIsLoadingModels] = useState(true);
   const [isComposing, setIsComposing] = useState(false);
+  
+  // Prompt menu states
+  const [showPromptMenu, setShowPromptMenu] = useState(false);
+  const [promptFilter, setPromptFilter] = useState("");
+  const [selectedPromptIndex, setSelectedPromptIndex] = useState(0);
+  const [filteredPrompts, setFilteredPrompts] = useState<PromptTemplate[]>([]);
+  const [promptMenuPosition, setPromptMenuPosition] = useState({ top: 0, left: 0 });
 
   // Update local state when controlled value changes
   useEffect(() => {
@@ -76,6 +85,40 @@ export const CustomMessageInput: React.FC<CustomMessageInputProps> = ({
 
   const [selectedModel, setSelectedModel] = useState(getValidModel());
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // Prompt menu utility functions
+  const parsePromptCommand = (inputValue: string) => {
+    // Match "/" at the end of string, optionally followed by filter text
+    const match = inputValue.match(/\/([^\/\s]*)$/);
+    if (match) {
+      return { isCommand: true, filter: match[1] || "", startIndex: match.index };
+    }
+    return { isCommand: false };
+  };
+
+  const filterPrompts = (filter: string) => {
+    if (!filter) return PROMPT_TEMPLATES;
+    
+    return PROMPT_TEMPLATES.filter(template => 
+      template.title.toLowerCase().includes(filter.toLowerCase()) ||
+      template.description.toLowerCase().includes(filter.toLowerCase()) ||
+      template.category.toLowerCase().includes(filter.toLowerCase())
+    );
+  };
+
+  const calculateMenuPosition = () => {
+    if (!textareaRef.current) {
+      return { top: 0, left: 0 };
+    }
+    
+    const textarea = textareaRef.current;
+    const rect = textarea.getBoundingClientRect();
+    
+    return {
+      top: rect.top - 320, // Position above the textarea with more space
+      left: rect.left
+    };
+  };
 
   // Auto-resize textarea
   useEffect(() => {
@@ -135,6 +178,35 @@ export const CustomMessageInput: React.FC<CustomMessageInputProps> = ({
   }, [isLoadingModels, availableModels]);
 
   const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
+    // Handle prompt menu navigation
+    if (showPromptMenu) {
+      switch (e.key) {
+        case "ArrowDown":
+          e.preventDefault();
+          setSelectedPromptIndex(prev => 
+            prev < filteredPrompts.length - 1 ? prev + 1 : 0
+          );
+          return;
+        case "ArrowUp":
+          e.preventDefault();
+          setSelectedPromptIndex(prev => 
+            prev > 0 ? prev - 1 : filteredPrompts.length - 1
+          );
+          return;
+        case "Enter":
+          e.preventDefault();
+          if (filteredPrompts[selectedPromptIndex]) {
+            handlePromptSelect(filteredPrompts[selectedPromptIndex]);
+          }
+          return;
+        case "Escape":
+          e.preventDefault();
+          closePromptMenu();
+          return;
+      }
+    }
+
+    // Normal keyboard handling
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       handleSend();
@@ -172,6 +244,40 @@ export const CustomMessageInput: React.FC<CustomMessageInputProps> = ({
     if (onModelChange) {
       onModelChange(newModel);
     }
+  };
+
+  const handlePromptSelect = (template: PromptTemplate) => {
+    // Replace the command (e.g., "/write" or "/") with the prompt content
+    const commandMatch = value.match(/\/[^\/\s]*$/);
+    if (commandMatch) {
+      const beforeCommand = value.slice(0, commandMatch.index);
+      let processedPrompt = template.prompt;
+      
+      // Replace date placeholders with today's date
+      const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD format
+      processedPrompt = processedPrompt.replace(/\[DATE\]/g, today);
+      
+      const newValue = beforeCommand + processedPrompt;
+      
+      setValue(newValue);
+      if (controlledValue !== undefined && onChange) {
+        onChange(newValue);
+      }
+    }
+    
+    closePromptMenu();
+    
+    // Focus back to textarea
+    if (textareaRef.current) {
+      textareaRef.current.focus();
+    }
+  };
+
+  const closePromptMenu = () => {
+    setShowPromptMenu(false);
+    setPromptFilter("");
+    setSelectedPromptIndex(0);
+    setFilteredPrompts([]);
   };
 
   const canSend = value.trim().length > 0 && !disabled;
@@ -241,6 +347,27 @@ export const CustomMessageInput: React.FC<CustomMessageInputProps> = ({
     const newValue = e.target.value;
     handleInputChange(newValue);
     
+    // Check for prompt command
+    const commandInfo = parsePromptCommand(newValue);
+    
+    if (commandInfo.isCommand) {
+      const newFilter = commandInfo.filter || "";
+      const filtered = filterPrompts(newFilter);
+      
+      setPromptFilter(newFilter);
+      setFilteredPrompts(filtered);
+      setSelectedPromptIndex(0);
+      
+      if (!showPromptMenu) {
+        setShowPromptMenu(true);
+        setPromptMenuPosition(calculateMenuPosition());
+      }
+    } else {
+      if (showPromptMenu) {
+        closePromptMenu();
+      }
+    }
+    
     // Only process date patterns if not composing
     if (!isComposing) {
       handleDateChange(newValue);
@@ -266,7 +393,7 @@ export const CustomMessageInput: React.FC<CustomMessageInputProps> = ({
   };
 
   return (
-    <div className="input-container">
+    <div className="input-container" style={{ position: 'relative' }}>
       <div className="input-box">
         {renderInput()}
 
@@ -325,6 +452,17 @@ export const CustomMessageInput: React.FC<CustomMessageInputProps> = ({
           </button>
         </div>
       </div>
+
+      {/* Prompt Menu */}
+      <PromptMenu
+        isVisible={showPromptMenu}
+        prompts={filteredPrompts}
+        selectedIndex={selectedPromptIndex}
+        onSelect={handlePromptSelect}
+        onClose={closePromptMenu}
+        position={promptMenuPosition}
+        filter={promptFilter}
+      />
     </div>
   );
 };

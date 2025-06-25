@@ -602,3 +602,37 @@
     transition: box-shadow 0.2s ease;
   }
 }
+
+/* Prompt Menu Styles */
+.prompt-menu {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  animation: promptMenuSlideIn 0.15s ease-out;
+}
+
+.prompt-menu-item {
+  transition: background-color 0.1s ease;
+}
+
+.prompt-menu-item:hover {
+  background-color: #f1f3f4 !important;
+}
+
+.prompt-menu-item.selected {
+  background-color: #f1f3f4 !important;
+}
+
+@keyframes promptMenuSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Make sure the input container has proper positioning for the absolute menu */
+.input-container {
+  position: relative;
+}
