@@ -1,4 +1,5 @@
 // src/settings.ts
+import React from "react";
 import { AISettings, MultiProviderSettings, AI_PROVIDERS } from "./types";
 
 const DEFAULT_SETTINGS: AISettings = {
@@ -196,23 +197,64 @@ function updateModelDropdown(extensionAPI: any, providerId: string) {
 
 export function initPanelConfig(extensionAPI: any) {
   // Create settings for all providers
-  const providerSettings = AI_PROVIDERS.map(provider => ({
-    id: `copilot-api-key-${provider.id}`,
-    name: `${provider.name} API Key`,
-    description: `Enter your ${provider.name} API key`,
-    action: {
-      type: "input",
-      placeholder: `Enter your ${provider.name} API key...`,
-      value: multiProviderSettings.apiKeys[provider.id] || "",
-      onChange: (evt: any) => {
-        const value = evt?.target?.value;
-        if (value === undefined) return;
+  const providerSettings: any[] = [];
+  
+  AI_PROVIDERS.forEach(provider => {
+    // Build description with clickable links
+    const links: React.ReactElement[] = [];
+    if (provider.apiKeyUrl) {
+      links.push(
+        React.createElement('a', {
+          key: 'api-key',
+          href: provider.apiKeyUrl,
+          target: '_blank',
+          rel: 'noopener noreferrer'
+        }, '🔑 Get API Key')
+      );
+    }
+    if (provider.billingUrl) {
+      links.push(
+        React.createElement('a', {
+          key: 'billing',
+          href: provider.billingUrl,
+          target: '_blank',
+          rel: 'noopener noreferrer'
+        }, '💳 View Usage')
+      );
+    }
 
-        multiProviderSettings.apiKeys[provider.id] = value;
-        extensionAPI.settings.set(`copilot-api-key-${provider.id}`, value);
+    const description = links.length > 0 
+      ? React.createElement(React.Fragment, {}, 
+          `Enter your ${provider.name} API key`, 
+          React.createElement('br'),
+          ...links.map((link, index) => 
+            React.createElement(React.Fragment, { key: index }, 
+              index > 0 ? ' | ' : '',
+              link
+            )
+          )
+        )
+      : `Enter your ${provider.name} API key`;
+
+    // Add API key input setting
+    providerSettings.push({
+      id: `copilot-api-key-${provider.id}`,
+      name: `${provider.name} API Key`,
+      description: description,
+      action: {
+        type: "input",
+        placeholder: `Enter your ${provider.name} API key...`,
+        value: multiProviderSettings.apiKeys[provider.id] || "",
+        onChange: (evt: any) => {
+          const value = evt?.target?.value;
+          if (value === undefined) return;
+
+          multiProviderSettings.apiKeys[provider.id] = value;
+          extensionAPI.settings.set(`copilot-api-key-${provider.id}`, value);
+        },
       },
-    },
-  }));
+    });
+  });
 
   return {
     tabTitle: "Roam Copilot",
