@@ -642,18 +642,16 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
   }
 
   return (
-    <div className="roam-copilot-container">
-      <div 
-        className="roam-copilot-expanded" 
-        style={{ 
-          position: "fixed",
-          top: windowPosition?.top || '50%',
-          left: windowPosition?.left || '50%',
-          transform: windowPosition ? 'none' : 'translate(-50%, -50%)',
-          width: windowSize.width,
-          height: windowSize.height
-        }}
-      >
+    <div 
+      className="roam-copilot-expanded" 
+      style={{ 
+        top: windowPosition?.top || '50%',
+        left: windowPosition?.left || '50%',
+        transform: windowPosition ? 'none' : 'translate(-50%, -50%)',
+        width: windowSize.width,
+        height: windowSize.height
+      }}
+    >
         {/* Resize Handles - 8 directions */}
         {/* Corner handles */}
         <div 
@@ -900,7 +898,6 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
             onChange={setInputValue}
             onDateSelect={handleDateSelect}
           />
-        </div>
         </div>
       </div>
     </div>

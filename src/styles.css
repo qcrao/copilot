@@ -3,20 +3,11 @@
 /* @tailwind components;
 @tailwind utilities; */
 
-/* Custom copilot styles - simplified for chatscope integration */
-.roam-copilot-container {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
+/* Copilot styles - direct positioning without full-screen container */
+.roam-copilot-widget {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
     "Helvetica Neue", Arial, sans-serif;
-  pointer-events: none;
+  /* No container needed - direct positioning only */
 }
 
 /* Box sizing reset - strictly scoped to specific copilot components only */
@@ -63,17 +54,21 @@
 }
 
 .roam-copilot-expanded {
-  /* New larger sizing - 50% width, 80% height */
+  /* Direct positioning - no container needed */
+  position: fixed;
+  
+  /* Default centered position when no custom position */
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  
+  /* Sizing */
   width: min(50vw, 1200px);
   height: min(80vh, 1000px);
-  min-width: 500px;  /* Minimum width */
-  min-height: 600px; /* Minimum height */
-  max-width: 1200px; /* Maximum width for very large screens */
-  max-height: 1000px; /* Maximum height for very large screens */
-  
-  /* Disable browser default resize functionality */
-  resize: none;
-  overflow: hidden;
+  min-width: 500px;
+  min-height: 600px;
+  max-width: 1200px;
+  max-height: 1000px;
   
   /* Styling */
   background: white;
@@ -83,8 +78,16 @@
   display: flex;
   flex-direction: column;
   animation: slideUp 0.3s ease;
+  
+  /* Safe z-index */
+  z-index: 1000;
+  
+  /* No need to control pointer-events - this widget handles its own events */
   pointer-events: auto;
-  position: relative;
+  
+  /* Disable browser default resize */
+  resize: none;
+  overflow: hidden;
 }
 
 @keyframes slideUp {
