@@ -532,12 +532,12 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
     const newLeft = dragStartWindowPos.left + deltaX;
     const newTop = dragStartWindowPos.top + deltaY;
     
-    // Ensure window doesn't go completely off-screen
-    const minVisible = 100; // Keep at least 100px visible
-    const maxLeft = window.innerWidth - minVisible;
-    const maxTop = window.innerHeight - minVisible;
-    const minLeft = -windowSize.width + minVisible;
-    const minTop = 0; // Don't go above screen top
+    // Ensure window doesn't go completely off-screen but allow free movement
+    const minVisible = 50; // Keep at least 50px visible
+    const maxLeft = window.innerWidth - minVisible; // Can go mostly off right edge
+    const maxTop = window.innerHeight - minVisible; // Can go mostly off bottom edge  
+    const minLeft = -windowSize.width + minVisible; // Can go mostly off left edge
+    const minTop = -windowSize.height + minVisible; // Can go mostly off top edge (this is key!)
     
     const finalLeft = Math.max(minLeft, Math.min(newLeft, maxLeft));
     const finalTop = Math.max(minTop, Math.min(newTop, maxTop));
