@@ -420,16 +420,42 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
     let newTop = startWindowPos.top;
     let newLeft = startWindowPos.left;
     
-    if (resizeHandle === 'nw') {
-      // Northwest: resize from top-left corner
-      newWidth = Math.max(minWidth, Math.min(maxWidth, startWindowSize.width - deltaX));
-      newHeight = Math.max(minHeight, Math.min(maxHeight, startWindowSize.height - deltaY));
-      newLeft = startWindowPos.left + (startWindowSize.width - newWidth);
-      newTop = startWindowPos.top + (startWindowSize.height - newHeight);
-    } else if (resizeHandle === 'se') {
-      // Southeast: resize from bottom-right corner
-      newWidth = Math.max(minWidth, Math.min(maxWidth, startWindowSize.width + deltaX));
-      newHeight = Math.max(minHeight, Math.min(maxHeight, startWindowSize.height + deltaY));
+    // Handle different resize directions
+    switch (resizeHandle) {
+      case 'nw': // Northwest corner
+        newWidth = Math.max(minWidth, Math.min(maxWidth, startWindowSize.width - deltaX));
+        newHeight = Math.max(minHeight, Math.min(maxHeight, startWindowSize.height - deltaY));
+        newLeft = startWindowPos.left + (startWindowSize.width - newWidth);
+        newTop = startWindowPos.top + (startWindowSize.height - newHeight);
+        break;
+      case 'ne': // Northeast corner
+        newWidth = Math.max(minWidth, Math.min(maxWidth, startWindowSize.width + deltaX));
+        newHeight = Math.max(minHeight, Math.min(maxHeight, startWindowSize.height - deltaY));
+        newTop = startWindowPos.top + (startWindowSize.height - newHeight);
+        break;
+      case 'sw': // Southwest corner
+        newWidth = Math.max(minWidth, Math.min(maxWidth, startWindowSize.width - deltaX));
+        newHeight = Math.max(minHeight, Math.min(maxHeight, startWindowSize.height + deltaY));
+        newLeft = startWindowPos.left + (startWindowSize.width - newWidth);
+        break;
+      case 'se': // Southeast corner
+        newWidth = Math.max(minWidth, Math.min(maxWidth, startWindowSize.width + deltaX));
+        newHeight = Math.max(minHeight, Math.min(maxHeight, startWindowSize.height + deltaY));
+        break;
+      case 'n': // North edge
+        newHeight = Math.max(minHeight, Math.min(maxHeight, startWindowSize.height - deltaY));
+        newTop = startWindowPos.top + (startWindowSize.height - newHeight);
+        break;
+      case 's': // South edge
+        newHeight = Math.max(minHeight, Math.min(maxHeight, startWindowSize.height + deltaY));
+        break;
+      case 'w': // West edge
+        newWidth = Math.max(minWidth, Math.min(maxWidth, startWindowSize.width - deltaX));
+        newLeft = startWindowPos.left + (startWindowSize.width - newWidth);
+        break;
+      case 'e': // East edge
+        newWidth = Math.max(minWidth, Math.min(maxWidth, startWindowSize.width + deltaX));
+        break;
     }
     
     // Ensure window stays within screen bounds
@@ -450,7 +476,13 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
   const getCursor = (handle: string) => {
     switch (handle) {
       case 'nw': return 'nw-resize';
+      case 'ne': return 'ne-resize';
+      case 'sw': return 'sw-resize';
       case 'se': return 'se-resize';
+      case 'n': return 'n-resize';
+      case 's': return 's-resize';
+      case 'w': return 'w-resize';
+      case 'e': return 'e-resize';
       default: return 'default';
     }
   };
@@ -605,14 +637,41 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
           height: windowSize.height
         }}
       >
-        {/* Resize Handles */}
+        {/* Resize Handles - 8 directions */}
+        {/* Corner handles */}
         <div 
           className="resize-handle resize-nw" 
           onMouseDown={(e) => handleResizeStart(e, 'nw')}
         />
         <div 
+          className="resize-handle resize-ne" 
+          onMouseDown={(e) => handleResizeStart(e, 'ne')}
+        />
+        <div 
+          className="resize-handle resize-sw" 
+          onMouseDown={(e) => handleResizeStart(e, 'sw')}
+        />
+        <div 
           className="resize-handle resize-se" 
           onMouseDown={(e) => handleResizeStart(e, 'se')}
+        />
+        
+        {/* Edge handles */}
+        <div 
+          className="resize-handle resize-n" 
+          onMouseDown={(e) => handleResizeStart(e, 'n')}
+        />
+        <div 
+          className="resize-handle resize-s" 
+          onMouseDown={(e) => handleResizeStart(e, 's')}
+        />
+        <div 
+          className="resize-handle resize-w" 
+          onMouseDown={(e) => handleResizeStart(e, 'w')}
+        />
+        <div 
+          className="resize-handle resize-e" 
+          onMouseDown={(e) => handleResizeStart(e, 'e')}
         />
         
         {/* Conversation List Panel */}

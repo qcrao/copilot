@@ -665,71 +665,76 @@
   position: relative;
 }
 
-/* Custom resize handles with classic diagonal grip texture */
+/* Invisible resize handles for 8-direction window resizing */
 .resize-handle {
   position: absolute;
   background: transparent;
   z-index: 999999;
-  transition: all 0.2s ease;
 }
 
+/* Corner handles - 10x10px for diagonal resizing */
 .resize-nw {
   top: 0;
   left: 0;
-  width: 20px;
-  height: 20px;
+  width: 10px;
+  height: 10px;
   cursor: nw-resize;
 }
 
-.resize-nw::before {
-  content: '';
-  position: absolute;
-  top: 2px;
-  left: 2px;
-  width: 12px;
-  height: 12px;
-  background: repeating-linear-gradient(
-    45deg,
-    transparent,
-    transparent 1px,
-    rgba(0, 0, 0, 0.1) 1px,
-    rgba(0, 0, 0, 0.1) 2px
-  );
-  opacity: 0.3;
-  transition: opacity 0.2s ease;
+.resize-ne {
+  top: 0;
+  right: 0;
+  width: 10px;
+  height: 10px;
+  cursor: ne-resize;
 }
 
-.resize-nw:hover::before {
-  opacity: 0.6;
+.resize-sw {
+  bottom: 0;
+  left: 0;
+  width: 10px;
+  height: 10px;
+  cursor: sw-resize;
 }
 
 .resize-se {
   bottom: 0;
   right: 0;
-  width: 20px;
-  height: 20px;
+  width: 10px;
+  height: 10px;
   cursor: se-resize;
 }
 
-.resize-se::before {
-  content: '';
-  position: absolute;
-  bottom: 2px;
-  right: 2px;
-  width: 12px;
-  height: 12px;
-  background: repeating-linear-gradient(
-    45deg,
-    transparent,
-    transparent 1px,
-    rgba(0, 0, 0, 0.1) 1px,
-    rgba(0, 0, 0, 0.1) 2px
-  );
-  opacity: 0.3;
-  transition: opacity 0.2s ease;
+/* Edge handles - 5px wide strips for single-direction resizing */
+.resize-n {
+  top: 0;
+  left: 10px;
+  right: 10px;
+  height: 5px;
+  cursor: n-resize;
 }
 
-.resize-se:hover::before {
-  opacity: 0.6;
+.resize-s {
+  bottom: 0;
+  left: 10px;
+  right: 10px;
+  height: 5px;
+  cursor: s-resize;
+}
+
+.resize-w {
+  left: 0;
+  top: 10px;
+  bottom: 10px;
+  width: 5px;
+  cursor: w-resize;
+}
+
+.resize-e {
+  right: 0;
+  top: 10px;
+  bottom: 10px;
+  width: 5px;
+  cursor: e-resize;
 }
 
