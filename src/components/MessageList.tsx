@@ -22,42 +22,97 @@ interface MessageItemProps {
 // Get model display info
 const getModelDisplayInfo = (model?: string, provider?: string) => {
   if (!model) {
-    return { icon: '🤖', name: 'Unknown Model', color: '#666' };
+    return { 
+      iconUrl: 'https://upload.wikimedia.org/wikipedia/commons/0/04/ChatGPT_logo.svg', 
+      fallbackIcon: '🤖', 
+      name: 'Unknown Model', 
+      color: '#666' 
+    };
   }
 
   // Normalize model name for comparison
   const normalizedModel = model.toLowerCase();
   
   if (normalizedModel.includes('gpt-4o')) {
-    return { icon: '🤖', name: 'GPT-4o', color: '#10A37F' };
+    return { 
+      iconUrl: 'https://upload.wikimedia.org/wikipedia/commons/0/04/ChatGPT_logo.svg', 
+      fallbackIcon: '🤖', 
+      name: 'GPT-4o', 
+      color: '#10A37F' 
+    };
   }
   if (normalizedModel.includes('gpt-4')) {
-    return { icon: '🤖', name: 'GPT-4', color: '#10A37F' };
+    return { 
+      iconUrl: 'https://upload.wikimedia.org/wikipedia/commons/0/04/ChatGPT_logo.svg', 
+      fallbackIcon: '🤖', 
+      name: 'GPT-4', 
+      color: '#10A37F' 
+    };
   }
   if (normalizedModel.includes('gpt-3.5')) {
-    return { icon: '🤖', name: 'GPT-3.5', color: '#10A37F' };
+    return { 
+      iconUrl: 'https://upload.wikimedia.org/wikipedia/commons/0/04/ChatGPT_logo.svg', 
+      fallbackIcon: '🤖', 
+      name: 'GPT-3.5', 
+      color: '#10A37F' 
+    };
   }
   if (normalizedModel.includes('claude-3.5-haiku')) {
-    return { icon: '🧠', name: 'Claude 3.5 Haiku', color: '#CC785C' };
+    return { 
+      iconUrl: 'https://www.anthropic.com/images/icons/claude-icon.svg', 
+      fallbackIcon: '🧠', 
+      name: 'Claude 3.5 Haiku', 
+      color: '#CC785C' 
+    };
   }
   if (normalizedModel.includes('claude-3-haiku')) {
-    return { icon: '🧠', name: 'Claude 3 Haiku', color: '#CC785C' };
+    return { 
+      iconUrl: 'https://www.anthropic.com/images/icons/claude-icon.svg', 
+      fallbackIcon: '🧠', 
+      name: 'Claude 3 Haiku', 
+      color: '#CC785C' 
+    };
   }
   if (normalizedModel.includes('claude')) {
-    return { icon: '🧠', name: 'Claude', color: '#CC785C' };
+    return { 
+      iconUrl: 'https://www.anthropic.com/images/icons/claude-icon.svg', 
+      fallbackIcon: '🧠', 
+      name: 'Claude', 
+      color: '#CC785C' 
+    };
   }
   if (normalizedModel.includes('llama')) {
-    return { icon: '⚡', name: 'Llama', color: '#FF6B6B' };
+    return { 
+      iconUrl: 'https://llama.meta.com/llama-logo.png', 
+      fallbackIcon: '⚡', 
+      name: 'Llama', 
+      color: '#FF6B6B' 
+    };
   }
   if (normalizedModel.includes('gemma')) {
-    return { icon: '💎', name: 'Gemma', color: '#4285F4' };
+    return { 
+      iconUrl: 'https://www.gstatic.com/lamda/images/gemini_sparkle_red_4ed1cbfcbc6c9e84c31b987da73fc4168e45e803.svg', 
+      fallbackIcon: '💎', 
+      name: 'Gemma', 
+      color: '#4285F4' 
+    };
   }
   if (normalizedModel.includes('grok')) {
-    return { icon: '🚀', name: 'Grok', color: '#1D9BF0' };
+    return { 
+      iconUrl: 'https://x.ai/favicon.ico', 
+      fallbackIcon: '🚀', 
+      name: 'Grok', 
+      color: '#1D9BF0' 
+    };
   }
 
   // Default for unknown models
-  return { icon: '🤖', name: model, color: '#666' };
+  return { 
+    iconUrl: 'https://upload.wikimedia.org/wikipedia/commons/0/04/ChatGPT_logo.svg', 
+    fallbackIcon: '🤖', 
+    name: model, 
+    color: '#666' 
+  };
 };
 
 const MessageItem: React.FC<MessageItemProps> = ({ message, index, onCopyMessage, copiedMessageIndex }) => {
@@ -115,7 +170,24 @@ const MessageItem: React.FC<MessageItemProps> = ({ message, index, onCopyMessage
               userAvatar
             )
           ) : (
-            modelInfo?.icon
+            modelInfo?.iconUrl ? (
+              <img 
+                src={modelInfo.iconUrl} 
+                alt={`${modelInfo.name} logo`}
+                style={{
+                  width: '20px',
+                  height: '20px',
+                  objectFit: 'contain'
+                }}
+                onError={(e) => {
+                  // Fallback to emoji if image fails to load
+                  e.currentTarget.style.display = 'none';
+                  e.currentTarget.parentElement!.innerHTML = modelInfo.fallbackIcon || '🤖';
+                }}
+              />
+            ) : (
+              modelInfo?.fallbackIcon || '🤖'
+            )
           )}
         </div>
 
@@ -152,17 +224,18 @@ const MessageItem: React.FC<MessageItemProps> = ({ message, index, onCopyMessage
       {/* Message Content */}
       <div className="rr-copilot-message-container" style={{
         marginLeft: '40px', // Align with content under avatar
-        position: 'relative'
+        marginRight: '40px', // Balance with left margin for symmetry
       }}>
         <div style={{
           width: '100%',
-          padding: isUser ? '12px 16px' : '0',
+          padding: isUser ? '12px 16px' : '12px 16px 12px 0', // Add right padding for AI messages
           backgroundColor: isUser ? '#f8f9fa' : 'transparent',
           borderRadius: isUser ? '12px' : '0',
           border: isUser ? '1px solid #e1e4e8' : 'none',
           fontSize: '14px',
           lineHeight: '1.6',
-          wordBreak: 'break-word'
+          wordBreak: 'break-word',
+          marginBottom: '8px'
         }}>
           <MessageRenderer 
             content={message.content} 
@@ -170,26 +243,29 @@ const MessageItem: React.FC<MessageItemProps> = ({ message, index, onCopyMessage
           />
         </div>
 
-        {/* Copy Button */}
-        <Button
-          minimal
-          small
-          icon={copiedMessageIndex === index ? "tick" : "duplicate"}
-          onClick={() => onCopyMessage(message.content, index)}
-          className="rr-copilot-copy-button"
-          style={{
-            position: 'absolute',
-            top: '4px',
-            right: '4px',
-            minWidth: "24px",
-            minHeight: "24px",
-            color: "#666",
-            opacity: 0.7,
-            backgroundColor: 'white',
-            boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
-          }}
-          title="Copy message"
-        />
+        {/* Copy Button Row */}
+        <div style={{
+          display: 'flex',
+          justifyContent: 'flex-end',
+          paddingTop: '4px'
+        }}>
+          <Button
+            minimal
+            small
+            icon={copiedMessageIndex === index ? "tick" : "duplicate"}
+            onClick={() => onCopyMessage(message.content, index)}
+            className="rr-copilot-copy-button"
+            style={{
+              minWidth: "24px",
+              minHeight: "24px",
+              color: "#666",
+              opacity: 0.7,
+              backgroundColor: 'white',
+              boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
+            }}
+            title="Copy message"
+          />
+        </div>
       </div>
     </div>
   );
@@ -240,7 +316,19 @@ export const MessageList: React.FC<MessageListProps> = ({
               color: 'white',
               fontSize: '16px'
             }}>
-              🤖
+              <img 
+                src="https://upload.wikimedia.org/wikipedia/commons/0/04/ChatGPT_logo.svg" 
+                alt="AI logo"
+                style={{
+                  width: '20px',
+                  height: '20px',
+                  objectFit: 'contain'
+                }}
+                onError={(e) => {
+                  e.currentTarget.style.display = 'none';
+                  e.currentTarget.parentElement!.innerHTML = '🤖';
+                }}
+              />
             </div>
             <div style={{
               fontWeight: '600',
@@ -252,7 +340,7 @@ export const MessageList: React.FC<MessageListProps> = ({
           </div>
 
           {/* Loading Content */}
-          <div style={{ marginLeft: '40px' }}>
+          <div style={{ marginLeft: '40px', marginRight: '40px' }}>
             <div style={{
               padding: '12px 16px',
               backgroundColor: '#f8f9fa',

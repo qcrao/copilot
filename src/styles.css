@@ -721,41 +721,37 @@
   background: rgba(42, 43, 45, 0.8);
 }
 
-/* Message item styles */
+/* Message item styles - removed hover effects */
 .rr-copilot-message-item {
-  transition: all 0.2s ease;
-}
-
-.rr-copilot-message-item:hover {
-  background-color: rgba(248, 249, 250, 0.5);
-  border-radius: 8px;
-  margin: 0 -8px 20px -8px;
-  padding: 8px;
+  /* No transitions or hover effects */
 }
 
 /* Copy button hover transition for messages */
-.rr-copilot-message-container {
-  position: relative;
-}
-
 .rr-copilot-message-container .rr-copilot-copy-button {
-  transition: opacity 0.2s ease, transform 0.2s ease;
+  transition: opacity 0.2s ease;
   opacity: 0 !important;
-  transform: scale(0.8);
 }
 
 .rr-copilot-message-container:hover .rr-copilot-copy-button {
   opacity: 0.7 !important;
-  transform: scale(1);
 }
 
-/* Avatar hover effects */
+/* Override Blueprint button hover effects for copy buttons */
+.rr-copilot-copy-button:hover {
+  transform: none !important;
+  background-color: white !important;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1) !important;
+}
+
+/* Prevent any Blueprint button hover effects in message containers */
+.rr-copilot-message-container .bp3-button:hover {
+  transform: none !important;
+  background-color: white !important;
+}
+
+/* Avatar hover effects - removed scale transform */
 .rr-copilot-message-item .rr-copilot-avatar {
   transition: transform 0.2s ease;
-}
-
-.rr-copilot-message-item:hover .rr-copilot-avatar {
-  transform: scale(1.05);
 }
 
 /* Invisible resize handles for 8-direction window resizing */
