@@ -458,9 +458,26 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
         break;
     }
     
-    // Ensure window stays within screen bounds
-    newLeft = Math.max(20, Math.min(newLeft, window.innerWidth - newWidth - 20));
-    newTop = Math.max(20, Math.min(newTop, window.innerHeight - newHeight - 20));
+    // Ensure window stays within screen bounds with improved logic
+    // Calculate safe boundaries
+    const minLeft = 20;
+    const minTop = 0; // Allow touching the top edge
+    const maxLeft = Math.max(minLeft, window.innerWidth - newWidth - 20);
+    const maxTop = Math.max(minTop, window.innerHeight - newHeight - 40); // Leave more space at bottom
+    
+    // Apply boundary constraints more carefully
+    // Only constrain if the new position is significantly out of bounds
+    if (newLeft < minLeft) {
+      newLeft = minLeft;
+    } else if (newLeft > maxLeft) {
+      newLeft = maxLeft;
+    }
+    
+    if (newTop < minTop) {
+      newTop = minTop;
+    } else if (newTop > maxTop) {
+      newTop = maxTop;
+    }
     
     setWindowSize({ width: newWidth, height: newHeight });
     setWindowPosition({ top: newTop, left: newLeft });

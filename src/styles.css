@@ -668,8 +668,23 @@
 /* Invisible resize handles for 8-direction window resizing */
 .resize-handle {
   position: absolute;
-  background: transparent;
+  background: transparent !important;
   z-index: 999999;
+  /* Force no visual effects */
+  border: none !important;
+  outline: none !important;
+  box-shadow: none !important;
+  /* Disable any browser default styling */
+  -webkit-appearance: none !important;
+  -moz-appearance: none !important;
+  appearance: none !important;
+  /* Ensure no pseudo-elements */
+}
+
+.resize-handle::before,
+.resize-handle::after {
+  display: none !important;
+  content: none !important;
 }
 
 /* Corner handles - 10x10px for diagonal resizing */
