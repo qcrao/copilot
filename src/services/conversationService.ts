@@ -253,7 +253,9 @@ export class ConversationService {
               id: messageData.id,
               role: messageData.role,
               content: messageData.content,
-              timestamp: new Date(messageData.timestamp)
+              timestamp: new Date(messageData.timestamp),
+              model: messageData.model,           // Include model information
+              modelProvider: messageData.modelProvider  // Include model provider information
             });
           }
         } catch (error) {
