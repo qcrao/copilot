@@ -693,6 +693,46 @@
   pointer-events: auto;
 }
 
+/* New Message List Styles */
+.rr-copilot-message-list {
+  /* Custom scrollbar styling */
+  scrollbar-width: thin;
+  scrollbar-color: rgba(57, 58, 61, 0.6) rgba(0, 0, 0, 0.02);
+}
+
+.rr-copilot-message-list::-webkit-scrollbar {
+  width: 8px;
+}
+
+.rr-copilot-message-list::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.02);
+  border-radius: 4px;
+  margin: 4px 0;
+}
+
+.rr-copilot-message-list::-webkit-scrollbar-thumb {
+  background: rgba(57, 58, 61, 0.6);
+  border-radius: 4px;
+  transition: background-color 0.2s ease;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.rr-copilot-message-list::-webkit-scrollbar-thumb:hover {
+  background: rgba(42, 43, 45, 0.8);
+}
+
+/* Message item styles */
+.rr-copilot-message-item {
+  transition: all 0.2s ease;
+}
+
+.rr-copilot-message-item:hover {
+  background-color: rgba(248, 249, 250, 0.5);
+  border-radius: 8px;
+  margin: 0 -8px 20px -8px;
+  padding: 8px;
+}
+
 /* Copy button hover transition for messages */
 .rr-copilot-message-container {
   position: relative;
@@ -707,6 +747,15 @@
 .rr-copilot-message-container:hover .rr-copilot-copy-button {
   opacity: 0.7 !important;
   transform: scale(1);
+}
+
+/* Avatar hover effects */
+.rr-copilot-message-item .rr-copilot-avatar {
+  transition: transform 0.2s ease;
+}
+
+.rr-copilot-message-item:hover .rr-copilot-avatar {
+  transform: scale(1.05);
 }
 
 /* Invisible resize handles for 8-direction window resizing */

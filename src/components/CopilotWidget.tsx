@@ -2,13 +2,7 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { Button, Icon, Spinner } from "@blueprintjs/core";
 import { IconNames } from "@blueprintjs/icons";
-import {
-  MainContainer,
-  ChatContainer,
-  MessageList,
-  TypingIndicator,
-} from "@chatscope/chat-ui-kit-react";
-import "@chatscope/chat-ui-kit-styles/dist/default/styles.min.css";
+// Removing chatscope imports - using custom MessageList now
 import { ChatMessage, CopilotState, PageContext, ConversationListState } from "../types";
 import { AIService } from "../services/aiService";
 import { RoamService } from "../services/roamService";
@@ -18,6 +12,7 @@ import { CustomMessageInput } from "./CustomMessageInput";
 import { MessageRenderer } from "./MessageRenderer";
 import { ConversationList } from "./ConversationList";
 import { PromptTemplatesGrid } from "./PromptTemplatesGrid";
+import { MessageList } from "./MessageList";
 
 interface CopilotWidgetProps {
   isOpen: boolean;
@@ -228,6 +223,8 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
       addMessage({
         role: "assistant",
         content: response,
+        model: currentModel,
+        modelProvider: provider?.provider?.id,
       });
     } catch (error: any) {
       addMessage({
@@ -758,132 +755,19 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
             flexDirection: "column",
           }}
         >
-          <div style={{ flex: 1, overflow: "hidden" }}>
-            <MainContainer>
-              <ChatContainer>
-                <MessageList>
-                  {state.messages.length === 0 && (
-                    <div style={{ height: "100%", overflow: "auto" }}>
-                      <PromptTemplatesGrid onPromptSelect={handlePromptSelect} />
-                    </div>
-                  )}
-
-                  {state.messages.map((msg, index) => (
-                    <div
-                      key={index}
-                      className="rr-copilot-message-container"
-                      style={{
-                        display: "flex",
-                        flexDirection: msg.role === "user" ? "row-reverse" : "row",
-                        alignItems: "flex-start",
-                        margin: "8px 0",
-                        gap: "8px",
-                        // Symmetric padding and ensure no overlap with scrollbar
-                        paddingLeft: msg.role === "user" ? "0" : "12px",
-                        paddingRight: msg.role === "user" ? "20px" : "0"
-                      }}
-                    >
-                      <div
-                        style={{
-                          maxWidth: msg.role === "user" ? "75%" : "80%",
-                          display: "flex",
-                          flexDirection: "column",
-                          alignItems: msg.role === "user" ? "flex-end" : "flex-start"
-                        }}
-                      >
-                        {/* Timestamp above bubble */}
-                        <div
-                          style={{
-                            fontSize: "11px",
-                            opacity: 0.7,
-                            color: "#666",
-                            marginBottom: "4px",
-                            paddingLeft: msg.role === "user" ? "0" : "4px",
-                            paddingRight: msg.role === "user" ? "4px" : "0"
-                          }}
-                        >
-                          {msg.timestamp.toLocaleTimeString()}
-                        </div>
-
-                        {/* Message bubble */}
-                        <div
-                          style={{
-                            padding: "8px 12px",
-                            borderRadius: "12px",
-                            backgroundColor: msg.role === "user" ? "#393A3D" : "#f1f3f4",
-                            color: msg.role === "user" ? "white" : "#333",
-                            fontSize: "14px",
-                            lineHeight: "1.4",
-                            wordBreak: "break-word"
-                          }}
-                        >
-                          <MessageRenderer 
-                            content={msg.content} 
-                            isUser={msg.role === "user"}
-                          />
-                        </div>
-                        
-                        {/* Action buttons below bubble */}
-                        <div
-                          style={{
-                            marginTop: "4px",
-                            paddingLeft: msg.role === "user" ? "0" : "4px",
-                            paddingRight: msg.role === "user" ? "4px" : "0"
-                          }}
-                        >
-                          <Button
-                            minimal
-                            small
-                            icon={copiedMessageIndex === index ? "tick" : "duplicate"}
-                            onClick={() => handleCopyMessage(msg.content, index)}
-                            className="rr-copilot-copy-button"
-                            style={{
-                              minWidth: "24px",
-                              minHeight: "24px",
-                              color: "#666",
-                              opacity: 0.7
-                            }}
-                            title="Copy message"
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-
-                  {state.isLoading && (
-                    <div style={{ 
-                      display: "flex", 
-                      alignItems: "flex-start", 
-                      margin: "8px 0", 
-                      gap: "8px",
-                      paddingLeft: "12px",
-                      paddingRight: "0"
-                    }}>
-                      <div
-                        style={{
-                          maxWidth: "80%",
-                          padding: "8px 12px",
-                          borderRadius: "12px",
-                          backgroundColor: "#f1f3f4",
-                          color: "#393A3D",
-                          fontSize: "14px",
-                          lineHeight: "1.4"
-                        }}
-                      >
-                        <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
-                          <span>Roam Copilot is thinking</span>
-                          <div style={{ display: "flex", gap: "2px" }}>
-                            <span style={{ animation: "blink 1.4s infinite both", animationDelay: "0s" }}>.</span>
-                            <span style={{ animation: "blink 1.4s infinite both", animationDelay: "0.2s" }}>.</span>
-                            <span style={{ animation: "blink 1.4s infinite both", animationDelay: "0.4s" }}>.</span>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </MessageList>
-              </ChatContainer>
-            </MainContainer>
+          <div style={{ flex: 1, overflow: "hidden", position: "relative" }}>
+            {state.messages.length === 0 ? (
+              <div style={{ height: "100%", overflow: "auto" }}>
+                <PromptTemplatesGrid onPromptSelect={handlePromptSelect} />
+              </div>
+            ) : (
+              <MessageList
+                messages={state.messages}
+                isLoading={state.isLoading}
+                onCopyMessage={handleCopyMessage}
+                copiedMessageIndex={copiedMessageIndex}
+              />
+            )}
           </div>
 
           <CustomMessageInput

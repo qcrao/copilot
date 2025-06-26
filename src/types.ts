@@ -34,6 +34,8 @@ export interface ChatMessage {
   role: "user" | "assistant";
   content: string;
   timestamp: Date;
+  model?: string;        // AI model used for this message
+  modelProvider?: string; // Provider of the model (openai, anthropic, etc.)
 }
 
 export interface RoamBlock {
