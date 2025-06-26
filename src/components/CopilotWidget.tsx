@@ -771,6 +771,7 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
                   {state.messages.map((msg, index) => (
                     <div
                       key={index}
+                      className="rr-copilot-message-container"
                       style={{
                         display: "flex",
                         flexDirection: msg.role === "user" ? "row-reverse" : "row",
@@ -835,6 +836,7 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
                             small
                             icon={copiedMessageIndex === index ? "tick" : "duplicate"}
                             onClick={() => handleCopyMessage(msg.content, index)}
+                            className="rr-copilot-copy-button"
                             style={{
                               minWidth: "24px",
                               minHeight: "24px",

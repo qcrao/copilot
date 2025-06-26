@@ -693,6 +693,22 @@
   pointer-events: auto;
 }
 
+/* Copy button hover transition for messages */
+.rr-copilot-message-container {
+  position: relative;
+}
+
+.rr-copilot-message-container .rr-copilot-copy-button {
+  transition: opacity 0.2s ease, transform 0.2s ease;
+  opacity: 0 !important;
+  transform: scale(0.8);
+}
+
+.rr-copilot-message-container:hover .rr-copilot-copy-button {
+  opacity: 0.7 !important;
+  transform: scale(1);
+}
+
 /* Invisible resize handles for 8-direction window resizing */
 .rr-copilot-resize-handle {
   position: absolute;
