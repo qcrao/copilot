@@ -28,7 +28,7 @@ export const PromptMenu: React.FC<PromptMenuProps> = ({
   if (prompts.length === 0) {
     return (
       <div
-        className="prompt-menu"
+        className="rr-copilot-prompt-menu"
         style={{
           position: 'fixed', // Use fixed positioning instead of absolute
           top: position.top,
@@ -71,7 +71,7 @@ export const PromptMenu: React.FC<PromptMenuProps> = ({
 
   return (
     <div
-      className="prompt-menu"
+      className="rr-copilot-prompt-menu"
       style={{
         position: 'fixed', // Use fixed positioning instead of absolute
         top: position.top,
@@ -109,7 +109,7 @@ export const PromptMenu: React.FC<PromptMenuProps> = ({
         {prompts.map((prompt, index) => (
           <div
             key={prompt.id}
-            className={`prompt-menu-item ${index === selectedIndex ? 'selected' : ''}`}
+            className={`rr-copilot-prompt-menu-item ${index === selectedIndex ? 'selected' : ''}`}
             style={{
               padding: '10px 12px',
               cursor: 'pointer',

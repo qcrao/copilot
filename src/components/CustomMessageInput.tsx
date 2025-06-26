@@ -379,7 +379,7 @@ export const CustomMessageInput: React.FC<CustomMessageInputProps> = ({
     return (
       <textarea
         ref={textareaRef}
-        className="input-textarea"
+        className="rr-copilot-input-textarea"
         placeholder={placeholder}
         value={value}
         onChange={handleChange}
@@ -393,15 +393,15 @@ export const CustomMessageInput: React.FC<CustomMessageInputProps> = ({
   };
 
   return (
-    <div className="input-container" style={{ position: 'relative' }}>
-      <div className="input-box">
+    <div className="rr-copilot-input-container" style={{ position: 'relative' }}>
+      <div className="rr-copilot-input-box">
         {renderInput()}
 
-        <div className="input-toolbar">
+        <div className="rr-copilot-input-toolbar">
           <select
             value={selectedModel}
             onChange={(e) => handleModelChange(e.target.value)}
-            className="model-selector"
+            className="rr-copilot-model-selector"
             disabled={disabled || isLoadingModels}
           >
             {isLoadingModels ? (
@@ -428,7 +428,7 @@ export const CustomMessageInput: React.FC<CustomMessageInputProps> = ({
           </select>
 
           <button
-            className={`send-button ${canSend ? "active" : "inactive"}`}
+            className={`rr-copilot-send-button ${canSend ? "active" : "inactive"}`}
             onClick={handleSend}
             disabled={!canSend}
             type="button"

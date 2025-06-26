@@ -68,7 +68,7 @@ export const ConversationItem: React.FC<ConversationItemProps> = ({
 
   return (
     <div
-      className={`conversation-item ${isActive ? 'active' : ''}`}
+      className={`rr-copilot-conversation-item ${isActive ? 'active' : ''}`}
       onClick={onClick}
       style={{
         padding: "8px 12px",

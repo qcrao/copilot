@@ -15,7 +15,7 @@ export const PromptCard: React.FC<PromptCardProps> = ({ template, onClick }) => 
 
   return (
     <div
-      className="prompt-card"
+      className="rr-copilot-prompt-card"
       onClick={handleClick}
       style={{
         backgroundColor: "white",

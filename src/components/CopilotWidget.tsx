@@ -365,7 +365,7 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
       if (!showConversationList) return;
       
       const target = event.target as Element;
-      const conversationPanel = document.querySelector('.conversation-list-panel');
+      const conversationPanel = document.querySelector('.rr-copilot-conversation-list-panel');
       const menuButton = document.querySelector('[title*="chat list"]');
       
       // Don't close if clicking on the conversation panel itself or the menu button
@@ -657,37 +657,37 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
         {/* Resize Handles - 8 directions */}
         {/* Corner handles */}
         <div 
-          className="resize-handle resize-nw" 
+          className="rr-copilot-resize-handle rr-copilot-resize-nw" 
           onMouseDown={(e) => handleResizeStart(e, 'nw')}
         />
         <div 
-          className="resize-handle resize-ne" 
+          className="rr-copilot-resize-handle rr-copilot-resize-ne" 
           onMouseDown={(e) => handleResizeStart(e, 'ne')}
         />
         <div 
-          className="resize-handle resize-sw" 
+          className="rr-copilot-resize-handle rr-copilot-resize-sw" 
           onMouseDown={(e) => handleResizeStart(e, 'sw')}
         />
         <div 
-          className="resize-handle resize-se" 
+          className="rr-copilot-resize-handle rr-copilot-resize-se" 
           onMouseDown={(e) => handleResizeStart(e, 'se')}
         />
         
         {/* Edge handles */}
         <div 
-          className="resize-handle resize-n" 
+          className="rr-copilot-resize-handle rr-copilot-resize-n" 
           onMouseDown={(e) => handleResizeStart(e, 'n')}
         />
         <div 
-          className="resize-handle resize-s" 
+          className="rr-copilot-resize-handle rr-copilot-resize-s" 
           onMouseDown={(e) => handleResizeStart(e, 's')}
         />
         <div 
-          className="resize-handle resize-w" 
+          className="rr-copilot-resize-handle rr-copilot-resize-w" 
           onMouseDown={(e) => handleResizeStart(e, 'w')}
         />
         <div 
-          className="resize-handle resize-e" 
+          className="rr-copilot-resize-handle rr-copilot-resize-e" 
           onMouseDown={(e) => handleResizeStart(e, 'e')}
         />
         

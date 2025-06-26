@@ -137,7 +137,7 @@ export const ConversationList: React.FC<ConversationListProps> = ({
 
   return (
     <div
-      className="conversation-list-panel"
+      className="rr-copilot-conversation-list-panel"
       style={{
         position: "absolute",
         left: "0",
@@ -196,7 +196,7 @@ export const ConversationList: React.FC<ConversationListProps> = ({
                 : "Refresh List"
             }
             disabled={isRefreshing}
-            className={isRefreshing ? "refresh-spinning" : ""}
+            className={isRefreshing ? "rr-copilot-refresh-spinning" : ""}
             style={{
               color: refreshSuccess ? "#0f9960" : "#393a3d",
               transition: "color 0.2s ease",

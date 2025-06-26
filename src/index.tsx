@@ -78,7 +78,9 @@ const createCopilotContainer = () => {
 
   // Re-enable pointer events for the copilot area
   const style = document.createElement("style");
+  style.setAttribute("data-roam-copilot", "true");
   style.textContent = `
+    /* Enable pointer events only for copilot elements */
     #roam-copilot-root .roam-copilot-container {
       pointer-events: auto;
     }
