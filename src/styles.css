@@ -679,6 +679,20 @@
   position: relative;
 }
 
+/* Close button hover transition for minimized state */
+.roam-copilot-minimized .bp3-button {
+  transition: opacity 0.2s ease, transform 0.2s ease;
+  opacity: 0;
+  transform: scale(0.8);
+  pointer-events: none;
+}
+
+.roam-copilot-minimized:hover .bp3-button {
+  opacity: 1;
+  transform: scale(1);
+  pointer-events: auto;
+}
+
 /* Invisible resize handles for 8-direction window resizing */
 .rr-copilot-resize-handle {
   position: absolute;

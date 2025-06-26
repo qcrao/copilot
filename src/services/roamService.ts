@@ -33,11 +33,51 @@ export class RoamService {
         return decodeURIComponent(pathMatch[1]);
       }
 
-      // Try alternative patterns
+      // Try alternative patterns - first check for roam:// protocol
+      const roamProtocolMatch = window.location.href.match(/roam:\/\/#\/app\/([^\/\?#]+)/);
+      if (roamProtocolMatch) {
+        console.log("Graph name from roam protocol:", roamProtocolMatch[1]);
+        return decodeURIComponent(roamProtocolMatch[1]);
+      }
+
+      // Try alternative patterns for web
       const altMatch = window.location.href.match(/#\/app\/([^\/\?#]+)/);
       if (altMatch) {
         console.log("Graph name from alt pattern:", altMatch[1]);
         return decodeURIComponent(altMatch[1]);
+      }
+
+      // Try to get from Roam API if available
+      if (window.roamAlphaAPI && (window.roamAlphaAPI as any).graph) {
+        try {
+          const graphName = (window.roamAlphaAPI as any).graph.name;
+          if (graphName) {
+            console.log("Graph name from Roam API:", graphName);
+            return graphName;
+          }
+        } catch (apiError) {
+          console.log("Could not get graph name from API:", apiError);
+        }
+      }
+
+      // Check if we're on roamresearch.com and try to extract from current page title
+      if (window.location.hostname === 'roamresearch.com') {
+        // Try to get from the document title which often contains the graph name
+        const titleMatch = document.title.match(/^(.+?)\s*-\s*Roam/);
+        if (titleMatch && titleMatch[1] && titleMatch[1] !== 'Roam') {
+          console.log("Graph name from document title:", titleMatch[1]);
+          return titleMatch[1].trim();
+        }
+      }
+
+      // Try to get from the sidebar or other UI elements
+      const sidebarElement = document.querySelector('.roam-sidebar-container .bp3-heading');
+      if (sidebarElement && sidebarElement.textContent) {
+        const sidebarText = sidebarElement.textContent.trim();
+        if (sidebarText && sidebarText !== 'Roam' && sidebarText.length < 50) {
+          console.log("Graph name from sidebar:", sidebarText);
+          return sidebarText;
+        }
       }
 
       console.log(

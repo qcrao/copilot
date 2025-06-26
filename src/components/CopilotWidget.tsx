@@ -38,7 +38,6 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
   });
 
   const [pageContext, setPageContext] = useState<PageContext | null>(null);
-  const [isHoveringMinimized, setIsHoveringMinimized] = useState(false);
   const [copiedMessageIndex, setCopiedMessageIndex] = useState<number | null>(null);
   const [showConversationList, setShowConversationList] = useState(false);
   const [currentConversationId, setCurrentConversationId] = useState<string | null>(null);
@@ -592,8 +591,6 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
       <div className="roam-copilot-minimized-container">
         <div
           className="roam-copilot-minimized"
-          onMouseEnter={() => setIsHoveringMinimized(true)}
-          onMouseLeave={() => setIsHoveringMinimized(false)}
           style={{ position: "relative" }}
         >
           <div
@@ -610,32 +607,30 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
           >
             <Icon icon={IconNames.LIGHTBULB} size={24} color="white" />
           </div>
-          {isHoveringMinimized && (
-            <Button
-              minimal
-              small
-              icon="cross"
-              onClick={(e) => {
-                e.stopPropagation();
-                onClose();
-              }}
-              title="Close Copilot"
-              style={{
-                position: "absolute",
-                top: "-8px",
-                right: "-8px",
-                backgroundColor: "#f55656",
-                color: "white",
-                borderRadius: "50%",
-                width: "20px",
-                height: "20px",
-                minWidth: "20px",
-                minHeight: "20px",
-                padding: "0",
-                boxShadow: "0 2px 4px rgba(0,0,0,0.2)"
-              }}
-            />
-          )}
+          <Button
+            minimal
+            small
+            icon="cross"
+            onClick={(e) => {
+              e.stopPropagation();
+              onClose();
+            }}
+            title="Close Copilot"
+            style={{
+              position: "absolute",
+              top: "-8px",
+              right: "-8px",
+              backgroundColor: "#f55656",
+              color: "white",
+              borderRadius: "50%",
+              width: "20px",
+              height: "20px",
+              minWidth: "20px",
+              minHeight: "20px",
+              padding: "0",
+              boxShadow: "0 2px 4px rgba(0,0,0,0.2)"
+            }}
+          />
         </div>
       </div>
     );
