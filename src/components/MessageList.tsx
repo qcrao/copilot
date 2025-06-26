@@ -144,11 +144,12 @@ const MessageItem: React.FC<MessageItemProps> = ({ message, index, onCopyMessage
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          backgroundColor: isUser ? '#393a3d' : (modelInfo?.color || '#666'),
+          backgroundColor: isUser ? '#393a3d' : 'white', // White background for AI model logos
           color: 'white',
           fontSize: '16px',
           flexShrink: 0,
-          overflow: 'hidden'
+          overflow: 'hidden',
+          border: isUser ? 'none' : '1px solid #e1e4e8' // Subtle border for AI avatars
         }}>
           {isUser ? (
             userAvatar.startsWith('data:') || userAvatar.startsWith('http') ? (
@@ -175,18 +176,23 @@ const MessageItem: React.FC<MessageItemProps> = ({ message, index, onCopyMessage
                 src={modelInfo.iconUrl} 
                 alt={`${modelInfo.name} logo`}
                 style={{
-                  width: '20px',
-                  height: '20px',
-                  objectFit: 'contain'
+                  width: '24px', // Slightly larger for better visibility
+                  height: '24px',
+                  objectFit: 'contain',
+                  borderRadius: '4px' // Subtle rounding for square logos
                 }}
                 onError={(e) => {
                   // Fallback to emoji if image fails to load
                   e.currentTarget.style.display = 'none';
                   e.currentTarget.parentElement!.innerHTML = modelInfo.fallbackIcon || '🤖';
+                  // Reset text color for emoji fallback
+                  e.currentTarget.parentElement!.style.color = '#666';
                 }}
               />
             ) : (
-              modelInfo?.fallbackIcon || '🤖'
+              <span style={{ color: '#666', fontSize: '18px' }}>
+                {modelInfo?.fallbackIcon || '🤖'}
+              </span>
             )
           )}
         </div>
@@ -224,7 +230,7 @@ const MessageItem: React.FC<MessageItemProps> = ({ message, index, onCopyMessage
       {/* Message Content */}
       <div className="rr-copilot-message-container" style={{
         marginLeft: '40px', // Align with content under avatar
-        marginRight: '40px', // Balance with left margin for symmetry
+        marginRight: '16px', // Reduced right margin for less empty space
       }}>
         <div style={{
           width: '100%',
@@ -235,7 +241,7 @@ const MessageItem: React.FC<MessageItemProps> = ({ message, index, onCopyMessage
           fontSize: '14px',
           lineHeight: '1.6',
           wordBreak: 'break-word',
-          marginBottom: '8px'
+          marginBottom: '4px'
         }}>
           <MessageRenderer 
             content={message.content} 
@@ -247,7 +253,7 @@ const MessageItem: React.FC<MessageItemProps> = ({ message, index, onCopyMessage
         <div style={{
           display: 'flex',
           justifyContent: 'flex-end',
-          paddingTop: '4px'
+          paddingTop: '2px'
         }}>
           <Button
             minimal
@@ -312,17 +318,19 @@ export const MessageList: React.FC<MessageListProps> = ({
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              backgroundColor: '#666',
-              color: 'white',
-              fontSize: '16px'
+              backgroundColor: 'white',
+              color: '#666',
+              fontSize: '16px',
+              border: '1px solid #e1e4e8'
             }}>
               <img 
                 src="https://upload.wikimedia.org/wikipedia/commons/0/04/ChatGPT_logo.svg" 
                 alt="AI logo"
                 style={{
-                  width: '20px',
-                  height: '20px',
-                  objectFit: 'contain'
+                  width: '24px',
+                  height: '24px',
+                  objectFit: 'contain',
+                  borderRadius: '4px'
                 }}
                 onError={(e) => {
                   e.currentTarget.style.display = 'none';
@@ -340,7 +348,7 @@ export const MessageList: React.FC<MessageListProps> = ({
           </div>
 
           {/* Loading Content */}
-          <div style={{ marginLeft: '40px', marginRight: '40px' }}>
+          <div style={{ marginLeft: '40px', marginRight: '16px' }}>
             <div style={{
               padding: '12px 16px',
               backgroundColor: '#f8f9fa',
