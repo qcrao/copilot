@@ -194,23 +194,24 @@
   display: flex;
   flex-direction: column;
   background: #ffffff;
-  border: 1px solid #e8eaed;
-  border-radius: 12px;
+  border: 1px solid #e1e4e8;
+  border-radius: 24px;
   padding: 0;
   transition: all 0.2s ease;
-  box-shadow: 0 1px 6px rgba(32, 33, 36, 0.08);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
   overflow: hidden;
 }
 
 .rr-copilot-editor-container {
-  padding: 14px 20px;
-  min-height: 48px;
+  padding: 16px 24px;
+  min-height: 52px;
   max-height: 120px;
   background: #ffffff;
-  border-radius: 12px 12px 0 0;
+  border-radius: 24px 24px 0 0;
   position: relative;
   overflow-y: auto;
   transition: all 0.2s ease;
+  cursor: text;
 }
 
 .rr-copilot-editor-container:focus-within {
@@ -227,15 +228,28 @@
     "Helvetica Neue", Arial, sans-serif;
   min-height: 24px;
   cursor: text;
+  caret-color: #393a3d;
 }
 
 .rr-copilot-editor.ProseMirror-focused {
   outline: none;
+  caret-color: #393a3d;
 }
 
 .rr-copilot-editor .ProseMirror-selectednode {
-  outline: 2px solid #4285f4;
+  outline: 2px solid #393a3d;
   outline-offset: 2px;
+}
+
+/* Ensure cursor is always visible when focused */
+.rr-copilot-editor:focus,
+.rr-copilot-editor.ProseMirror-focused {
+  caret-color: #393a3d !important;
+}
+
+/* Make sure the editor container propagates focus */
+.rr-copilot-editor-container:focus-within .rr-copilot-editor {
+  caret-color: #393a3d !important;
 }
 
 .rr-copilot-editor p {
@@ -257,11 +271,11 @@
   display: inline;
   background: transparent !important;
   border: none !important;
-  color: #1a73e8;
+  color: #393a3d;
   font-size: 15px;
   font-weight: normal;
   text-decoration: underline;
-  text-decoration-color: #1a73e8;
+  text-decoration-color: #393a3d;
   text-underline-offset: 2px;
   cursor: pointer;
   padding: 0 !important;
@@ -270,21 +284,22 @@
   outline: none !important;
   transition: all 0.2s ease;
   user-select: none;
+  vertical-align: baseline;
+  line-height: inherit;
 }
 
 .reference-chip:hover {
   background: transparent !important;
   border: none !important;
-  color: #1557b0;
-  text-decoration-color: #1557b0;
+  color: #2c2d30;
+  text-decoration-color: #2c2d30;
   box-shadow: none !important;
 }
 
 .rr-copilot-input-box:focus-within {
-  border-color: #4285f4;
+  border-color: #393a3d;
   background: white;
-  box-shadow: 0 2px 16px rgba(66, 133, 244, 0.15),
-    0 0 0 2px rgba(66, 133, 244, 0.1);
+  box-shadow: 0 4px 20px rgba(57, 58, 61, 0.12), 0 0 0 1px rgba(57, 58, 61, 0.2);
 }
 
 .rr-copilot-input-textarea {
@@ -316,10 +331,10 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 12px 20px;
-  background: #f8f9fa;
-  border-top: 1px solid #e8eaed;
-  border-radius: 0 0 12px 12px;
+  padding: 12px 24px;
+  background: transparent;
+  border-top: none;
+  border-radius: 0 0 24px 24px;
   gap: 12px;
   flex-shrink: 0;
   min-height: 56px;
@@ -327,16 +342,16 @@
 
 .rr-copilot-model-selector {
   padding: 8px 12px;
-  border: 1px solid #dadce0;
-  border-radius: 8px;
-  background: white;
+  border: 1px solid #e1e4e8;
+  border-radius: 12px;
+  background: #f8f9fa;
   font-size: 13px;
-  color: #3c4043;
+  color: #393a3d;
   min-width: 120px;
   max-width: 200px;
   flex: 1;
   transition: all 0.2s ease;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  box-shadow: none;
 }
 
 .rr-copilot-model-selector:focus {
@@ -364,8 +379,8 @@
 }
 
 .rr-copilot-send-button {
-  width: 32px;
-  height: 32px;
+  width: 36px;
+  height: 36px;
   border: none;
   border-radius: 50%;
   display: flex;
@@ -374,18 +389,18 @@
   cursor: pointer;
   transition: all 0.2s ease;
   outline: none;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 .rr-copilot-send-button.active {
-  background: #4285f4;
+  background: #393a3d;
   color: white;
 }
 
 .rr-copilot-send-button.active:hover {
-  background: #3367d6;
+  background: #2c2d30;
   transform: translateY(-1px);
-  box-shadow: 0 2px 8px rgba(66, 133, 244, 0.3);
+  box-shadow: 0 2px 8px rgba(57, 58, 61, 0.3);
 }
 
 .rr-copilot-send-button.active:active {

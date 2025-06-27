@@ -81,6 +81,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
         style:
           "outline: none; min-height: 24px; max-height: 120px; overflow-y: auto; line-height: 1.5;",
         "data-placeholder": placeholder,
+        tabindex: "0",
       },
       handleDrop: (view, event, slice, moved) => {
         // Handle Roam block drops
@@ -92,6 +93,10 @@ export const ChatInput: React.FC<ChatInputProps> = ({
             return true;
           }
         }
+        return false;
+      },
+      handleClick: (view, pos, event) => {
+        // Don't interfere with default click handling
         return false;
       },
     },
@@ -461,13 +466,29 @@ export const ChatInput: React.FC<ChatInputProps> = ({
     [editor, showPromptMenu, filteredPrompts, selectedPromptIndex, isComposing]
   );
 
-  // Add keyboard event listener
+  // Add keyboard event listener and focus management
   useEffect(() => {
     if (editor?.view?.dom) {
       const dom = editor.view.dom as HTMLElement;
       dom.addEventListener("keydown", handleKeyDown);
+
+      // Add focus and blur event listeners to manage caret visibility
+      const handleFocus = () => {
+        // Ensure caret is visible
+        dom.style.caretColor = "#393a3d";
+      };
+
+      const handleBlur = () => {
+        // Keep caret color but allow natural blur behavior
+      };
+
+      dom.addEventListener("focus", handleFocus);
+      dom.addEventListener("blur", handleBlur);
+
       return () => {
         dom.removeEventListener("keydown", handleKeyDown);
+        dom.removeEventListener("focus", handleFocus);
+        dom.removeEventListener("blur", handleBlur);
       };
     }
   }, [editor, handleKeyDown]);
@@ -524,6 +545,25 @@ export const ChatInput: React.FC<ChatInputProps> = ({
     }
   };
 
+  // Handle editor container click to ensure cursor activation
+  const handleEditorContainerClick = (event: React.MouseEvent) => {
+    if (editor && editor.view) {
+      // Check if we clicked in an empty area or need to focus
+      const target = event.target as HTMLElement;
+      const editorDom = editor.view.dom as HTMLElement;
+
+      // If we clicked on the container but not on the editor content, focus the editor
+      if (
+        target.classList.contains("rr-copilot-editor-container") ||
+        (target.closest(".rr-copilot-editor-container") &&
+          !target.closest(".ProseMirror"))
+      ) {
+        event.preventDefault();
+        editor.commands.focus();
+      }
+    }
+  };
+
   return (
     <div
       className="rr-copilot-input-container"
@@ -534,6 +574,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
           className="rr-copilot-editor-container"
           onCompositionStart={handleCompositionStart}
           onCompositionEnd={handleCompositionEnd}
+          onClick={handleEditorContainerClick}
         >
           <EditorContent editor={editor} />
         </div>
