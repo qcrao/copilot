@@ -3,6 +3,7 @@ import React, { useState, useRef, useEffect, useCallback } from "react";
 import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import { Dropcursor } from "@tiptap/extension-dropcursor";
+import { Placeholder } from "@tiptap/extension-placeholder";
 import {
   ReferenceChip,
   insertReferenceChip,
@@ -63,8 +64,13 @@ export const ChatInput: React.FC<ChatInputProps> = ({
         dropcursor: false,
       }),
       Dropcursor.configure({
-        color: "#1565c0",
-        width: 3,
+        color: "#4285f4",
+        width: 2,
+      }),
+      Placeholder.configure({
+        placeholder: placeholder,
+        emptyEditorClass: "is-editor-empty",
+        emptyNodeClass: "is-empty",
       }),
       ReferenceChip,
     ],
@@ -73,7 +79,8 @@ export const ChatInput: React.FC<ChatInputProps> = ({
       attributes: {
         class: "rr-copilot-editor",
         style:
-          "outline: none; padding: 8px 12px; min-height: 40px; max-height: 120px; overflow-y: auto; line-height: 1.4;",
+          "outline: none; min-height: 24px; max-height: 120px; overflow-y: auto; line-height: 1.5;",
+        "data-placeholder": placeholder,
       },
       handleDrop: (view, event, slice, moved) => {
         // Handle Roam block drops
@@ -187,7 +194,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
       }
 
       // Create preview text
-      const preview = RoamQuery.formatBlockPreview(blockData.string, 50);
+      const preview = RoamQuery.formatBlockPreview(blockData.string, 10);
 
       // Insert the reference chip at drop position
       if (editor) {
@@ -199,10 +206,20 @@ export const ChatInput: React.FC<ChatInputProps> = ({
           editor.commands.setTextSelection(pos.pos);
         }
 
+        // Insert the reference chip (which already includes focus and space)
         insertReferenceChip(editor, uid, preview);
 
-        // Focus the editor
-        editor.commands.focus();
+        // Ensure the editor remains focused and cursor is visible
+        setTimeout(() => {
+          if (editor && editor.view && editor.view.dom) {
+            editor.commands.focus();
+            // Trigger a content change to ensure the editor is properly updated
+            const serializedContent = serializeWithReferences(editor);
+            if (onChange) {
+              onChange(serializedContent);
+            }
+          }
+        }, 50);
       }
     } catch (error) {
       console.error("Error handling block drop:", error);
@@ -250,7 +267,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
         try {
           const blockData = await RoamQuery.getBlock(ref.uid);
           const preview = blockData
-            ? RoamQuery.formatBlockPreview(blockData.string, 50)
+            ? RoamQuery.formatBlockPreview(blockData.string, 10)
             : `Block ${ref.uid}`;
 
           insertReferenceChip(editor, ref.uid, preview);
@@ -514,17 +531,11 @@ export const ChatInput: React.FC<ChatInputProps> = ({
     >
       <div className="rr-copilot-input-box">
         <div
-          style={{
-            border: "1px solid #ccc",
-            borderRadius: "8px",
-            backgroundColor: "white",
-            fontSize: "14px",
-            fontFamily: "inherit",
-          }}
+          className="rr-copilot-editor-container"
           onCompositionStart={handleCompositionStart}
           onCompositionEnd={handleCompositionEnd}
         >
-          <EditorContent editor={editor} placeholder={placeholder} />
+          <EditorContent editor={editor} />
         </div>
 
         <div className="rr-copilot-input-toolbar">

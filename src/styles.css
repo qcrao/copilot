@@ -183,27 +183,108 @@
 
 /* Simplified Input Component */
 .rr-copilot-input-container {
-  padding: 16px;
-  background: white;
-  border-top: 1px solid #f3f4f6;
+  padding: 20px;
+  background: #ffffff;
+  border-top: 1px solid #f1f3f4;
+  flex-shrink: 0;
 }
 
 .rr-copilot-input-box {
   position: relative;
   display: flex;
   flex-direction: column;
-  background: #f8f9fa;
-  border: 1px solid #e5e7eb;
-  border-radius: 20px;
-  padding: 16px;
+  background: #ffffff;
+  border: 1px solid #e8eaed;
+  border-radius: 12px;
+  padding: 0;
   transition: all 0.2s ease;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  box-shadow: 0 1px 6px rgba(32, 33, 36, 0.08);
+  overflow: hidden;
+}
+
+.rr-copilot-editor-container {
+  padding: 14px 20px;
+  min-height: 48px;
+  max-height: 120px;
+  background: #ffffff;
+  border-radius: 12px 12px 0 0;
+  position: relative;
+  overflow-y: auto;
+  transition: all 0.2s ease;
+}
+
+.rr-copilot-editor-container:focus-within {
+  background: #ffffff;
+}
+
+/* TipTap Editor Styles */
+.rr-copilot-editor {
+  outline: none;
+  font-size: 15px;
+  line-height: 1.5;
+  color: #374151;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+    "Helvetica Neue", Arial, sans-serif;
+  min-height: 24px;
+  cursor: text;
+}
+
+.rr-copilot-editor.ProseMirror-focused {
+  outline: none;
+}
+
+.rr-copilot-editor .ProseMirror-selectednode {
+  outline: 2px solid #4285f4;
+  outline-offset: 2px;
+}
+
+.rr-copilot-editor p {
+  margin: 0;
+  padding: 2px 0;
+}
+
+/* TipTap Placeholder styles */
+.rr-copilot-editor p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  color: #9aa0a6;
+  pointer-events: none;
+  float: left;
+  height: 0;
+}
+
+/* Reference Chip Styles */
+.reference-chip {
+  display: inline;
+  background: transparent !important;
+  border: none !important;
+  color: #1a73e8;
+  font-size: 15px;
+  font-weight: normal;
+  text-decoration: underline;
+  text-decoration-color: #1a73e8;
+  text-underline-offset: 2px;
+  cursor: pointer;
+  padding: 0 !important;
+  margin: 0 !important;
+  box-shadow: none !important;
+  outline: none !important;
+  transition: all 0.2s ease;
+  user-select: none;
+}
+
+.reference-chip:hover {
+  background: transparent !important;
+  border: none !important;
+  color: #1557b0;
+  text-decoration-color: #1557b0;
+  box-shadow: none !important;
 }
 
 .rr-copilot-input-box:focus-within {
-  border-color: #106ba3;
+  border-color: #4285f4;
   background: white;
-  box-shadow: 0 0 0 3px rgba(16, 107, 163, 0.1);
+  box-shadow: 0 2px 16px rgba(66, 133, 244, 0.15),
+    0 0 0 2px rgba(66, 133, 244, 0.1);
 }
 
 .rr-copilot-input-textarea {
@@ -235,18 +316,33 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  height: 32px;
+  padding: 12px 20px;
+  background: #f8f9fa;
+  border-top: 1px solid #e8eaed;
+  border-radius: 0 0 12px 12px;
+  gap: 12px;
+  flex-shrink: 0;
+  min-height: 56px;
 }
 
 .rr-copilot-model-selector {
-  padding: 6px 8px;
-  border: 1px solid #ddd;
-  border-radius: 6px;
+  padding: 8px 12px;
+  border: 1px solid #dadce0;
+  border-radius: 8px;
   background: white;
-  font-size: 12px;
-  color: #333;
+  font-size: 13px;
+  color: #3c4043;
   min-width: 120px;
-  max-width: 280px;
+  max-width: 200px;
+  flex: 1;
+  transition: all 0.2s ease;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+.rr-copilot-model-selector:focus {
+  outline: none;
+  border-color: #4285f4;
+  box-shadow: 0 0 0 2px rgba(66, 133, 244, 0.1);
 }
 
 .rr-copilot-model-selector:disabled {
@@ -278,18 +374,18 @@
   cursor: pointer;
   transition: all 0.2s ease;
   outline: none;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
 .rr-copilot-send-button.active {
-  background-color: #393a3d;
+  background: #4285f4;
   color: white;
 }
 
 .rr-copilot-send-button.active:hover {
-  background-color: #2a2b2d;
+  background: #3367d6;
   transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(16, 107, 163, 0.3);
+  box-shadow: 0 2px 8px rgba(66, 133, 244, 0.3);
 }
 
 .rr-copilot-send-button.active:active {
@@ -297,10 +393,10 @@
 }
 
 .rr-copilot-send-button.inactive {
-  background-color: #e5e7eb;
-  color: #9ca3af;
+  background-color: #f1f3f4;
+  color: #9aa0a6;
   cursor: not-allowed;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
 }
 
 .rr-copilot-send-button:disabled {
@@ -740,7 +836,7 @@
 .rr-copilot-copy-button:hover {
   transform: none !important;
   background-color: white !important;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.1) !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1) !important;
 }
 
 /* Prevent any Blueprint button hover effects in message containers */
