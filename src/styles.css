@@ -241,6 +241,13 @@
   outline-offset: 2px;
 }
 
+/* Override selectednode styles for reference chips specifically */
+.rr-copilot-editor .reference-chip.ProseMirror-selectednode {
+  outline: none !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
 /* Ensure cursor is always visible when focused */
 .rr-copilot-editor:focus,
 .rr-copilot-editor.ProseMirror-focused {
@@ -299,6 +306,30 @@
 }
 
 .reference-chip:focus {
+  outline: none !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
+.reference-chip:active {
+  outline: none !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
+/* Additional rules to ensure no borders on reference chips */
+.reference-chip,
+.reference-chip:hover,
+.reference-chip:focus,
+.reference-chip:active,
+.reference-chip:visited {
+  outline: none !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
+/* Ensure ProseMirror doesn't add selection styles */
+.rr-copilot-editor .reference-chip.ProseMirror-selectednode {
   outline: none !important;
   border: none !important;
   box-shadow: none !important;

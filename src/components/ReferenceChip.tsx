@@ -48,6 +48,11 @@ const ReferenceChipComponent: React.FC<ReactNodeViewProps> = ({ node }) => {
       className="reference-chip"
       onClick={handleClick}
       title={`Block reference: ${uid}`}
+      style={{
+        outline: "none",
+        border: "none",
+        boxShadow: "none",
+      }}
     >
       {preview}
     </NodeViewWrapper>
