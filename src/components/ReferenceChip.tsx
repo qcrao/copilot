@@ -48,10 +48,15 @@ const ReferenceChipComponent: React.FC<ReactNodeViewProps> = ({ node }) => {
       className="reference-chip"
       onClick={handleClick}
       title={`Block reference: ${uid}`}
+      contentEditable={false}
       style={{
         outline: "none",
         border: "none",
         boxShadow: "none",
+        userSelect: "none",
+        WebkitUserSelect: "none",
+        MozUserSelect: "none",
+        msUserSelect: "none",
       }}
     >
       {preview}
@@ -66,6 +71,7 @@ export const ReferenceChip = Node.create({
   group: "inline",
   inline: true,
   atom: true,
+  selectable: false,
 
   addAttributes() {
     return {

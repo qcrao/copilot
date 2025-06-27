@@ -335,6 +335,22 @@
   box-shadow: none !important;
 }
 
+/* Force remove any possible selection styles */
+.reference-chip::selection,
+.reference-chip::-moz-selection {
+  background: transparent !important;
+}
+
+/* Remove any possible focus rings or selection indicators */
+.reference-chip[data-selected],
+.reference-chip.selected,
+.reference-chip[aria-selected] {
+  outline: none !important;
+  border: none !important;
+  box-shadow: none !important;
+  background: transparent !important;
+}
+
 .rr-copilot-input-box:focus-within {
   border-color: #393a3d;
   background: white;
