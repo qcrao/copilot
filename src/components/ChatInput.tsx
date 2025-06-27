@@ -615,9 +615,11 @@ export const ChatInput: React.FC<ChatInputProps> = ({
         ? `🏠 ${longestModel.model}`
         : longestModel.model;
 
-    // More accurate width calculation: roughly 6px per character + padding
-    const estimatedWidth = Math.max(80, longestName.length * 6 + 40);
-    return `${Math.min(estimatedWidth, 160)}px`;
+    // More accurate width calculation: roughly 7px per character + padding for dropdown arrow
+    // Account for font-weight: 500 and 13px font size
+    const estimatedWidth = Math.max(100, longestName.length * 7 + 45);
+    // Increase max width to accommodate longer model names, but cap at reasonable limit
+    return `${Math.min(estimatedWidth, 280)}px`;
   };
 
   return (
