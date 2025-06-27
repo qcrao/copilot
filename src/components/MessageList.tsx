@@ -1,6 +1,7 @@
 // src/components/MessageList.tsx
 import React, { useState, useEffect } from 'react';
-import { Button } from "@blueprintjs/core";
+import { Button, Icon } from "@blueprintjs/core";
+import { IconNames } from "@blueprintjs/icons";
 import { ChatMessage } from '../types';
 import { MessageRenderer } from './MessageRenderer';
 import { UserService } from '../services/userService';
@@ -10,6 +11,8 @@ interface MessageListProps {
   isLoading: boolean;
   onCopyMessage: (content: string, messageIndex: number) => void;
   copiedMessageIndex: number | null;
+  currentModel?: string;
+  currentProvider?: string;
 }
 
 interface MessageItemProps {
@@ -23,22 +26,41 @@ interface MessageItemProps {
 const getModelDisplayInfo = (model?: string, provider?: string) => {
   if (!model) {
     return { 
-      iconUrl: 'https://upload.wikimedia.org/wikipedia/commons/0/04/ChatGPT_logo.svg', 
+      iconUrl: null,
       fallbackIcon: '🤖', 
-      name: 'Unknown Model', 
-      color: '#666' 
+      name: 'AI Assistant', 
+      color: '#666',
+      isLocal: false,
+      blueprintIcon: null
     };
   }
 
+  // Check if it's a local model (Ollama)
+  const isLocal = provider === 'ollama';
+  
   // Normalize model name for comparison
   const normalizedModel = model.toLowerCase();
+  
+  if (isLocal) {
+    // For local models, use home icon from BlueprintJS
+    return {
+      iconUrl: null,
+      fallbackIcon: '🏠',
+      name: model,
+      color: '#2E7D32',
+      isLocal: true,
+      blueprintIcon: IconNames.HOME
+    };
+  }
   
   if (normalizedModel.includes('gpt-4o')) {
     return { 
       iconUrl: 'https://upload.wikimedia.org/wikipedia/commons/0/04/ChatGPT_logo.svg', 
       fallbackIcon: '🤖', 
       name: 'GPT-4o', 
-      color: '#10A37F' 
+      color: '#10A37F',
+      isLocal: false,
+      blueprintIcon: null
     };
   }
   if (normalizedModel.includes('gpt-4')) {
@@ -46,7 +68,9 @@ const getModelDisplayInfo = (model?: string, provider?: string) => {
       iconUrl: 'https://upload.wikimedia.org/wikipedia/commons/0/04/ChatGPT_logo.svg', 
       fallbackIcon: '🤖', 
       name: 'GPT-4', 
-      color: '#10A37F' 
+      color: '#10A37F',
+      isLocal: false,
+      blueprintIcon: null
     };
   }
   if (normalizedModel.includes('gpt-3.5')) {
@@ -54,7 +78,9 @@ const getModelDisplayInfo = (model?: string, provider?: string) => {
       iconUrl: 'https://upload.wikimedia.org/wikipedia/commons/0/04/ChatGPT_logo.svg', 
       fallbackIcon: '🤖', 
       name: 'GPT-3.5', 
-      color: '#10A37F' 
+      color: '#10A37F',
+      isLocal: false,
+      blueprintIcon: null
     };
   }
   if (normalizedModel.includes('claude-3.5-haiku')) {
@@ -62,7 +88,9 @@ const getModelDisplayInfo = (model?: string, provider?: string) => {
       iconUrl: 'https://www.anthropic.com/images/icons/claude-icon.svg', 
       fallbackIcon: '🧠', 
       name: 'Claude 3.5 Haiku', 
-      color: '#CC785C' 
+      color: '#CC785C',
+      isLocal: false,
+      blueprintIcon: null
     };
   }
   if (normalizedModel.includes('claude-3-haiku')) {
@@ -70,7 +98,9 @@ const getModelDisplayInfo = (model?: string, provider?: string) => {
       iconUrl: 'https://www.anthropic.com/images/icons/claude-icon.svg', 
       fallbackIcon: '🧠', 
       name: 'Claude 3 Haiku', 
-      color: '#CC785C' 
+      color: '#CC785C',
+      isLocal: false,
+      blueprintIcon: null
     };
   }
   if (normalizedModel.includes('claude')) {
@@ -78,7 +108,9 @@ const getModelDisplayInfo = (model?: string, provider?: string) => {
       iconUrl: 'https://www.anthropic.com/images/icons/claude-icon.svg', 
       fallbackIcon: '🧠', 
       name: 'Claude', 
-      color: '#CC785C' 
+      color: '#CC785C',
+      isLocal: false,
+      blueprintIcon: null
     };
   }
   if (normalizedModel.includes('llama')) {
@@ -86,7 +118,9 @@ const getModelDisplayInfo = (model?: string, provider?: string) => {
       iconUrl: 'https://llama.meta.com/llama-logo.png', 
       fallbackIcon: '⚡', 
       name: 'Llama', 
-      color: '#FF6B6B' 
+      color: '#FF6B6B',
+      isLocal: false,
+      blueprintIcon: null
     };
   }
   if (normalizedModel.includes('gemma')) {
@@ -94,7 +128,9 @@ const getModelDisplayInfo = (model?: string, provider?: string) => {
       iconUrl: 'https://www.gstatic.com/lamda/images/gemini_sparkle_red_4ed1cbfcbc6c9e84c31b987da73fc4168e45e803.svg', 
       fallbackIcon: '💎', 
       name: 'Gemma', 
-      color: '#4285F4' 
+      color: '#4285F4',
+      isLocal: false,
+      blueprintIcon: null
     };
   }
   if (normalizedModel.includes('grok')) {
@@ -102,17 +138,151 @@ const getModelDisplayInfo = (model?: string, provider?: string) => {
       iconUrl: 'https://x.ai/favicon.ico', 
       fallbackIcon: '🚀', 
       name: 'Grok', 
-      color: '#1D9BF0' 
+      color: '#1D9BF0',
+      isLocal: false,
+      blueprintIcon: null
     };
   }
 
   // Default for unknown models
   return { 
-    iconUrl: 'https://upload.wikimedia.org/wikipedia/commons/0/04/ChatGPT_logo.svg', 
+    iconUrl: null,
     fallbackIcon: '🤖', 
     name: model, 
-    color: '#666' 
+    color: '#666',
+    isLocal: false,
+    blueprintIcon: null
   };
+};
+
+// Loading Indicator Component
+const LoadingIndicator: React.FC<{ currentModel?: string; currentProvider?: string }> = ({ 
+  currentModel, 
+  currentProvider 
+}) => {
+  const loadingModelInfo = getModelDisplayInfo(currentModel, currentProvider);
+  
+  return (
+    <div style={{ marginBottom: '16px' }}>
+      {/* Loading Header */}
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        marginBottom: '8px',
+        gap: '8px'
+      }}>
+        <div style={{
+          width: '32px',
+          height: '32px',
+          borderRadius: '50%',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          backgroundColor: 'white',
+          color: '#666',
+          fontSize: '16px',
+          border: '1px solid #e1e4e8'
+        }}>
+          {loadingModelInfo?.blueprintIcon ? (
+            <Icon 
+              icon={loadingModelInfo.blueprintIcon}
+              size={18}
+              style={{ 
+                color: loadingModelInfo.color || '#666'
+              }}
+            />
+          ) : loadingModelInfo?.iconUrl ? (
+            <img 
+              src={loadingModelInfo.iconUrl} 
+              alt={`${loadingModelInfo.name} logo`}
+              style={{
+                width: '24px',
+                height: '24px',
+                objectFit: 'contain',
+                borderRadius: '4px'
+              }}
+              onError={(e) => {
+                e.currentTarget.style.display = 'none';
+                e.currentTarget.parentElement!.innerHTML = loadingModelInfo.fallbackIcon || '🤖';
+                e.currentTarget.parentElement!.style.color = '#666';
+              }}
+            />
+          ) : (
+            <span style={{ color: '#666', fontSize: '18px' }}>
+              {loadingModelInfo?.fallbackIcon || '🤖'}
+            </span>
+          )}
+        </div>
+        <div style={{
+          fontWeight: '600',
+          fontSize: '14px',
+          color: '#333'
+        }}>
+          {loadingModelInfo?.name || 'AI Assistant'}
+        </div>
+        {currentModel && (
+          <div style={{
+            fontSize: '12px',
+            color: '#666',
+            marginTop: '1px'
+          }}>
+            {currentModel}
+          </div>
+        )}
+      </div>
+
+      {/* Loading Content - New thinking style */}
+      <div style={{ marginLeft: '40px', marginRight: '8px' }}>
+        <div style={{
+          padding: '12px 16px',
+          backgroundColor: '#f1f3f5',
+          borderRadius: '8px',
+          border: '1px solid #e2e8f0',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '12px',
+          boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)'
+        }}>
+          <div style={{
+            width: '20px',
+            height: '20px',
+            borderRadius: '50%',
+            backgroundColor: '#94a3b8',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: '12px'
+          }}>
+            🧠
+          </div>
+          <div style={{ flex: 1 }}>
+            <div style={{
+              fontSize: '13px',
+              fontWeight: '500',
+              color: '#475569',
+              marginBottom: '2px'
+            }}>
+              已深度思考（用时 <span style={{ color: '#64748b' }}>0.3 秒</span>）
+            </div>
+            <div style={{
+              fontSize: '12px',
+              color: '#64748b',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px'
+            }}>
+              <span>正在生成回答</span>
+              <div style={{ display: 'flex', gap: '2px' }}>
+                <span style={{ animation: "blink 1.4s infinite both", animationDelay: "0s" }}>.</span>
+                <span style={{ animation: "blink 1.4s infinite both", animationDelay: "0.2s" }}>.</span>
+                <span style={{ animation: "blink 1.4s infinite both", animationDelay: "0.4s" }}>.</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 };
 
 const MessageItem: React.FC<MessageItemProps> = ({ message, index, onCopyMessage, copiedMessageIndex }) => {
@@ -128,7 +298,7 @@ const MessageItem: React.FC<MessageItemProps> = ({ message, index, onCopyMessage
   }, [isUser]);
 
   return (
-    <div className="rr-copilot-message-item" style={{ marginBottom: '20px' }}>
+    <div className="rr-copilot-message-item" style={{ marginBottom: '16px' }}>
       {/* Message Header */}
       <div style={{
         display: 'flex',
@@ -171,7 +341,15 @@ const MessageItem: React.FC<MessageItemProps> = ({ message, index, onCopyMessage
               userAvatar
             )
           ) : (
-            modelInfo?.iconUrl ? (
+            modelInfo?.blueprintIcon ? (
+              <Icon 
+                icon={modelInfo.blueprintIcon}
+                size={18}
+                style={{ 
+                  color: modelInfo.color || '#666'
+                }}
+              />
+            ) : modelInfo?.iconUrl ? (
               <img 
                 src={modelInfo.iconUrl} 
                 alt={`${modelInfo.name} logo`}
@@ -230,18 +408,19 @@ const MessageItem: React.FC<MessageItemProps> = ({ message, index, onCopyMessage
       {/* Message Content */}
       <div className="rr-copilot-message-container" style={{
         marginLeft: '40px', // Align with content under avatar
-        marginRight: '16px', // Reduced right margin for less empty space
+        marginRight: '8px', // Reduced right margin for more compact layout
       }}>
         <div style={{
           width: '100%',
-          padding: isUser ? '12px 16px' : '12px 16px 12px 0', // Add right padding for AI messages
-          backgroundColor: isUser ? '#f8f9fa' : 'transparent',
-          borderRadius: isUser ? '12px' : '0',
-          border: isUser ? '1px solid #e1e4e8' : 'none',
+          padding: isUser ? '8px 0' : '8px 16px 8px 0', // No background padding for user, right padding for AI
+          backgroundColor: 'transparent', // No background for both user and AI
+          borderRadius: '0', // No border radius
+          border: 'none', // No border
           fontSize: '14px',
           lineHeight: '1.6',
           wordBreak: 'break-word',
-          marginBottom: '4px'
+          marginBottom: '2px', // Reduced bottom margin for compactness
+          color: isUser ? '#374151' : '#374151' // Same text color for both
         }}>
           <MessageRenderer 
             content={message.content} 
@@ -281,7 +460,9 @@ export const MessageList: React.FC<MessageListProps> = ({
   messages, 
   isLoading, 
   onCopyMessage, 
-  copiedMessageIndex 
+  copiedMessageIndex,
+  currentModel,
+  currentProvider
 }) => {
   return (
     <div className="rr-copilot-message-list" style={{
@@ -303,70 +484,7 @@ export const MessageList: React.FC<MessageListProps> = ({
 
       {/* Loading Indicator */}
       {isLoading && (
-        <div style={{ marginBottom: '20px' }}>
-          {/* Loading Header */}
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            marginBottom: '8px',
-            gap: '8px'
-          }}>
-            <div style={{
-              width: '32px',
-              height: '32px',
-              borderRadius: '50%',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              backgroundColor: 'white',
-              color: '#666',
-              fontSize: '16px',
-              border: '1px solid #e1e4e8'
-            }}>
-              <img 
-                src="https://upload.wikimedia.org/wikipedia/commons/0/04/ChatGPT_logo.svg" 
-                alt="AI logo"
-                style={{
-                  width: '24px',
-                  height: '24px',
-                  objectFit: 'contain',
-                  borderRadius: '4px'
-                }}
-                onError={(e) => {
-                  e.currentTarget.style.display = 'none';
-                  e.currentTarget.parentElement!.innerHTML = '🤖';
-                }}
-              />
-            </div>
-            <div style={{
-              fontWeight: '600',
-              fontSize: '14px',
-              color: '#333'
-            }}>
-              AI Assistant
-            </div>
-          </div>
-
-          {/* Loading Content */}
-          <div style={{ marginLeft: '40px', marginRight: '16px' }}>
-            <div style={{
-              padding: '12px 16px',
-              backgroundColor: '#f8f9fa',
-              borderRadius: '12px',
-              border: '1px solid #e1e4e8',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px'
-            }}>
-              <span>Thinking</span>
-              <div style={{ display: 'flex', gap: '2px' }}>
-                <span style={{ animation: "blink 1.4s infinite both", animationDelay: "0s" }}>.</span>
-                <span style={{ animation: "blink 1.4s infinite both", animationDelay: "0.2s" }}>.</span>
-                <span style={{ animation: "blink 1.4s infinite both", animationDelay: "0.4s" }}>.</span>
-              </div>
-            </div>
-          </div>
-        </div>
+        <LoadingIndicator currentModel={currentModel} currentProvider={currentProvider} />
       )}
     </div>
   );

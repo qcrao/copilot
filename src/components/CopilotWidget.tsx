@@ -8,6 +8,7 @@ import { AIService } from "../services/aiService";
 import { RoamService } from "../services/roamService";
 import { ConversationService } from "../services/conversationService";
 import { aiSettings, multiProviderSettings } from "../settings";
+import { AI_PROVIDERS } from "../types";
 import { ChatInput } from "./ChatInput";
 import { MessageRenderer } from "./MessageRenderer";
 import { ConversationList } from "./ConversationList";
@@ -807,6 +808,11 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
                 isLoading={state.isLoading}
                 onCopyMessage={handleCopyMessage}
                 copiedMessageIndex={copiedMessageIndex}
+                currentModel={multiProviderSettings.currentModel}
+                currentProvider={AI_PROVIDERS.find(p => 
+                  p.models.includes(multiProviderSettings.currentModel) || 
+                  p.id === 'ollama'
+                )?.id}
               />
             )}
           </div>
