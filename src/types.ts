@@ -107,6 +107,26 @@ export interface ConversationListState {
   showList: boolean;
 }
 
+// Reference chip interfaces for TipTap editor
+export interface ReferenceChipAttributes {
+  uid: string;
+  preview: string;
+}
+
+export interface ReferenceChipData {
+  uid: string;
+  blockContent: string;
+  children?: RoamBlock[];
+  referencedPages?: RoamPage[];
+}
+
+export interface ExpandedReference {
+  uid: string;
+  content: string;
+  type: 'block' | 'page';
+  title?: string;
+}
+
 // Prompt Template interfaces
 export interface PromptVariable {
   name: string;

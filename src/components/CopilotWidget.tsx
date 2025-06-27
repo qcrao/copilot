@@ -8,11 +8,12 @@ import { AIService } from "../services/aiService";
 import { RoamService } from "../services/roamService";
 import { ConversationService } from "../services/conversationService";
 import { aiSettings, multiProviderSettings } from "../settings";
-import { CustomMessageInput } from "./CustomMessageInput";
+import { ChatInput } from "./ChatInput";
 import { MessageRenderer } from "./MessageRenderer";
 import { ConversationList } from "./ConversationList";
 import { PromptTemplatesGrid } from "./PromptTemplatesGrid";
 import { MessageList } from "./MessageList";
+import { PromptBuilder } from "../utils/promptBuilder";
 
 interface CopilotWidgetProps {
   isOpen: boolean;
@@ -156,16 +157,56 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
     }));
   };
 
-  const handleSendMessage = async (message: string) => {
-    if (!message.trim() || state.isLoading) return;
+  const handleSendMessage = async (messageInput: string | any) => {
+    if (state.isLoading) return;
 
-    const userMessage = message.trim();
+    let userMessage: string;
+    let finalUserMessage: string;
+
+    // Handle both string input (legacy) and editor JSON
+    if (typeof messageInput === 'string') {
+      userMessage = messageInput.trim();
+      if (!userMessage) return;
+      finalUserMessage = userMessage;
+    } else {
+      // Handle TipTap editor JSON
+      try {
+        // Extract plain text for display
+        userMessage = PromptBuilder.extractPlainText(messageInput);
+        if (!userMessage.trim()) return;
+
+        // Get model-specific token limit
+        const currentModel = multiProviderSettings.currentModel;
+        const provider = await AIService.getProviderForModel(currentModel);
+        const maxTokens = RoamService.getModelTokenLimit(
+          provider?.provider?.id || 'openai', 
+          currentModel
+        );
+
+        // Build expanded prompt with reference content
+        const promptResult = await PromptBuilder.buildPrompt(messageInput, maxTokens);
+        finalUserMessage = promptResult.text;
+
+        console.log("Prompt expansion result:", {
+          originalLength: userMessage.length,
+          expandedLength: finalUserMessage.length,
+          referencesExpanded: promptResult.metadata.referencesExpanded,
+          estimatedTokens: promptResult.metadata.totalTokensEstimate,
+          truncated: promptResult.metadata.truncated
+        });
+      } catch (error) {
+        console.error("Error processing editor content:", error);
+        // Fallback to string conversion
+        userMessage = String(messageInput).trim();
+        if (!userMessage) return;
+        finalUserMessage = userMessage;
+      }
+    }
 
     // Clear input value
     setInputValue("");
 
     // Check if message contains date references and add cached notes
-    let finalUserMessage = userMessage;
     const datePattern = /\[(\d{4}-\d{2}-\d{2})\]/g;
     const dateMatches = userMessage.match(datePattern);
     
@@ -182,7 +223,7 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
       }
     }
 
-    // Add user message (display the original without notes)
+    // Add user message (display the original without expanded references)
     addMessage({
       role: "user",
       content: userMessage,
@@ -207,12 +248,12 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
         ? RoamService.formatContextForAI(freshContext, maxContextTokens)
         : "No context available";
 
-
       console.log("Sending message with context:", {
         currentPage: freshContext?.currentPage?.title,
         blocksCount: freshContext?.currentPage?.blocks?.length || 0,
         model: currentModel,
         dateNotesIncluded: dateMatches ? dateMatches.length : 0,
+        messageLength: finalUserMessage.length,
       });
 
       const response = await AIService.sendMessageWithCurrentModel(
@@ -238,7 +279,7 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
 
   const handleModelChange = (newModel: string) => {
     console.log("Model changed to:", newModel);
-    // The model is already updated in the CustomMessageInput component
+    // The model is already updated in the ChatInput component
     // We could add additional logic here if needed
   };
 
@@ -770,7 +811,7 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
             )}
           </div>
 
-          <CustomMessageInput
+          <ChatInput
             placeholder="Ask me anything about your notes..."
             onSend={handleSendMessage}
             disabled={state.isLoading}

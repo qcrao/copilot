@@ -11,6 +11,11 @@
     "@blueprintjs/icons": "^5.0.0",
     "@chatscope/chat-ui-kit-react": "^2.1.1",
     "@chatscope/chat-ui-kit-styles": "^1.4.0",
+    "@tiptap/core": "^2.23.0",
+    "@tiptap/extension-dropcursor": "^2.23.0",
+    "@tiptap/pm": "^2.23.0",
+    "@tiptap/react": "^2.23.0",
+    "@tiptap/starter-kit": "^2.23.0",
     "react": "^18.3.0",
     "react-dom": "^18.3.0"
   },
