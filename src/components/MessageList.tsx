@@ -274,7 +274,7 @@ const LoadingIndicator: React.FC<{ currentModel?: string; currentProvider?: stri
                 color: '#475569',
                 marginBottom: '2px'
               }}>
-                Deep thinking completed (<span style={{ color: '#64748b' }}>0.3s</span>)
+                Deep thinking
               </div>
             )}
             <div style={{
@@ -311,7 +311,7 @@ const MessageItem: React.FC<MessageItemProps> = ({ message, index, onCopyMessage
   }, [isUser]);
 
   return (
-    <div className="rr-copilot-message-item" style={{ marginBottom: '12px' }}>
+    <div className="rr-copilot-message-item" style={{ marginBottom: '8px' }}>
       {/* Message Header */}
       <div style={{
         display: 'flex',

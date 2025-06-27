@@ -152,10 +152,15 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
       timestamp: new Date(),
     };
 
-    setState((prev) => ({
-      ...prev,
-      messages: [...prev.messages, newMessage],
-    }));
+    setState((prev) => {
+      const updatedMessages = [...prev.messages, newMessage];
+      // Trigger auto-save when new message is added
+      saveConversationDebounced(updatedMessages);
+      return {
+        ...prev,
+        messages: updatedMessages,
+      };
+    });
   };
 
   const handleSendMessage = async (messageInput: string | any) => {
@@ -304,30 +309,35 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
     }
   };
 
-  // Auto-save current conversation when messages change
-  useEffect(() => {
-    if (state.messages.length === 0) return;
-    
-    const saveConversation = async () => {
-      try {
-        if (currentConversationId) {
-          // Update existing conversation
-          await ConversationService.updateConversation(currentConversationId, state.messages);
-        } else {
-          // Save new conversation
-          const newConversationId = await ConversationService.saveConversation(state.messages);
-          setCurrentConversationId(newConversationId);
-        }
-        console.log("Conversation auto-saved");
-      } catch (error) {
-        console.error("Failed to auto-save conversation:", error);
+  // Auto-save function to be called when new messages are added
+  const saveTimeoutRef = useRef<any>(null);
+  
+  const saveConversationDebounced = useCallback(
+    (messages: ChatMessage[]) => {
+      // Clear existing timeout
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current);
       }
-    };
-
-    // Debounce the save operation
-    const timeoutId = setTimeout(saveConversation, 2000);
-    return () => clearTimeout(timeoutId);
-  }, [state.messages, currentConversationId]);
+      
+      // Set new timeout
+      saveTimeoutRef.current = setTimeout(async () => {
+        try {
+          if (currentConversationId) {
+            // Update existing conversation
+            await ConversationService.updateConversation(currentConversationId, messages);
+          } else {
+            // Save new conversation
+            const newConversationId = await ConversationService.saveConversation(messages);
+            setCurrentConversationId(newConversationId);
+          }
+          console.log("Conversation auto-saved");
+        } catch (error) {
+          console.error("Failed to auto-save conversation:", error);
+        }
+      }, 2000);
+    },
+    [currentConversationId]
+  );
 
   const handleConversationSelect = async (conversationId: string) => {
     try {
