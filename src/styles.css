@@ -259,6 +259,42 @@
   caret-color: #393a3d !important;
 }
 
+/* Force cursor visibility in all states */
+.rr-copilot-editor * {
+  caret-color: inherit;
+}
+
+/* Ensure cursor blinks properly */
+.rr-copilot-editor {
+  animation: none;
+}
+
+.rr-copilot-editor:focus {
+  animation: none;
+}
+
+/* Force caret to be visible even in empty state */
+.rr-copilot-editor.is-editor-empty:focus::before {
+  content: "";
+  position: absolute;
+  width: 1px;
+  height: 1.2em;
+  background-color: #393a3d;
+  animation: blink 1s infinite;
+  pointer-events: none;
+}
+
+@keyframes blink {
+  0%,
+  50% {
+    opacity: 1;
+  }
+  51%,
+  100% {
+    opacity: 0;
+  }
+}
+
 .rr-copilot-editor p {
   margin: 0;
   padding: 2px 0;
@@ -276,7 +312,7 @@
 /* Reference Chip Styles */
 .reference-chip {
   display: inline;
-  background: transparent !important;
+  background: rgba(33, 93, 176, 0.08) !important;
   border: none !important;
   color: #215db0;
   font-size: 15px;
@@ -285,8 +321,9 @@
   text-decoration-color: #215db0;
   text-underline-offset: 2px;
   cursor: pointer;
-  padding: 0 !important;
-  margin: 0 !important;
+  padding: 2px 4px !important;
+  margin: 0 1px !important;
+  border-radius: 4px !important;
   box-shadow: none !important;
   outline: none !important;
   transition: all 0.2s ease;
@@ -297,7 +334,7 @@
 }
 
 .reference-chip:hover {
-  background: transparent !important;
+  background: rgba(33, 93, 176, 0.12) !important;
   border: none !important;
   color: #1a4d96;
   text-decoration-color: #1a4d96;
@@ -410,8 +447,8 @@
 
 .rr-copilot-model-selector:focus {
   outline: none;
-  border-color: #4285f4;
-  box-shadow: 0 0 0 2px rgba(66, 133, 244, 0.1);
+  border-color: #393a3d;
+  box-shadow: 0 0 0 2px rgba(57, 58, 61, 0.1);
 }
 
 .rr-copilot-model-selector:disabled {

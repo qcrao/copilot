@@ -64,7 +64,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
         dropcursor: false,
       }),
       Dropcursor.configure({
-        color: "#4285f4",
+        color: "#393a3d",
         width: 2,
       }),
       Placeholder.configure({
@@ -75,6 +75,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
       ReferenceChip,
     ],
     content: controlledValue || "",
+    autofocus: false, // Don't autofocus on creation
     editorProps: {
       attributes: {
         class: "rr-copilot-editor",
@@ -110,6 +111,18 @@ export const ChatInput: React.FC<ChatInputProps> = ({
         initializeWithReferences(controlledValue);
         setLastInitializedValue(controlledValue);
       }
+    },
+    onFocus: ({ editor }) => {
+      // Ensure caret is visible when focused
+      setTimeout(() => {
+        if (editor.view && editor.view.dom) {
+          const dom = editor.view.dom as HTMLElement;
+          dom.style.caretColor = "#393a3d";
+        }
+      }, 0);
+    },
+    onBlur: ({ editor }) => {
+      // Keep caret color but allow natural blur
     },
   });
 
@@ -474,21 +487,39 @@ export const ChatInput: React.FC<ChatInputProps> = ({
 
       // Add focus and blur event listeners to manage caret visibility
       const handleFocus = () => {
-        // Ensure caret is visible
+        // Ensure caret is visible and force a reflow
         dom.style.caretColor = "#393a3d";
+        // Force cursor visibility by briefly setting selection
+        setTimeout(() => {
+          if (editor && editor.view) {
+            const { selection } = editor.state;
+            editor.view.dispatch(editor.state.tr.setSelection(selection));
+          }
+        }, 0);
       };
 
       const handleBlur = () => {
         // Keep caret color but allow natural blur behavior
       };
 
+      // Add mouse events to ensure cursor is visible after clicks
+      const handleMouseDown = () => {
+        setTimeout(() => {
+          if (editor && editor.view) {
+            dom.style.caretColor = "#393a3d";
+          }
+        }, 0);
+      };
+
       dom.addEventListener("focus", handleFocus);
       dom.addEventListener("blur", handleBlur);
+      dom.addEventListener("mousedown", handleMouseDown);
 
       return () => {
         dom.removeEventListener("keydown", handleKeyDown);
         dom.removeEventListener("focus", handleFocus);
         dom.removeEventListener("blur", handleBlur);
+        dom.removeEventListener("mousedown", handleMouseDown);
       };
     }
   }, [editor, handleKeyDown]);
