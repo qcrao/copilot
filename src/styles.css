@@ -195,7 +195,7 @@
   flex-direction: column;
   background: #ffffff;
   border: 1px solid #e1e4e8;
-  border-radius: 24px;
+  border-radius: 16px;
   padding: 0;
   transition: all 0.2s ease;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
@@ -207,7 +207,7 @@
   min-height: 52px;
   max-height: 120px;
   background: #ffffff;
-  border-radius: 24px 24px 0 0;
+  border-radius: 16px 16px 0 0;
   position: relative;
   overflow-y: auto;
   transition: all 0.2s ease;
@@ -271,11 +271,11 @@
   display: inline;
   background: transparent !important;
   border: none !important;
-  color: #393a3d;
+  color: #215db0;
   font-size: 15px;
   font-weight: normal;
   text-decoration: underline;
-  text-decoration-color: #393a3d;
+  text-decoration-color: #215db0;
   text-underline-offset: 2px;
   cursor: pointer;
   padding: 0 !important;
@@ -286,13 +286,21 @@
   user-select: none;
   vertical-align: baseline;
   line-height: inherit;
+  text-shadow: 0 1px 2px rgba(33, 93, 176, 0.1);
 }
 
 .reference-chip:hover {
   background: transparent !important;
   border: none !important;
-  color: #2c2d30;
-  text-decoration-color: #2c2d30;
+  color: #1a4d96;
+  text-decoration-color: #1a4d96;
+  box-shadow: none !important;
+  text-shadow: 0 1px 3px rgba(33, 93, 176, 0.15);
+}
+
+.reference-chip:focus {
+  outline: none !important;
+  border: none !important;
   box-shadow: none !important;
 }
 
@@ -334,22 +342,21 @@
   padding: 12px 24px;
   background: transparent;
   border-top: none;
-  border-radius: 0 0 24px 24px;
+  border-radius: 0 0 16px 16px;
   gap: 12px;
   flex-shrink: 0;
   min-height: 56px;
 }
 
 .rr-copilot-model-selector {
-  padding: 8px 12px;
+  padding: 6px 10px;
   border: 1px solid #e1e4e8;
-  border-radius: 12px;
+  border-radius: 8px;
   background: #f8f9fa;
-  font-size: 13px;
+  font-size: 12px;
   color: #393a3d;
-  min-width: 120px;
-  max-width: 200px;
-  flex: 1;
+  min-width: auto;
+  max-width: none;
   transition: all 0.2s ease;
   box-shadow: none;
 }

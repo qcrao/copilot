@@ -20,7 +20,26 @@ const ReferenceChipComponent: React.FC<ReactNodeViewProps> = ({ node }) => {
   const handleClick = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    // Could add click behavior here (e.g., navigate to block)
+
+    // Navigate to the block in Roam
+    if (uid && typeof window !== "undefined" && (window as any).roamAlphaAPI) {
+      try {
+        const roamAPI = (window as any).roamAlphaAPI;
+        // Use Roam's API to navigate to the block
+        roamAPI.ui.mainWindow.openBlock({ block: { uid } });
+      } catch (error) {
+        console.error("Failed to navigate to block:", error);
+        // Fallback: try to open the block reference
+        try {
+          const roamAPI = (window as any).roamAlphaAPI;
+          roamAPI.ui.rightSidebar.addWindow({
+            window: { type: "block", "block-uid": uid },
+          });
+        } catch (fallbackError) {
+          console.error("Fallback navigation also failed:", fallbackError);
+        }
+      }
+    }
   };
 
   return (

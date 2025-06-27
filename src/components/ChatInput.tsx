@@ -564,6 +564,31 @@ export const ChatInput: React.FC<ChatInputProps> = ({
     }
   };
 
+  // Calculate selector width based on longest model name
+  const calculateSelectorWidth = () => {
+    if (isLoadingModels || availableModels.length === 0) {
+      return "100px";
+    }
+
+    // Find the longest model name
+    const longestModel = availableModels.reduce((longest, current) => {
+      const currentName =
+        current.provider === "ollama" ? `🏠 ${current.model}` : current.model;
+      const longestName =
+        longest.provider === "ollama" ? `🏠 ${longest.model}` : longest.model;
+      return currentName.length > longestName.length ? current : longest;
+    });
+
+    const longestName =
+      longestModel.provider === "ollama"
+        ? `🏠 ${longestModel.model}`
+        : longestModel.model;
+
+    // Estimate width: roughly 8px per character + padding
+    const estimatedWidth = Math.max(80, longestName.length * 8 + 30);
+    return `${Math.min(estimatedWidth, 180)}px`;
+  };
+
   return (
     <div
       className="rr-copilot-input-container"
@@ -585,6 +610,9 @@ export const ChatInput: React.FC<ChatInputProps> = ({
             onChange={(e) => handleModelChange(e.target.value)}
             className="rr-copilot-model-selector"
             disabled={disabled || isLoadingModels}
+            style={{
+              width: calculateSelectorWidth(),
+            }}
           >
             {isLoadingModels ? (
               <option value="">Loading models...</option>
