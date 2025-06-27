@@ -19,6 +19,7 @@ import {
   multiProviderSettings,
   getAvailableModels,
 } from "../settings";
+import { BLOCK_PREVIEW_LENGTH } from "../constants";
 
 interface ChatInputProps {
   placeholder?: string;
@@ -214,7 +215,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
       }
 
       // Create preview text
-      const preview = RoamQuery.formatBlockPreview(blockData.string, 10);
+      const preview = RoamQuery.formatBlockPreview(blockData.string, BLOCK_PREVIEW_LENGTH);
 
       // Insert the reference chip at drop position
       if (editor) {
@@ -287,7 +288,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
         try {
           const blockData = await RoamQuery.getBlock(ref.uid);
           const preview = blockData
-            ? RoamQuery.formatBlockPreview(blockData.string, 10)
+            ? RoamQuery.formatBlockPreview(blockData.string, BLOCK_PREVIEW_LENGTH)
             : `Block ${ref.uid}`;
 
           insertReferenceChip(editor, ref.uid, preview);

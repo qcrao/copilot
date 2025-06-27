@@ -21,3 +21,6 @@ export const MONTH_MAP: { [key: string]: number } = MONTHS.reduce(
   },
   {} as { [key: string]: number }
 );
+
+// Block preview length constant
+export const BLOCK_PREVIEW_LENGTH = 30;

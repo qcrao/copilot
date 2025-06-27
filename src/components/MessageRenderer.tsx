@@ -1,6 +1,7 @@
 // src/components/MessageRenderer.tsx
 import React, { useState, useEffect } from 'react';
 import { RoamQuery } from '../utils/roamQuery';
+import { BLOCK_PREVIEW_LENGTH } from '../constants';
 
 interface MessageRendererProps {
   content: string;
@@ -21,7 +22,7 @@ const BlockReference: React.FC<{
       try {
         const blockData = await RoamQuery.getBlock(uid);
         if (blockData) {
-          const preview = RoamQuery.formatBlockPreview(blockData.string, 50);
+          const preview = RoamQuery.formatBlockPreview(blockData.string, BLOCK_PREVIEW_LENGTH);
           setBlockContent(preview);
         } else {
           setBlockContent(`Block ${uid.substring(0, 8)}...`);

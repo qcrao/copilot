@@ -1,5 +1,6 @@
 // src/utils/roamQuery.ts
 import { RoamBlock, RoamPage } from "../types";
+import { BLOCK_PREVIEW_LENGTH } from "../constants";
 
 export interface BlockWithReferences extends RoamBlock {
   references?: RoamPage[];
@@ -236,7 +237,7 @@ export class RoamQuery {
   /**
    * Format block content for display (preview)
    */
-  static formatBlockPreview(blockString: string, maxLength: number = 50): string {
+  static formatBlockPreview(blockString: string, maxLength: number = BLOCK_PREVIEW_LENGTH): string {
     if (!blockString) return "Empty block";
     
     const cleanText = blockString
