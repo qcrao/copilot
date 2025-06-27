@@ -28,6 +28,7 @@ interface ChatInputProps {
   value?: string;
   onChange?: (value: string) => void;
   onDateSelect?: (date: string, notes: string) => void;
+  isLoading?: boolean;
 }
 
 export const ChatInput: React.FC<ChatInputProps> = ({
@@ -38,6 +39,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   value: controlledValue,
   onChange,
   onDateSelect,
+  isLoading = false,
 }) => {
   const [availableModels, setAvailableModels] = useState<
     Array<{ model: string; provider: string; providerName: string }>
@@ -561,7 +563,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
     }
   };
 
-  const canSend = (editor?.getText()?.trim().length || 0) > 0 && !disabled;
+  const canSend = (editor?.getText()?.trim().length || 0) > 0 && !disabled && !isLoading;
 
   // Handle composition events
   const handleCompositionStart = () => {

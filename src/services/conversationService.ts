@@ -30,7 +30,14 @@ export class ConversationService {
    * Generate conversation title from first user message
    */
   private static generateTitle(firstMessage: string): string {
-    const cleanMessage = firstMessage.trim().replace(/\n/g, ' ');
+    // Clean the message by removing reference symbols and normalizing whitespace
+    const cleanMessage = firstMessage.trim()
+      .replace(/\[\[([^\]]+)\]\]/g, '$1') // Remove [[ ]] but keep the content
+      .replace(/\(\(([^\)]+)\)\)/g, '$1') // Remove (( )) but keep the content  
+      .replace(/\n/g, ' ') // Replace newlines with spaces
+      .replace(/\s+/g, ' ') // Normalize multiple spaces to single space
+      .trim();
+    
     if (cleanMessage.length <= 30) {
       return cleanMessage;
     }

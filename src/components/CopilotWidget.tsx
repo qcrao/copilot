@@ -172,8 +172,8 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
     } else {
       // Handle TipTap editor JSON
       try {
-        // Extract plain text for display
-        userMessage = PromptBuilder.extractPlainText(messageInput);
+        // Extract serialized text with references for display (preserves ((UID)) format)
+        userMessage = PromptBuilder.serializeForStorage(messageInput);
         if (!userMessage.trim()) return;
 
         // Get model-specific token limit
@@ -817,15 +817,16 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
             )}
           </div>
 
-          <ChatInput
-            placeholder="Ask me anything about your notes..."
-            onSend={handleSendMessage}
-            disabled={state.isLoading}
-            onModelChange={handleModelChange}
-            value={inputValue}
-            onChange={setInputValue}
-            onDateSelect={handleDateSelect}
-          />
+                        <ChatInput
+                placeholder="Ask me anything about your notes..."
+                onSend={handleSendMessage}
+                disabled={false} // Don't disable input while loading
+                onModelChange={handleModelChange}
+                value={inputValue}
+                onChange={setInputValue}
+                onDateSelect={handleDateSelect}
+                isLoading={state.isLoading} // Pass loading state for send button
+              />
         </div>
       </div>
     </div>

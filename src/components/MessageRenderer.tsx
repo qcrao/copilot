@@ -1,21 +1,134 @@
 // src/components/MessageRenderer.tsx
-import React from 'react';
+import React, { useState, useEffect } from 'react';
+import { RoamQuery } from '../utils/roamQuery';
 
 interface MessageRendererProps {
   content: string;
   isUser?: boolean;
+  model?: string;
 }
 
-export const MessageRenderer: React.FC<MessageRendererProps> = ({ content, isUser = false }) => {
+// Component for rendering roam block references with content
+const BlockReference: React.FC<{
+  uid: string;
+  isUser: boolean;
+}> = ({ uid, isUser }) => {
+  const [blockContent, setBlockContent] = useState<string>('');
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const loadBlockContent = async () => {
+      try {
+        const blockData = await RoamQuery.getBlock(uid);
+        if (blockData) {
+          const preview = RoamQuery.formatBlockPreview(blockData.string, 50);
+          setBlockContent(preview);
+        } else {
+          setBlockContent(`Block ${uid.substring(0, 8)}...`);
+        }
+      } catch (error) {
+        console.error('Error loading block content:', error);
+        setBlockContent(`Block ${uid.substring(0, 8)}...`);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadBlockContent();
+  }, [uid]);
+
+  const handleClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    // Navigate to the block in Roam
+    if (uid && typeof window !== "undefined" && (window as any).roamAlphaAPI) {
+      try {
+        const roamAPI = (window as any).roamAlphaAPI;
+        roamAPI.ui.mainWindow.openBlock({ block: { uid } });
+      } catch (error) {
+        console.error("Failed to navigate to block:", error);
+        try {
+          const roamAPI = (window as any).roamAlphaAPI;
+          roamAPI.ui.rightSidebar.addWindow({
+            window: { type: "block", "block-uid": uid },
+          });
+        } catch (fallbackError) {
+          console.error("Fallback navigation also failed:", fallbackError);
+        }
+      }
+    }
+  };
+
+  return (
+    <span
+      style={{
+        backgroundColor: isUser ? 'rgba(33, 93, 176, 0.08)' : 'rgba(33, 93, 176, 0.08)',
+        color: isUser ? '#215db0' : '#215db0',
+        padding: '2px 4px',
+        borderRadius: '4px',
+        fontSize: '15px',
+        fontWeight: 'normal',
+        textDecoration: 'underline',
+        textDecorationColor: isUser ? '#215db0' : '#215db0',
+        textUnderlineOffset: '2px',
+        cursor: 'pointer',
+        margin: '0 1px',
+        display: 'inline',
+        lineHeight: 'inherit',
+        verticalAlign: 'baseline',
+        textShadow: isUser ? 'none' : '0 1px 2px rgba(33, 93, 176, 0.1)',
+        transition: 'all 0.2s ease',
+        border: 'none'
+      }}
+      title={`Block reference: ${uid}`}
+      onMouseEnter={(e) => {
+        e.currentTarget.style.backgroundColor = 'rgba(33, 93, 176, 0.12)';
+        e.currentTarget.style.color = '#1a4d96';
+        e.currentTarget.style.textDecorationColor = '#1a4d96';
+        e.currentTarget.style.textShadow = '0 1px 3px rgba(33, 93, 176, 0.15)';
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.backgroundColor = 'rgba(33, 93, 176, 0.08)';
+        e.currentTarget.style.color = '#215db0';
+        e.currentTarget.style.textDecorationColor = '#215db0';
+        e.currentTarget.style.textShadow = '0 1px 2px rgba(33, 93, 176, 0.1)';
+      }}
+      onClick={handleClick}
+    >
+      {isLoading ? `Block ${uid.substring(0, 8)}...` : blockContent}
+    </span>
+  );
+};
+
+export const MessageRenderer: React.FC<MessageRendererProps> = ({ content, isUser = false, model }) => {
+  // Helper function to check if model supports thinking
+  const supportsThinking = (modelName?: string): boolean => {
+    if (!modelName) return false;
+    const thinkingModels = [
+      'deepseek-r1', 'deepseek-reasoner', 'r1', 'qwq', 'marco-o1'
+    ];
+    return thinkingModels.some(pattern => 
+      modelName.toLowerCase().includes(pattern.toLowerCase())
+    );
+  };
+
   // Pre-process content to remove colons from title-like lines, handle think tags, and trailing whitespace
   const preprocessContent = (text: string): string => {
-    return text.replace(/<think>([\s\S]*?)<\/think>/gi, (match, content) => {
-                 // Convert think blocks to collapsed expandable sections
-                 return `<details style="margin: 8px 0; padding: 8px; background: rgba(57,58,61,0.1); border-radius: 6px; border-left: 3px solid rgba(57,58,61,0.3);">
-                   <summary style="cursor: pointer; font-weight: 500; color: rgba(57,58,61,0.8); font-size: 0.9em;">🤔 Thinking process (click to expand)</summary>
-                   <div style="margin-top: 8px; padding: 8px; background: rgba(57,58,61,0.05); border-radius: 4px; font-style: italic; color: rgba(57,58,61,0.7); font-size: 0.9em; line-height: 1.4;">${content.trim()}</div>
+    // Only process thinking tags for models that support it
+    const processedText = supportsThinking(model) 
+      ? text.replace(/<think>([\s\S]*?)<\/think>/gi, (match, content) => {
+                 // Convert think blocks to collapsed expandable sections with modern styling
+                 return `<details style="margin: 12px 0; padding: 0; background: linear-gradient(135deg, #f8f9fa 0%, #f1f3f5 100%); border-radius: 12px; border: 1px solid #e8eaed; box-shadow: 0 2px 8px rgba(60, 64, 67, 0.08); overflow: hidden; transition: all 0.3s cubic-bezier(0.2, 0, 0, 1);">
+                   <summary style="cursor: pointer; padding: 12px 16px; font-weight: 500; color: #5f6368; font-size: 13px; display: flex; align-items: center; gap: 8px; background: transparent; border: none; outline: none; transition: all 0.2s ease; user-select: none;">
+                     <span style="font-size: 16px;">🧠</span>
+                     <span>Thinking process (click to expand)</span>
+                     <span style="margin-left: auto; font-size: 12px; color: #9aa0a6; transition: transform 0.2s ease;">▼</span>
+                   </summary>
+                   <div style="padding: 16px; background: #ffffff; border-top: 1px solid #f1f3f5; font-size: 13px; line-height: 1.5; color: #5f6368; font-style: normal; white-space: pre-wrap;">${content.trim()}</div>
                  </details>`;
                })
+      : text;
+    
+    return processedText
                .replace(/^([^：:\n]+?)：\s*$/gm, '$1') // Remove trailing colons from lines that look like titles
                .replace(/^([^：:\n]+?):\s*$/gm, '$1') // Handle both Chinese and English colons
                .replace(/\s+$/, ''); // Remove all trailing whitespace and empty lines
@@ -491,25 +604,11 @@ export const MessageRenderer: React.FC<MessageRendererProps> = ({ content, isUse
 
       case 'roam-block':
         return (
-          <span
+          <BlockReference 
             key={index}
-            style={{
-              backgroundColor: isUser ? 'rgba(255,255,255,0.15)' : 'rgba(57,58,61,0.08)',
-              color: isUser ? '#ffffff' : '#393A3D',
-              padding: '1px 4px',
-              borderRadius: '3px',
-              fontFamily: 'monospace',
-              fontSize: '0.85em',
-              border: `1px dashed ${isUser ? 'rgba(255,255,255,0.4)' : 'rgba(57,58,61,0.4)'}`,
-              cursor: 'default',
-              margin: '1px 0',
-              display: 'inline-block',
-              lineHeight: '1.2'
-            }}
-            title={`Roam block: ${match.text}`}
-          >
-            (({match.text}))
-          </span>
+            uid={match.text}
+            isUser={isUser}
+          />
         );
 
       case 'url':

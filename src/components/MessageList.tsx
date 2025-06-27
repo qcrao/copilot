@@ -162,8 +162,19 @@ const LoadingIndicator: React.FC<{ currentModel?: string; currentProvider?: stri
 }) => {
   const loadingModelInfo = getModelDisplayInfo(currentModel, currentProvider);
   
+  // Helper function to check if model supports thinking
+  const supportsThinking = (modelName?: string): boolean => {
+    if (!modelName) return false;
+    const thinkingModels = [
+      'deepseek-r1', 'deepseek-reasoner', 'r1', 'qwq', 'marco-o1'
+    ];
+    return thinkingModels.some(pattern => 
+      modelName.toLowerCase().includes(pattern.toLowerCase())
+    );
+  };
+  
   return (
-    <div style={{ marginBottom: '16px' }}>
+    <div style={{ marginBottom: '12px' }}>
       {/* Loading Header */}
       <div style={{
         display: 'flex',
@@ -253,17 +264,19 @@ const LoadingIndicator: React.FC<{ currentModel?: string; currentProvider?: stri
             justifyContent: 'center',
             fontSize: '12px'
           }}>
-            🧠
+            {supportsThinking(currentModel) ? '🧠' : '⚡'}
           </div>
           <div style={{ flex: 1 }}>
-            <div style={{
-              fontSize: '13px',
-              fontWeight: '500',
-              color: '#475569',
-              marginBottom: '2px'
-            }}>
-              已深度思考（用时 <span style={{ color: '#64748b' }}>0.3 秒</span>）
-            </div>
+            {supportsThinking(currentModel) && (
+              <div style={{
+                fontSize: '13px',
+                fontWeight: '500',
+                color: '#475569',
+                marginBottom: '2px'
+              }}>
+                Deep thinking completed (<span style={{ color: '#64748b' }}>0.3s</span>)
+              </div>
+            )}
             <div style={{
               fontSize: '12px',
               color: '#64748b',
@@ -271,7 +284,7 @@ const LoadingIndicator: React.FC<{ currentModel?: string; currentProvider?: stri
               alignItems: 'center',
               gap: '6px'
             }}>
-              <span>正在生成回答</span>
+              <span>Generating response</span>
               <div style={{ display: 'flex', gap: '2px' }}>
                 <span style={{ animation: "blink 1.4s infinite both", animationDelay: "0s" }}>.</span>
                 <span style={{ animation: "blink 1.4s infinite both", animationDelay: "0.2s" }}>.</span>
@@ -298,7 +311,7 @@ const MessageItem: React.FC<MessageItemProps> = ({ message, index, onCopyMessage
   }, [isUser]);
 
   return (
-    <div className="rr-copilot-message-item" style={{ marginBottom: '16px' }}>
+    <div className="rr-copilot-message-item" style={{ marginBottom: '12px' }}>
       {/* Message Header */}
       <div style={{
         display: 'flex',
@@ -419,12 +432,13 @@ const MessageItem: React.FC<MessageItemProps> = ({ message, index, onCopyMessage
           fontSize: '14px',
           lineHeight: '1.6',
           wordBreak: 'break-word',
-          marginBottom: '2px', // Reduced bottom margin for compactness
+          marginBottom: '4px', // Slightly increased for copy button spacing
           color: isUser ? '#374151' : '#374151' // Same text color for both
         }}>
           <MessageRenderer 
             content={message.content} 
             isUser={isUser}
+            model={message.model}
           />
         </div>
 
@@ -432,7 +446,7 @@ const MessageItem: React.FC<MessageItemProps> = ({ message, index, onCopyMessage
         <div style={{
           display: 'flex',
           justifyContent: 'flex-end',
-          paddingTop: '2px'
+          paddingTop: '0px' // Remove padding to make it closer
         }}>
           <Button
             minimal

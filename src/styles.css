@@ -295,6 +295,19 @@
   }
 }
 
+/* Thinking section enhancements */
+details[style*="thinking"] summary:hover {
+  background-color: rgba(60, 64, 67, 0.04) !important;
+}
+
+details[style*="thinking"][open] summary span:last-child {
+  transform: rotate(180deg) !important;
+}
+
+details[style*="thinking"][open] {
+  box-shadow: 0 4px 16px rgba(60, 64, 67, 0.12) !important;
+}
+
 .rr-copilot-editor p {
   margin: 0;
   padding: 2px 0;
