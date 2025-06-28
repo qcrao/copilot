@@ -302,8 +302,8 @@ const CustomSingleValue = (props: any) => {
 const customStyles: StylesConfig<ModelOption> = {
   control: (provided, state) => ({
     ...provided,
-    minHeight: '28px',
-    height: '28px',
+    minHeight: '32px',
+    height: '32px',
     fontSize: '12px',
     fontWeight: '500',
     border: '1px solid #d1d5db',
@@ -316,7 +316,7 @@ const customStyles: StylesConfig<ModelOption> = {
   }),
   valueContainer: (provided) => ({
     ...provided,
-    height: '26px',
+    height: '30px',
     padding: '0 4px'
   }),
   input: (provided) => ({
@@ -330,7 +330,7 @@ const customStyles: StylesConfig<ModelOption> = {
   }),
   indicatorsContainer: (provided) => ({
     ...provided,
-    height: '26px'
+    height: '30px'
   }),
   menu: (provided) => ({
     ...provided,
