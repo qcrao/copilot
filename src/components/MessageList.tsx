@@ -162,17 +162,6 @@ const LoadingIndicator: React.FC<{ currentModel?: string; currentProvider?: stri
 }) => {
   const loadingModelInfo = getModelDisplayInfo(currentModel, currentProvider);
   
-  // Helper function to check if model supports thinking
-  const supportsThinking = (modelName?: string): boolean => {
-    if (!modelName) return false;
-    const thinkingModels = [
-      'deepseek-r1', 'deepseek-reasoner', 'r1', 'qwq', 'marco-o1'
-    ];
-    return thinkingModels.some(pattern => 
-      modelName.toLowerCase().includes(pattern.toLowerCase())
-    );
-  };
-  
   return (
     <div style={{ marginBottom: '12px' }}>
       {/* Loading Header */}
@@ -242,7 +231,7 @@ const LoadingIndicator: React.FC<{ currentModel?: string; currentProvider?: stri
         )}
       </div>
 
-      {/* Loading Content - New thinking style */}
+      {/* Loading Content */}
       <div style={{ marginLeft: '40px', marginRight: '8px' }}>
         <div style={{
           padding: '12px 16px',
@@ -264,19 +253,9 @@ const LoadingIndicator: React.FC<{ currentModel?: string; currentProvider?: stri
             justifyContent: 'center',
             fontSize: '12px'
           }}>
-            {supportsThinking(currentModel) ? '🧠' : '⚡'}
+            ⚡
           </div>
           <div style={{ flex: 1 }}>
-            {supportsThinking(currentModel) && (
-              <div style={{
-                fontSize: '13px',
-                fontWeight: '500',
-                color: '#475569',
-                marginBottom: '2px'
-              }}>
-                Deep thinking
-              </div>
-            )}
             <div style={{
               fontSize: '12px',
               color: '#64748b',
