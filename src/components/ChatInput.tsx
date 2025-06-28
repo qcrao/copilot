@@ -20,6 +20,7 @@ import {
   getAvailableModels,
 } from "../settings";
 import { BLOCK_PREVIEW_LENGTH } from "../constants";
+import { ModelSelector } from "./ModelSelector";
 
 interface ChatInputProps {
   placeholder?: string;
@@ -598,31 +599,21 @@ export const ChatInput: React.FC<ChatInputProps> = ({
     }
   };
 
-  // Calculate selector width based on longest model name
+  // Calculate selector width for ModelSelector
   const calculateSelectorWidth = () => {
     if (isLoadingModels || availableModels.length === 0) {
-      return "100px";
+      return "120px";
     }
 
     // Find the longest model name
     const longestModel = availableModels.reduce((longest, current) => {
-      const currentName =
-        current.provider === "ollama" ? `🏠 ${current.model}` : current.model;
-      const longestName =
-        longest.provider === "ollama" ? `🏠 ${longest.model}` : longest.model;
-      return currentName.length > longestName.length ? current : longest;
+      return current.model.length > longest.model.length ? current : longest;
     });
 
-    const longestName =
-      longestModel.provider === "ollama"
-        ? `🏠 ${longestModel.model}`
-        : longestModel.model;
-
-    // More accurate width calculation: roughly 7px per character + padding for dropdown arrow
-    // Account for font-weight: 500 and 13px font size
-    const estimatedWidth = Math.max(100, longestName.length * 7 + 45);
+    // More accurate width calculation: roughly 8px per character + padding for icon and dropdown arrow
+    const estimatedWidth = Math.max(120, longestModel.model.length * 8 + 60);
     // Increase max width to accommodate longer model names, but cap at reasonable limit
-    return `${Math.min(estimatedWidth, 280)}px`;
+    return `${Math.min(estimatedWidth, 300)}px`;
   };
 
   return (
@@ -641,37 +632,15 @@ export const ChatInput: React.FC<ChatInputProps> = ({
         </div>
 
         <div className="rr-copilot-input-toolbar">
-          <select
-            value={selectedModel}
-            onChange={(e) => handleModelChange(e.target.value)}
-            className="rr-copilot-model-selector"
-            disabled={disabled || isLoadingModels}
-            style={{
-              width: calculateSelectorWidth(),
-            }}
-          >
-            {isLoadingModels ? (
-              <option value="">Loading models...</option>
-            ) : availableModels.length === 0 ? (
-              <option value="">No keys</option>
-            ) : (
-              availableModels.map((modelInfo) => (
-                <option
-                  key={`${modelInfo.provider}-${modelInfo.model}`}
-                  value={modelInfo.model}
-                  style={{
-                    fontWeight:
-                      modelInfo.provider === "ollama" ? "bold" : "normal",
-                    color:
-                      modelInfo.provider === "ollama" ? "#2E7D32" : "inherit",
-                  }}
-                >
-                  {modelInfo.provider === "ollama" ? "🏠 " : ""}
-                  {modelInfo.model}
-                </option>
-              ))
-            )}
-          </select>
+          <div style={{ width: calculateSelectorWidth() }}>
+            <ModelSelector
+              value={selectedModel}
+              onChange={handleModelChange}
+              options={availableModels}
+              disabled={disabled}
+              isLoading={isLoadingModels}
+            />
+          </div>
 
           <button
             className={`rr-copilot-send-button ${
