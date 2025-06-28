@@ -307,7 +307,7 @@ const customStyles: StylesConfig<ModelOption> = {
     fontSize: '12px',
     fontWeight: '500',
     border: '1px solid #d1d5db',
-    borderRadius: '4px',
+    borderRadius: '8px',
     backgroundColor: 'white',
     boxShadow: state.isFocused ? '0 0 0 1px #393a3d' : 'none',
     '&:hover': {
@@ -337,6 +337,7 @@ const customStyles: StylesConfig<ModelOption> = {
     zIndex: 99999,
     boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
     border: '1px solid #e1e4e8',
+    borderRadius: '8px',
     position: 'absolute'
   }),
   menuPortal: (provided) => ({

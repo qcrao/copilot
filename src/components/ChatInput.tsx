@@ -602,7 +602,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   // Calculate selector width for ModelSelector
   const calculateSelectorWidth = () => {
     if (isLoadingModels || availableModels.length === 0) {
-      return "120px";
+      return "140px";
     }
 
     // Find the longest model name
@@ -610,10 +610,10 @@ export const ChatInput: React.FC<ChatInputProps> = ({
       return current.model.length > longest.model.length ? current : longest;
     });
 
-    // More accurate width calculation: roughly 8px per character + padding for icon and dropdown arrow
-    const estimatedWidth = Math.max(120, longestModel.model.length * 8 + 60);
-    // Increase max width to accommodate longer model names, but cap at reasonable limit
-    return `${Math.min(estimatedWidth, 300)}px`;
+    // Adjusted width calculation: roughly 7.5px per character + padding for icon and dropdown arrow
+    const estimatedWidth = Math.max(140, longestModel.model.length * 7.5 + 55);
+    // Increase max width to accommodate longer model names
+    return `${Math.min(estimatedWidth, 260)}px`;
   };
 
   return (
