@@ -306,12 +306,12 @@ const customStyles: StylesConfig<ModelOption> = {
     height: '32px',
     fontSize: '12px',
     fontWeight: '500',
-    border: '1px solid #d1d5db',
+    border: state.isFocused ? '1px solid #393a3d' : '1px solid #d1d5db',
     borderRadius: '8px',
     backgroundColor: 'white',
-    boxShadow: state.isFocused ? '0 0 0 1px #393a3d' : 'none',
+    boxShadow: 'none',
     '&:hover': {
-      borderColor: '#9ca3af'
+      borderColor: state.isFocused ? '#393a3d' : '#9ca3af'
     }
   }),
   valueContainer: (provided) => ({
