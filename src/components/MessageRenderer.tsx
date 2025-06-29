@@ -101,35 +101,10 @@ const BlockReference: React.FC<{
 };
 
 export const MessageRenderer: React.FC<MessageRendererProps> = ({ content, isUser = false, model }) => {
-  // Helper function to check if model supports thinking
-  const supportsThinking = (modelName?: string): boolean => {
-    if (!modelName) return false;
-    const thinkingModels = [
-      'deepseek-r1', 'deepseek-reasoner', 'r1', 'qwq', 'marco-o1'
-    ];
-    return thinkingModels.some(pattern => 
-      modelName.toLowerCase().includes(pattern.toLowerCase())
-    );
-  };
-
-  // Pre-process content to remove colons from title-like lines, handle think tags, and trailing whitespace
+  // Pre-process content to remove colons from title-like lines and trailing whitespace
   const preprocessContent = (text: string): string => {
-    // Only process thinking tags for models that support it
-    const processedText = supportsThinking(model) 
-      ? text.replace(/<think>([\s\S]*?)<\/think>/gi, (match, content) => {
-                 // Convert think blocks to collapsed expandable sections with modern styling
-                 return `<details style="margin: 12px 0; padding: 0; background: linear-gradient(135deg, #f8f9fa 0%, #f1f3f5 100%); border-radius: 12px; border: 1px solid #e8eaed; box-shadow: 0 2px 8px rgba(60, 64, 67, 0.08); overflow: hidden; transition: all 0.3s cubic-bezier(0.2, 0, 0, 1);">
-                   <summary style="cursor: pointer; padding: 12px 16px; font-weight: 500; color: #5f6368; font-size: 13px; display: flex; align-items: center; gap: 8px; background: transparent; border: none; outline: none; transition: all 0.2s ease; user-select: none;">
-                     <span style="font-size: 16px;">🧠</span>
-                     <span>Thinking process (click to expand)</span>
-                     <span style="margin-left: auto; font-size: 12px; color: #9aa0a6; transition: transform 0.2s ease;">▼</span>
-                   </summary>
-                   <div style="padding: 16px; background: #ffffff; border-top: 1px solid #f1f3f5; font-size: 13px; line-height: 1.5; color: #5f6368; font-style: normal; white-space: pre-wrap;">${content.trim()}</div>
-                 </details>`;
-               })
-      : text;
-    
-    return processedText
+    return text
+               .replace(/<think>([\s\S]*?)<\/think>/gi, '') // Remove think blocks entirely
                .replace(/^([^：:\n]+?)：\s*$/gm, '$1') // Remove trailing colons from lines that look like titles
                .replace(/^([^：:\n]+?):\s*$/gm, '$1') // Handle both Chinese and English colons
                .replace(/\s+$/, ''); // Remove all trailing whitespace and empty lines
