@@ -969,6 +969,8 @@ details[style*="thinking"][open] {
   /* Custom scrollbar styling */
   scrollbar-width: thin;
   scrollbar-color: rgba(57, 58, 61, 0.6) rgba(0, 0, 0, 0.02);
+  /* Improved spacing for compact layout */
+  line-height: 1.4;
 }
 
 .rr-copilot-message-list::-webkit-scrollbar {
@@ -992,26 +994,29 @@ details[style*="thinking"][open] {
   background: rgba(42, 43, 45, 0.8);
 }
 
-/* Message item styles - removed hover effects */
+/* Message item styles - compact and professional */
 .rr-copilot-message-item {
-  /* No transitions or hover effects */
+  /* Optimized spacing for dense layout */
+  margin-bottom: 6px;
 }
 
-/* Copy button hover transition for messages */
+/* Copy button hover transition for messages - compact version */
 .rr-copilot-message-container .rr-copilot-copy-button {
   transition: opacity 0.2s ease;
   opacity: 0 !important;
+  transform: scale(0.9); /* Slightly smaller for compactness */
 }
 
 .rr-copilot-message-container:hover .rr-copilot-copy-button {
-  opacity: 0.7 !important;
+  opacity: 0.8 !important;
+  transform: scale(1);
 }
 
-/* Override Blueprint button hover effects for copy buttons */
+/* Override Blueprint button hover effects for copy buttons - compact */
 .rr-copilot-copy-button:hover {
-  transform: none !important;
+  transform: scale(1.05) !important;
   background-color: white !important;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1) !important;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12) !important;
 }
 
 /* Prevent any Blueprint button hover effects in message containers */
@@ -1020,9 +1025,39 @@ details[style*="thinking"][open] {
   background-color: white !important;
 }
 
-/* Avatar hover effects - removed scale transform */
+/* Avatar styling - compact and professional */
 .rr-copilot-message-item .rr-copilot-avatar {
-  transition: transform 0.2s ease;
+  /* Subtle shadow for depth */
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+}
+
+/* Additional compact message list optimizations */
+.rr-copilot-message-item .rr-copilot-message-container {
+  /* Improve text density and spacing */
+  line-height: 1.5;
+}
+
+/* Compact avatar spacing for better alignment */
+.rr-copilot-message-item .rr-copilot-avatar img {
+  border-radius: 50%;
+}
+
+/* Professional message text styling */
+.rr-copilot-message-item .rr-copilot-message-container p {
+  margin: 0;
+  padding: 2px 0;
+}
+
+/* Timestamp compact styling */
+.rr-copilot-message-item .rr-copilot-timestamp {
+  font-size: 11px;
+  opacity: 0.7;
+  font-weight: 400;
+}
+
+/* Loading indicator compact styling */
+.rr-copilot-message-list .rr-copilot-loading-container {
+  margin-bottom: 8px;
 }
 
 /* Invisible resize handles for 8-direction window resizing */

@@ -163,17 +163,17 @@ const LoadingIndicator: React.FC<{ currentModel?: string; currentProvider?: stri
   const loadingModelInfo = getModelDisplayInfo(currentModel, currentProvider);
   
   return (
-    <div style={{ marginBottom: '12px' }}>
+    <div style={{ marginBottom: '8px' }}>
       {/* Loading Header */}
       <div style={{
         display: 'flex',
         alignItems: 'center',
-        marginBottom: '8px',
-        gap: '8px'
+        marginBottom: '6px',
+        gap: '6px'
       }}>
         <div style={{
-          width: '32px',
-          height: '32px',
+          width: '28px',
+          height: '28px',
           borderRadius: '50%',
           display: 'flex',
           alignItems: 'center',
@@ -186,7 +186,7 @@ const LoadingIndicator: React.FC<{ currentModel?: string; currentProvider?: stri
           {loadingModelInfo?.blueprintIcon ? (
             <Icon 
               icon={loadingModelInfo.blueprintIcon}
-              size={18}
+              size={16}
               style={{ 
                 color: loadingModelInfo.color || '#666'
               }}
@@ -196,8 +196,8 @@ const LoadingIndicator: React.FC<{ currentModel?: string; currentProvider?: stri
               src={loadingModelInfo.iconUrl} 
               alt={`${loadingModelInfo.name} logo`}
               style={{
-                width: '24px',
-                height: '24px',
+                width: '20px',
+                height: '20px',
                 objectFit: 'contain',
                 borderRadius: '4px'
               }}
@@ -208,21 +208,21 @@ const LoadingIndicator: React.FC<{ currentModel?: string; currentProvider?: stri
               }}
             />
           ) : (
-            <span style={{ color: '#666', fontSize: '18px' }}>
+            <span style={{ color: '#666', fontSize: '16px' }}>
               {loadingModelInfo?.fallbackIcon || '🤖'}
             </span>
           )}
         </div>
         <div style={{
           fontWeight: '600',
-          fontSize: '14px',
+          fontSize: '13px',
           color: '#333'
         }}>
           {loadingModelInfo?.name || 'AI Assistant'}
         </div>
         {currentModel && (
           <div style={{
-            fontSize: '12px',
+            fontSize: '11px',
             color: '#666',
             marginTop: '1px'
           }}>
@@ -232,20 +232,20 @@ const LoadingIndicator: React.FC<{ currentModel?: string; currentProvider?: stri
       </div>
 
       {/* Loading Content */}
-      <div style={{ marginLeft: '40px', marginRight: '8px' }}>
+      <div style={{ marginLeft: '34px', marginRight: '8px' }}>
         <div style={{
-          padding: '12px 16px',
+          padding: '10px 14px',
           backgroundColor: '#f1f3f5',
-          borderRadius: '8px',
+          borderRadius: '6px',
           border: '1px solid #e2e8f0',
           display: 'flex',
           alignItems: 'center',
-          gap: '12px',
-          boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)'
+          gap: '10px',
+          boxShadow: '0 1px 2px rgba(0, 0, 0, 0.04)'
         }}>
           <div style={{
-            width: '20px',
-            height: '20px',
+            width: '16px',
+            height: '16px',
             borderRadius: '50%',
             backgroundColor: '#94a3b8',
             display: 'flex',
@@ -257,7 +257,7 @@ const LoadingIndicator: React.FC<{ currentModel?: string; currentProvider?: stri
           </div>
           <div style={{ flex: 1 }}>
             <div style={{
-              fontSize: '12px',
+              fontSize: '11px',
               color: '#64748b',
               display: 'flex',
               alignItems: 'center',
@@ -290,18 +290,18 @@ const MessageItem: React.FC<MessageItemProps> = ({ message, index, onCopyMessage
   }, [isUser]);
 
   return (
-    <div className="rr-copilot-message-item" style={{ marginBottom: '8px' }}>
+    <div className="rr-copilot-message-item" style={{ marginBottom: '6px' }}>
       {/* Message Header */}
       <div style={{
         display: 'flex',
         alignItems: 'center',
-        marginBottom: '8px',
-        gap: '8px'
+        marginBottom: '6px',
+        gap: '6px'
       }}>
         {/* Avatar/Icon */}
         <div className="rr-copilot-avatar" style={{
-          width: '32px',
-          height: '32px',
+          width: '28px',
+          height: '28px',
           borderRadius: '50%',
           display: 'flex',
           alignItems: 'center',
@@ -336,7 +336,7 @@ const MessageItem: React.FC<MessageItemProps> = ({ message, index, onCopyMessage
             modelInfo?.blueprintIcon ? (
               <Icon 
                 icon={modelInfo.blueprintIcon}
-                size={18}
+                size={16}
                 style={{ 
                   color: modelInfo.color || '#666'
                 }}
@@ -346,8 +346,8 @@ const MessageItem: React.FC<MessageItemProps> = ({ message, index, onCopyMessage
                 src={modelInfo.iconUrl} 
                 alt={`${modelInfo.name} logo`}
                 style={{
-                  width: '24px', // Slightly larger for better visibility
-                  height: '24px',
+                  width: '20px',
+                  height: '20px',
                   objectFit: 'contain',
                   borderRadius: '4px' // Subtle rounding for square logos
                 }}
@@ -360,7 +360,7 @@ const MessageItem: React.FC<MessageItemProps> = ({ message, index, onCopyMessage
                 }}
               />
             ) : (
-              <span style={{ color: '#666', fontSize: '18px' }}>
+              <span style={{ color: '#666', fontSize: '16px' }}>
                 {modelInfo?.fallbackIcon || '🤖'}
               </span>
             )
@@ -371,14 +371,14 @@ const MessageItem: React.FC<MessageItemProps> = ({ message, index, onCopyMessage
         <div style={{ flex: 1 }}>
           <div style={{
             fontWeight: '600',
-            fontSize: '14px',
+            fontSize: '13px',
             color: '#333'
           }}>
             {isUser ? 'You' : (modelInfo?.name || 'AI Assistant')}
           </div>
           {!isUser && message.model && (
             <div style={{
-              fontSize: '12px',
+              fontSize: '11px',
               color: '#666',
               marginTop: '1px'
             }}>
@@ -389,7 +389,7 @@ const MessageItem: React.FC<MessageItemProps> = ({ message, index, onCopyMessage
 
         {/* Timestamp */}
         <div style={{
-          fontSize: '12px',
+          fontSize: '11px',
           color: '#999',
           flexShrink: 0
         }}>
@@ -399,20 +399,20 @@ const MessageItem: React.FC<MessageItemProps> = ({ message, index, onCopyMessage
 
       {/* Message Content */}
       <div className="rr-copilot-message-container" style={{
-        marginLeft: '40px', // Align with content under avatar
-        marginRight: '8px', // Reduced right margin for more compact layout
+        marginLeft: '34px', // Align with content under avatar
+        marginRight: '6px', // Further reduced for compactness
       }}>
         <div style={{
           width: '100%',
-          padding: isUser ? '8px 0' : '8px 16px 8px 0', // No background padding for user, right padding for AI
-          backgroundColor: 'transparent', // No background for both user and AI
-          borderRadius: '0', // No border radius
-          border: 'none', // No border
+          padding: isUser ? '6px 0' : '6px 12px 6px 0', // Reduced padding
+          backgroundColor: 'transparent',
+          borderRadius: '0',
+          border: 'none',
           fontSize: '14px',
-          lineHeight: '1.6',
+          lineHeight: '1.5', // Tighter line height
           wordBreak: 'break-word',
-          marginBottom: '4px', // Slightly increased for copy button spacing
-          color: isUser ? '#374151' : '#374151' // Same text color for both
+          marginBottom: '3px', // Reduced spacing
+          color: isUser ? '#374151' : '#374151'
         }}>
           <MessageRenderer 
             content={message.content} 
@@ -425,7 +425,8 @@ const MessageItem: React.FC<MessageItemProps> = ({ message, index, onCopyMessage
         <div style={{
           display: 'flex',
           justifyContent: 'flex-end',
-          paddingTop: '0px' // Remove padding to make it closer
+          paddingTop: '0px',
+          marginTop: '-2px' // Pull button closer to content
         }}>
           <Button
             minimal
@@ -434,12 +435,13 @@ const MessageItem: React.FC<MessageItemProps> = ({ message, index, onCopyMessage
             onClick={() => onCopyMessage(message.content, index)}
             className="rr-copilot-copy-button"
             style={{
-              minWidth: "24px",
-              minHeight: "24px",
+              minWidth: "20px",
+              minHeight: "20px",
               color: "#666",
               opacity: 0.7,
               backgroundColor: 'white',
-              boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
+              boxShadow: '0 1px 2px rgba(0,0,0,0.08)',
+              padding: '2px'
             }}
             title="Copy message"
           />
@@ -461,7 +463,7 @@ export const MessageList: React.FC<MessageListProps> = ({
     <div className="rr-copilot-message-list" style={{
       height: '100%',
       overflowY: 'auto',
-      padding: '16px',
+      padding: '12px 14px',
       scrollBehavior: 'smooth'
     }}>
       {/* Render Messages */}
