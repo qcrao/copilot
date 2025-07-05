@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { Button, Icon } from "@blueprintjs/core";
 import { IconNames } from "@blueprintjs/icons";
 import { ChatMessage } from '../types';
-import { MessageRenderer } from './MessageRenderer';
+import { EnhancedMessageRenderer } from './EnhancedMessageRenderer';
 import { UserService } from '../services/userService';
 
 interface MessageListProps {
@@ -414,7 +414,7 @@ const MessageItem: React.FC<MessageItemProps> = ({ message, index, onCopyMessage
           marginBottom: '3px', // Reduced spacing
           color: isUser ? '#374151' : '#374151'
         }}>
-          <MessageRenderer 
+          <EnhancedMessageRenderer 
             content={message.content} 
             isUser={isUser}
             model={message.model}

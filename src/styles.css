@@ -1060,6 +1060,49 @@ details[style*="thinking"][open] {
   margin-bottom: 8px;
 }
 
+/* Enhanced Markdown renderer spacing fixes */
+.rr-copilot-message-container .rr-copilot-enhanced-renderer p {
+  margin: 0 0 4px 0 !important;
+  line-height: 1.6 !important;
+}
+
+.rr-copilot-message-container .rr-copilot-enhanced-renderer p:last-child {
+  margin-bottom: 0 !important;
+}
+
+/* Remove extra spacing from empty paragraphs */
+.rr-copilot-message-container .rr-copilot-enhanced-renderer p:empty {
+  display: none;
+}
+
+/* Tighter list spacing */
+.rr-copilot-message-container .rr-copilot-enhanced-renderer ul,
+.rr-copilot-message-container .rr-copilot-enhanced-renderer ol {
+  margin: 4px 0 !important;
+  padding-left: 20px !important;
+}
+
+.rr-copilot-message-container .rr-copilot-enhanced-renderer li {
+  margin: 1px 0 !important;
+}
+
+/* Tighter heading spacing */
+.rr-copilot-message-container .rr-copilot-enhanced-renderer h1,
+.rr-copilot-message-container .rr-copilot-enhanced-renderer h2,
+.rr-copilot-message-container .rr-copilot-enhanced-renderer h3,
+.rr-copilot-message-container .rr-copilot-enhanced-renderer h4,
+.rr-copilot-message-container .rr-copilot-enhanced-renderer h5,
+.rr-copilot-message-container .rr-copilot-enhanced-renderer h6 {
+  margin: 8px 0 4px 0 !important;
+}
+
+/* Tighter blockquote spacing */
+.rr-copilot-message-container .rr-copilot-enhanced-renderer blockquote {
+  margin: 4px 0 !important;
+  padding-left: 12px !important;
+  border-left: 3px solid #ddd !important;
+}
+
 /* Invisible resize handles for 8-direction window resizing */
 .rr-copilot-resize-handle {
   position: absolute;

@@ -17,9 +17,17 @@
     "@tiptap/pm": "^2.23.0",
     "@tiptap/react": "^2.23.0",
     "@tiptap/starter-kit": "^2.23.0",
+    "@types/react-syntax-highlighter": "^15.5.13",
     "react": "^18.3.0",
     "react-dom": "^18.3.0",
-    "react-select": "^5.10.1"
+    "react-markdown": "^10.1.0",
+    "react-select": "^5.10.1",
+    "react-syntax-highlighter": "^15.6.1",
+    "rehype-highlight": "^7.0.2",
+    "rehype-katex": "^7.0.1",
+    "remark-gfm": "^4.0.1",
+    "remark-math": "^6.0.0",
+    "unist-util-visit": "^5.0.0"
   },
   "devDependencies": {
     "@types/bun": "latest",
