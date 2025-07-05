@@ -154,8 +154,10 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
 
     setState((prev) => {
       const updatedMessages = [...prev.messages, newMessage];
-      // Trigger auto-save when new message is added
-      saveConversationDebounced(updatedMessages);
+      // Defer auto-save to avoid render blocking
+      requestAnimationFrame(() => {
+        saveConversationDebounced(updatedMessages);
+      });
       return {
         ...prev,
         messages: updatedMessages,
@@ -184,6 +186,7 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
         // Get model-specific token limit
         const currentModel = multiProviderSettings.currentModel;
         const provider = await AIService.getProviderForModel(currentModel);
+        console.log(`DEBUG: Model "${currentModel}" detected provider:`, provider?.provider?.id || 'null');
         const maxTokens = RoamService.getModelTokenLimit(
           provider?.provider?.id || 'openai', 
           currentModel
@@ -267,11 +270,14 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
         contextString
       );
 
+      const finalProvider = provider?.provider?.id || 'ollama';
+      console.log(`DEBUG: Saving message with provider: "${finalProvider}" for model: "${currentModel}"`);
+      
       addMessage({
         role: "assistant",
         content: response,
         model: currentModel,
-        modelProvider: provider?.provider?.id,
+        modelProvider: finalProvider,
       });
     } catch (error: any) {
       addMessage({
@@ -819,10 +825,17 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
                 onCopyMessage={handleCopyMessage}
                 copiedMessageIndex={copiedMessageIndex}
                 currentModel={multiProviderSettings.currentModel}
-                currentProvider={AI_PROVIDERS.find(p => 
-                  p.models.includes(multiProviderSettings.currentModel) || 
-                  p.id === 'ollama'
-                )?.id}
+                currentProvider={(() => {
+                  // First check if the model is in any provider's static models list
+                  const staticProvider = AI_PROVIDERS.find(p => 
+                    p.models.includes(multiProviderSettings.currentModel)
+                  );
+                  if (staticProvider) {
+                    return staticProvider.id;
+                  }
+                  // If not found in static models, assume it's an Ollama model
+                  return 'ollama';
+                })()}
               />
             )}
           </div>

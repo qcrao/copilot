@@ -5,6 +5,7 @@ import { IconNames } from "@blueprintjs/icons";
 import { ChatMessage } from '../types';
 import { EnhancedMessageRenderer } from './EnhancedMessageRenderer';
 import { UserService } from '../services/userService';
+import { getModelDisplayInfo } from '../utils/iconUtils';
 
 interface MessageListProps {
   messages: ChatMessage[];
@@ -22,138 +23,7 @@ interface MessageItemProps {
   copiedMessageIndex: number | null;
 }
 
-// Get model display info
-const getModelDisplayInfo = (model?: string, provider?: string) => {
-  if (!model) {
-    return { 
-      iconUrl: null,
-      fallbackIcon: '🤖', 
-      name: 'AI Assistant', 
-      color: '#666',
-      isLocal: false,
-      blueprintIcon: null
-    };
-  }
-
-  // Check if it's a local model (Ollama)
-  const isLocal = provider === 'ollama';
-  
-  // Normalize model name for comparison
-  const normalizedModel = model.toLowerCase();
-  
-  if (isLocal) {
-    // For local models, use home icon from BlueprintJS
-    return {
-      iconUrl: null,
-      fallbackIcon: '🏠',
-      name: model,
-      color: '#2E7D32',
-      isLocal: true,
-      blueprintIcon: IconNames.HOME
-    };
-  }
-  
-  if (normalizedModel.includes('gpt-4o')) {
-    return { 
-      iconUrl: 'https://upload.wikimedia.org/wikipedia/commons/0/04/ChatGPT_logo.svg', 
-      fallbackIcon: '🤖', 
-      name: 'GPT-4o', 
-      color: '#10A37F',
-      isLocal: false,
-      blueprintIcon: null
-    };
-  }
-  if (normalizedModel.includes('gpt-4')) {
-    return { 
-      iconUrl: 'https://upload.wikimedia.org/wikipedia/commons/0/04/ChatGPT_logo.svg', 
-      fallbackIcon: '🤖', 
-      name: 'GPT-4', 
-      color: '#10A37F',
-      isLocal: false,
-      blueprintIcon: null
-    };
-  }
-  if (normalizedModel.includes('gpt-3.5')) {
-    return { 
-      iconUrl: 'https://upload.wikimedia.org/wikipedia/commons/0/04/ChatGPT_logo.svg', 
-      fallbackIcon: '🤖', 
-      name: 'GPT-3.5', 
-      color: '#10A37F',
-      isLocal: false,
-      blueprintIcon: null
-    };
-  }
-  if (normalizedModel.includes('claude-3.5-haiku')) {
-    return { 
-      iconUrl: 'https://www.anthropic.com/images/icons/claude-icon.svg', 
-      fallbackIcon: '🧠', 
-      name: 'Claude 3.5 Haiku', 
-      color: '#CC785C',
-      isLocal: false,
-      blueprintIcon: null
-    };
-  }
-  if (normalizedModel.includes('claude-3-haiku')) {
-    return { 
-      iconUrl: 'https://www.anthropic.com/images/icons/claude-icon.svg', 
-      fallbackIcon: '🧠', 
-      name: 'Claude 3 Haiku', 
-      color: '#CC785C',
-      isLocal: false,
-      blueprintIcon: null
-    };
-  }
-  if (normalizedModel.includes('claude')) {
-    return { 
-      iconUrl: 'https://www.anthropic.com/images/icons/claude-icon.svg', 
-      fallbackIcon: '🧠', 
-      name: 'Claude', 
-      color: '#CC785C',
-      isLocal: false,
-      blueprintIcon: null
-    };
-  }
-  if (normalizedModel.includes('llama')) {
-    return { 
-      iconUrl: 'https://llama.meta.com/llama-logo.png', 
-      fallbackIcon: '⚡', 
-      name: 'Llama', 
-      color: '#FF6B6B',
-      isLocal: false,
-      blueprintIcon: null
-    };
-  }
-  if (normalizedModel.includes('gemma')) {
-    return { 
-      iconUrl: 'https://www.gstatic.com/lamda/images/gemini_sparkle_red_4ed1cbfcbc6c9e84c31b987da73fc4168e45e803.svg', 
-      fallbackIcon: '💎', 
-      name: 'Gemma', 
-      color: '#4285F4',
-      isLocal: false,
-      blueprintIcon: null
-    };
-  }
-  if (normalizedModel.includes('grok')) {
-    return { 
-      iconUrl: 'https://x.ai/favicon.ico', 
-      fallbackIcon: '🚀', 
-      name: 'Grok', 
-      color: '#1D9BF0',
-      isLocal: false,
-      blueprintIcon: null
-    };
-  }
-
-  // Default for unknown models
-  return { 
-    iconUrl: null,
-    fallbackIcon: '🤖', 
-    name: model, 
-    color: '#666',
-    isLocal: false,
-    blueprintIcon: null
-  };
-};
+// Note: getModelDisplayInfo is now imported from iconUtils
 
 // Loading Indicator Component
 const LoadingIndicator: React.FC<{ currentModel?: string; currentProvider?: string }> = ({ 
@@ -220,13 +90,13 @@ const LoadingIndicator: React.FC<{ currentModel?: string; currentProvider?: stri
         }}>
           {loadingModelInfo?.name || 'AI Assistant'}
         </div>
-        {currentModel && (
+        {currentProvider && (
           <div style={{
             fontSize: '11px',
             color: '#666',
             marginTop: '1px'
           }}>
-            {currentModel}
+            {currentProvider}
           </div>
         )}
       </div>
@@ -382,7 +252,7 @@ const MessageItem: React.FC<MessageItemProps> = ({ message, index, onCopyMessage
               color: '#666',
               marginTop: '1px'
             }}>
-              {message.model}
+              {message.modelProvider || 'ollama'}
             </div>
           )}
         </div>

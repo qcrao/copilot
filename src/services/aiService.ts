@@ -23,7 +23,7 @@ export class AIService {
       }
     }
 
-    // If not found in static models, check if it's an Ollama dynamic model
+    // If not found in static models, assume it's an Ollama dynamic model
     const ollamaProvider = AI_PROVIDERS.find(p => p.id === "ollama");
     if (ollamaProvider && ollamaProvider.supportsDynamicModels) {
       try {
@@ -34,6 +34,11 @@ export class AIService {
       } catch (error) {
         console.log("Failed to check Ollama dynamic models:", error);
       }
+      
+      // If we can't verify with Ollama API, but it's not in static models, 
+      // assume it's a local Ollama model
+      console.log(`Assuming model "${model}" is a local Ollama model`);
+      return { provider: ollamaProvider, apiKey: "" };
     }
 
     return null;

@@ -18,7 +18,9 @@
       "WebFetch(domain:openai.com)",
       "WebFetch(domain:groq.com)",
       "Bash(npx eslint:*)",
-      "Bash(true)"
+      "Bash(true)",
+      "Bash(mkdir:*)",
+      "Bash(curl:*)"
     ],
     "deny": []
   }
