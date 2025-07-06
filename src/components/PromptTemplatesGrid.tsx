@@ -47,8 +47,6 @@ export const PromptTemplatesGrid: React.FC<PromptTemplatesGridProps> = ({
     template: PromptTemplate,
     variables: Record<string, any>
   ) => {
-    setState((prev) => ({ ...prev, isProcessing: true }));
-
     try {
       let prompt = template.prompt;
 
@@ -88,17 +86,15 @@ export const PromptTemplatesGrid: React.FC<PromptTemplatesGridProps> = ({
       // Send the processed prompt to populate input (not auto-send)
       onPromptSelect(prompt);
 
-      // Close modal if open
-      setState((prev) => ({
-        ...prev,
-        isModalOpen: false,
-        selectedTemplate: null,
-        variableValues: {},
-        isProcessing: false,
-      }));
+      // Only close modal if it was actually open (don't reset other state)
+      if (state.isModalOpen) {
+        setState((prev) => ({
+          ...prev,
+          isModalOpen: false,
+        }));
+      }
     } catch (error) {
       console.error("Error processing template:", error);
-      setState((prev) => ({ ...prev, isProcessing: false }));
     }
   };
 

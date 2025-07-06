@@ -20,7 +20,8 @@
       "Bash(npx eslint:*)",
       "Bash(true)",
       "Bash(mkdir:*)",
-      "Bash(curl:*)"
+      "Bash(curl:*)",
+      "Bash(ls:*)"
     ],
     "deny": []
   }

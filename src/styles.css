@@ -1103,6 +1103,36 @@ details[style*="thinking"][open] {
   border-left: 3px solid #ddd !important;
 }
 
+/* Clean code block styling */
+.rr-copilot-message-container .rr-copilot-enhanced-renderer pre {
+  background-color: #f6f8fa !important;
+  border: 1px solid #d1d9e0 !important;
+  border-radius: 8px !important;
+  font-family: SFMono-Regular, "SF Mono", Monaco, Inconsolata, "Roboto Mono", Consolas, "Droid Sans Mono", monospace !important;
+  font-size: 13px !important;
+  line-height: 1.45 !important;
+  margin: 12px 0 !important;
+  overflow: auto !important;
+  padding: 16px !important;
+}
+
+.rr-copilot-message-container .rr-copilot-enhanced-renderer code {
+  background-color: #f6f8fa !important;
+  border: 1px solid #d1d9e0 !important;
+  border-radius: 3px !important;
+  font-family: SFMono-Regular, "SF Mono", Monaco, Inconsolata, "Roboto Mono", Consolas, "Droid Sans Mono", monospace !important;
+  font-size: 13px !important;
+  padding: 2px 4px !important;
+}
+
+/* Override highlight.js styles for cleaner appearance */
+.rr-copilot-message-container .rr-copilot-enhanced-renderer pre code {
+  background: transparent !important;
+  border: none !important;
+  padding: 0 !important;
+  color: #24292f !important;
+}
+
 /* Invisible resize handles for 8-direction window resizing */
 .rr-copilot-resize-handle {
   position: absolute;

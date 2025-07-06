@@ -134,15 +134,15 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   const [lastInitializedValue, setLastInitializedValue] = useState<string>("");
 
   useEffect(() => {
-    if (editor && controlledValue && controlledValue !== lastInitializedValue) {
-      // Only reinitialize if the controlled value is different from what we last initialized
+    if (editor && controlledValue !== undefined) {
+      // Always update if controlled value is different from current editor content
       const currentSerializedContent = serializeWithReferences(editor);
       if (currentSerializedContent !== controlledValue) {
         initializeWithReferences(controlledValue);
         setLastInitializedValue(controlledValue);
       }
     }
-  }, [editor, controlledValue, lastInitializedValue]);
+  }, [editor, controlledValue]);
 
   // Get all available models from providers with API keys
   useEffect(() => {

@@ -18,7 +18,16 @@ export class PromptBuilder {
    */
   static async buildPrompt(editorJSON: any, maxTokens: number = 6000): Promise<PromptBuildResult> {
     try {
+      console.log('PROMPT_BUILDER_DEBUG: Starting buildPrompt with editor JSON:', JSON.stringify(editorJSON, null, 2));
+      
       const result = await this.processNode(editorJSON);
+      
+      console.log('PROMPT_BUILDER_DEBUG: Processing complete:', {
+        originalLength: editorJSON ? JSON.stringify(editorJSON).length : 0,
+        expandedTextLength: result.text.length,
+        referencesExpanded: result.referencesExpanded,
+        expandedText: result.text.substring(0, 200) + '...'
+      });
       
       const metadata = {
         referencesExpanded: result.referencesExpanded,
@@ -31,14 +40,20 @@ export class PromptBuilder {
       if (metadata.totalTokensEstimate > maxTokens) {
         finalText = this.truncatePrompt(result.text, maxTokens);
         metadata.truncated = true;
+        console.log('PROMPT_BUILDER_DEBUG: Prompt truncated due to token limit');
       }
+
+      console.log('PROMPT_BUILDER_DEBUG: Final result:', {
+        finalTextLength: finalText.length,
+        metadata
+      });
 
       return {
         text: finalText,
         metadata
       };
     } catch (error) {
-      console.error('Error building prompt:', error);
+      console.error('PROMPT_BUILDER_DEBUG: Error building prompt:', error);
       return {
         text: this.fallbackTextExtraction(editorJSON),
         metadata: {
@@ -59,14 +74,19 @@ export class PromptBuilder {
     let text = '';
     let referencesExpanded = 0;
 
+    console.log('PROMPT_BUILDER_DEBUG: Processing node:', { type: node.type, attrs: node.attrs });
+
     // Handle text nodes
     if (node.type === 'text') {
+      console.log('PROMPT_BUILDER_DEBUG: Text node:', node.text);
       return { text: node.text || '', referencesExpanded: 0 };
     }
 
     // Handle reference chips - expand to full content
     if (node.type === 'referenceChip') {
+      console.log('PROMPT_BUILDER_DEBUG: Found reference chip, expanding:', node.attrs);
       const expanded = await this.expandReferenceChip(node);
+      console.log('PROMPT_BUILDER_DEBUG: Reference chip expanded to:', expanded.substring(0, 100) + '...');
       return {
         text: expanded,
         referencesExpanded: 1
@@ -126,15 +146,28 @@ export class PromptBuilder {
    */
   private static async expandReferenceChip(chipNode: any): Promise<string> {
     const uid = chipNode.attrs?.uid;
-    if (!uid) return `((${uid || 'unknown'}))`;
+    console.log('EXPAND_CHIP_DEBUG: Starting expansion for UID:', uid);
+    
+    if (!uid) {
+      console.warn('EXPAND_CHIP_DEBUG: No UID found in chip node:', chipNode);
+      return `((${uid || 'unknown'}))`;
+    }
 
     try {
-      console.log('Expanding reference chip:', uid);
-
+      console.log('EXPAND_CHIP_DEBUG: Querying block data for UID:', uid);
       const blockData = await RoamQuery.getBlock(uid);
+      
       if (!blockData) {
+        console.warn('EXPAND_CHIP_DEBUG: Block not found for UID:', uid);
         return `((${uid})) [Block not found]`;
       }
+
+      console.log('EXPAND_CHIP_DEBUG: Block data retrieved:', {
+        uid: blockData.uid,
+        stringLength: blockData.string?.length || 0,
+        childrenCount: blockData.children?.length || 0,
+        referencesCount: blockData.references?.length || 0
+      });
 
       let expandedContent = `\n### 引用块 ((${uid}))\n`;
       
@@ -143,11 +176,13 @@ export class PromptBuilder {
       
       // Add children if any (with indentation)
       if (blockData.children && blockData.children.length > 0) {
+        console.log('EXPAND_CHIP_DEBUG: Adding children blocks');
         expandedContent += this.formatBlocksForExpansion(blockData.children, 1);
       }
 
       // Add referenced pages if any
       if (blockData.references && blockData.references.length > 0) {
+        console.log('EXPAND_CHIP_DEBUG: Adding referenced pages');
         expandedContent += '\n**Referenced Pages:**\n';
         for (const page of blockData.references) {
           expandedContent += `\n**Page: ${page.title}**\n`;
@@ -159,11 +194,14 @@ export class PromptBuilder {
       
       expandedContent += '\n';
       
-      console.log('Expanded content:', expandedContent.substring(0, 200) + '...');
+      console.log('EXPAND_CHIP_DEBUG: Final expanded content:', {
+        length: expandedContent.length,
+        preview: expandedContent.substring(0, 200) + '...'
+      });
       
       return expandedContent;
     } catch (error) {
-      console.error('Error expanding reference chip:', error);
+      console.error('EXPAND_CHIP_DEBUG: Error expanding reference chip:', error);
       return `((${uid})) [Error loading content]`;
     }
   }

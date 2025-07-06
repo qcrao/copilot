@@ -10,7 +10,6 @@ import { ConversationService } from "../services/conversationService";
 import { aiSettings, multiProviderSettings } from "../settings";
 import { AI_PROVIDERS } from "../types";
 import { ChatInput } from "./ChatInput";
-import { MessageRenderer } from "./MessageRenderer";
 import { ConversationList } from "./ConversationList";
 import { PromptTemplatesGrid } from "./PromptTemplatesGrid";
 import { MessageList } from "./MessageList";
@@ -39,6 +38,7 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
   const [showConversationList, setShowConversationList] = useState(false);
   const [currentConversationId, setCurrentConversationId] = useState<string | null>(null);
   const [inputValue, setInputValue] = useState("");
+  const [showTemplates, setShowTemplates] = useState(false);
   const [dateNotesCache, setDateNotesCache] = useState<{[date: string]: string}>({});
   const [windowPosition, setWindowPosition] = useState<{top: number, left: number} | null>(null);
   const [windowSize, setWindowSize] = useState<{width: number, height: number}>({
@@ -372,7 +372,8 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
       messages: []
     }));
     setCurrentConversationId(null);
-    console.log("Started new conversation");
+    setInputValue(""); // Clear input value for new conversation
+    setDateNotesCache({}); // Clear date notes cache
   };
 
   const toggleConversationList = () => {
@@ -398,8 +399,13 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
   };
 
   const handlePromptSelect = (prompt: string) => {
-    // Populate the input with the selected prompt
     setInputValue(prompt);
+    
+    // Only hide templates if we're in an existing conversation (has messages)
+    // Keep templates visible for new conversations (no messages)
+    if (state.messages.length > 0) {
+      setShowTemplates(false);
+    }
   };
 
   const handleDateSelect = (date: string, notes: string) => {
@@ -814,17 +820,39 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
           }}
         >
           <div style={{ flex: 1, overflow: "hidden", position: "relative" }}>
-            {state.messages.length === 0 ? (
-              <div style={{ height: "100%", overflow: "auto" }}>
+            {(state.messages.length === 0 || showTemplates) ? (
+              <div style={{ height: "100%", overflow: "auto", position: "relative" }}>
+                {/* Close button for templates when in overlay mode */}
+                {state.messages.length > 0 && showTemplates && (
+                  <div style={{ 
+                    position: "absolute", 
+                    top: "8px", 
+                    right: "8px", 
+                    zIndex: 10 
+                  }}>
+                    <Button
+                      minimal
+                      small
+                      icon="cross"
+                      onClick={() => setShowTemplates(false)}
+                      title="Hide prompt templates"
+                      style={{ 
+                        backgroundColor: "rgba(255, 255, 255, 0.9)",
+                        border: "1px solid #e1e4e8"
+                      }}
+                    />
+                  </div>
+                )}
                 <PromptTemplatesGrid onPromptSelect={handlePromptSelect} />
               </div>
             ) : (
-              <MessageList
-                messages={state.messages}
-                isLoading={state.isLoading}
-                onCopyMessage={handleCopyMessage}
-                copiedMessageIndex={copiedMessageIndex}
-                currentModel={multiProviderSettings.currentModel}
+              <>
+                <MessageList
+                  messages={state.messages}
+                  isLoading={state.isLoading}
+                  onCopyMessage={handleCopyMessage}
+                  copiedMessageIndex={copiedMessageIndex}
+                  currentModel={multiProviderSettings.currentModel}
                 currentProvider={(() => {
                   // First check if the model is in any provider's static models list
                   const staticProvider = AI_PROVIDERS.find(p => 
@@ -836,7 +864,8 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
                   // If not found in static models, assume it's an Ollama model
                   return 'ollama';
                 })()}
-              />
+                />
+              </>
             )}
           </div>
 

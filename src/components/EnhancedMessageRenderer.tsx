@@ -6,6 +6,7 @@ import rehypeHighlight from 'rehype-highlight';
 
 import remarkRoamBlocks from '../utils/remarkRoamBlocks';
 import remarkRoamPages from '../utils/remarkRoamPages';
+import remarkRoamLinks from '../utils/remarkRoamLinks';
 import { RoamQuery } from '../utils/roamQuery';
 import { BLOCK_PREVIEW_LENGTH } from '../constants';
 
@@ -29,61 +30,44 @@ const BlockReference: React.FC<{
   useEffect(() => {
     const loadBlockContent = async () => {
       try {
-        // Enhanced UID validation with detailed logging
-        console.log('BLOCK_REF_DEBUG: Starting block reference load for UID:', uid);
-        console.log('BLOCK_REF_DEBUG: UID type:', typeof uid, 'length:', uid?.length);
-        
+        // Validate UID
         if (!uid || typeof uid !== 'string') {
-          console.warn('BLOCK_REF_DEBUG: UID is null, undefined, or not a string:', uid);
           setBlockContent(`Invalid block reference`);
           setIsLoading(false);
           return;
         }
 
-        // Roam UIDs are typically 9 characters but can vary
-        if (uid.length < 8 || uid.length > 15) {
-          console.warn('BLOCK_REF_DEBUG: UID length outside expected range:', uid, 'length:', uid.length);
-          setBlockContent(`Invalid block reference (${uid.substring(0, 8)}...)`);
+        // Roam UIDs are typically 9 characters but can vary from 6-20 characters
+        if (uid.length < 6 || uid.length > 20) {
+          setBlockContent(`[Invalid UID length]`);
           setIsLoading(false);
           return;
         }
 
-        // Check for common invalid UID patterns
+        // Check for common invalid UID patterns  
         if (uid.includes(' ') || uid.includes('\n') || uid.includes('\t')) {
-          console.warn('BLOCK_REF_DEBUG: UID contains whitespace:', JSON.stringify(uid));
-          setBlockContent(`Invalid block reference (${uid.substring(0, 8)}...)`);
+          setBlockContent(`[Invalid UID format]`);
           setIsLoading(false);
           return;
         }
 
-        console.log('BLOCK_REF_DEBUG: UID validation passed, querying database for:', uid);
+        // Check for valid UID characters (alphanumeric, hyphens, underscores)
+        if (!/^[a-zA-Z0-9_-]+$/.test(uid)) {
+          setBlockContent(`[Invalid UID characters]`);
+          setIsLoading(false);
+          return;
+        }
         const blockData = await RoamQuery.getBlock(uid);
         
         if (blockData) {
           const preview = RoamQuery.formatBlockPreview(blockData.string, BLOCK_PREVIEW_LENGTH);
           setBlockContent(preview);
-          console.log('BLOCK_REF_DEBUG: Block content loaded successfully:', {
-            uid: uid,
-            contentLength: blockData.string?.length || 0,
-            previewLength: preview.length,
-            preview: preview.substring(0, 50) + '...'
-          });
         } else {
-          console.warn('BLOCK_REF_DEBUG: Block not found in database:', uid);
-          console.warn('BLOCK_REF_DEBUG: This could indicate:');
-          console.warn('  1. The UID does not exist in the database');
-          console.warn('  2. The block was deleted');
-          console.warn('  3. The UID was generated incorrectly by the AI');
-          setBlockContent(`Block not found (${uid.substring(0, 8)}...)`);
+          setBlockContent(`[Block not found]`);
         }
       } catch (error) {
-        console.error('BLOCK_REF_DEBUG: Error loading block content for UID:', uid, error);
-        console.error('BLOCK_REF_DEBUG: Error details:', {
-          name: (error as Error).name,
-          message: (error as Error).message,
-          stack: (error as Error).stack
-        });
-        setBlockContent(`Error loading block (${uid.substring(0, 8)}...)`);
+        console.error('Error loading block content for UID:', uid, error);
+        setBlockContent(`[Error loading block]`);
       } finally {
         setIsLoading(false);
       }
@@ -96,68 +80,42 @@ const BlockReference: React.FC<{
     e.preventDefault();
     e.stopPropagation();
     
-    console.log('BLOCK_REF_DEBUG: Block reference clicked for UID:', uid);
-    
     // Navigate to the block in Roam
     if (uid && typeof window !== "undefined" && (window as any).roamAlphaAPI) {
       try {
         const roamAPI = (window as any).roamAlphaAPI;
-        console.log('BLOCK_REF_DEBUG: Attempting to navigate to block with Roam API');
-        
-        // Method 1: Use Roam's official navigation API
         roamAPI.ui.mainWindow.openBlock({ block: { uid: uid } });
-        console.log('BLOCK_REF_DEBUG: Successfully called roamAPI.ui.mainWindow.openBlock');
-        
       } catch (error) {
-        console.error("BLOCK_REF_DEBUG: roamAPI.ui.mainWindow.openBlock failed:", error);
         try {
-          // Method 2: Try opening in right sidebar
+          // Try opening in right sidebar
           const roamAPI = (window as any).roamAlphaAPI;
-          console.log('BLOCK_REF_DEBUG: Trying right sidebar approach');
           roamAPI.ui.rightSidebar.addWindow({
             window: { type: "block", "block-uid": uid }
           });
-          console.log('BLOCK_REF_DEBUG: Successfully called roamAPI.ui.rightSidebar.addWindow');
-          
         } catch (sidebarError) {
-          console.error("BLOCK_REF_DEBUG: Sidebar method also failed:", sidebarError);
           try {
-            // Method 3: Try direct URL navigation to the block
+            // Try direct URL navigation to the block
             const currentUrl = window.location.href;
             const roamDbMatch = currentUrl.match(/\/app\/([^\/]+)/);
             if (roamDbMatch) {
               const dbName = roamDbMatch[1];
               const blockUrl = `${window.location.origin}/app/${dbName}/page/${uid}`;
-              console.log('BLOCK_REF_DEBUG: Trying direct URL navigation to:', blockUrl);
               window.location.href = blockUrl;
-            } else {
-              console.error('BLOCK_REF_DEBUG: Could not extract database name from URL:', currentUrl);
             }
           } catch (urlError) {
-            console.error("BLOCK_REF_DEBUG: All navigation methods failed:", urlError);
-            
-            // Method 4: Final fallback - try to focus on the block if it's visible
+            // Final fallback - try to focus on the block if it's visible
             try {
               const blockElement = document.querySelector(`[data-uid="${uid}"]`);
               if (blockElement) {
-                console.log('BLOCK_REF_DEBUG: Found block element in DOM, scrolling to it');
                 blockElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
                 (blockElement as HTMLElement).focus();
-              } else {
-                console.log('BLOCK_REF_DEBUG: Block element not found in DOM');
               }
             } catch (focusError) {
-              console.error('BLOCK_REF_DEBUG: Focus method also failed:', focusError);
+              console.error('Navigation failed:', focusError);
             }
           }
         }
       }
-    } else {
-      console.error('BLOCK_REF_DEBUG: Roam API not available or UID invalid:', { 
-        uid, 
-        hasRoamAPI: !!(window as any).roamAlphaAPI,
-        roamAPIAvailable: typeof (window as any).roamAlphaAPI
-      });
     }
   };
 
@@ -197,7 +155,7 @@ const BlockReference: React.FC<{
       }}
       onClick={handleClick}
     >
-      {isLoading ? `Block ${uid.substring(0, 8)}...` : blockContent}
+{isLoading ? `[Loading block...]` : blockContent}
     </span>
   );
 };
@@ -211,54 +169,33 @@ const PageReference: React.FC<{
     e.preventDefault();
     e.stopPropagation();
     
-    console.log('PAGE_REF_DEBUG: Page reference clicked for page:', pageName);
-    
     // Navigate to the page in Roam
     if (pageName && typeof window !== "undefined" && (window as any).roamAlphaAPI) {
       try {
         const roamAPI = (window as any).roamAlphaAPI;
-        console.log('PAGE_REF_DEBUG: Attempting to navigate to page with Roam API');
-        
-        // Method 1: Try to navigate to the page directly
         roamAPI.ui.mainWindow.openPage({ page: { title: pageName } });
-        console.log('PAGE_REF_DEBUG: Successfully called roamAPI.ui.mainWindow.openPage');
-        
       } catch (error) {
-        console.error("PAGE_REF_DEBUG: roamAPI.ui.mainWindow.openPage failed:", error);
         try {
-          // Method 2: Try opening in right sidebar
+          // Try opening in right sidebar
           const roamAPI = (window as any).roamAlphaAPI;
-          console.log('PAGE_REF_DEBUG: Trying right sidebar approach');
           roamAPI.ui.rightSidebar.addWindow({
             window: { type: "page", "page-title": pageName }
           });
-          console.log('PAGE_REF_DEBUG: Successfully called roamAPI.ui.rightSidebar.addWindow');
-          
         } catch (sidebarError) {
-          console.error("PAGE_REF_DEBUG: Sidebar method also failed:", sidebarError);
           try {
-            // Method 3: Try direct URL navigation to the page
+            // Try direct URL navigation to the page
             const currentUrl = window.location.href;
             const roamDbMatch = currentUrl.match(/\/app\/([^\/]+)/);
             if (roamDbMatch) {
               const dbName = roamDbMatch[1];
               const pageUrl = `${window.location.origin}/app/${dbName}/page/${encodeURIComponent(pageName)}`;
-              console.log('PAGE_REF_DEBUG: Trying direct URL navigation to:', pageUrl);
               window.location.href = pageUrl;
-            } else {
-              console.error('PAGE_REF_DEBUG: Could not extract database name from URL:', currentUrl);
             }
           } catch (urlError) {
-            console.error("PAGE_REF_DEBUG: All navigation methods failed:", urlError);
+            console.error('Navigation failed:', urlError);
           }
         }
       }
-    } else {
-      console.error('PAGE_REF_DEBUG: Roam API not available or page name invalid:', { 
-        pageName, 
-        hasRoamAPI: !!(window as any).roamAlphaAPI,
-        roamAPIAvailable: typeof (window as any).roamAlphaAPI
-      });
     }
   };
 
@@ -325,6 +262,7 @@ export const EnhancedMessageRenderer: React.FC<EnhancedMessageRendererProps> = (
         unwrapDisallowed={true}
         remarkPlugins={[
           remarkGfm,
+          remarkRoamLinks, // Process markdown links first
           remarkRoamBlocks,
           remarkRoamPages
         ]}
@@ -332,24 +270,46 @@ export const EnhancedMessageRenderer: React.FC<EnhancedMessageRendererProps> = (
           [rehypeHighlight, { detect: true, subset: false }]
         ]}
         components={{
-          // Custom component for code blocks with syntax highlighting
+          // Custom component for code blocks with cleaner styling
           code({ className, children, ...rest }) {
             const match = /language-(\w+)/.exec(className || '');
             const isInline = !match;
+            
+            // Helper function to safely extract text content
+            const getTextContent = (children: any): string => {
+              if (typeof children === 'string') {
+                return children;
+              }
+              if (Array.isArray(children)) {
+                return children.map(child => getTextContent(child)).join('');
+              }
+              if (children && typeof children === 'object' && children.props) {
+                return getTextContent(children.props.children);
+              }
+              if (children && children.toString && typeof children.toString === 'function') {
+                const str = children.toString();
+                return str === '[object Object]' ? '' : str;
+              }
+              return '';
+            };
+            
+            const textContent = getTextContent(children);
             
             if (isInline) {
               return (
                 <code
                   style={{
-                    backgroundColor: isUser ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.1)',
+                    backgroundColor: '#f6f8fa',
+                    color: '#24292f',
                     padding: '2px 4px',
                     borderRadius: '3px',
-                    fontFamily: 'monospace',
-                    fontSize: '0.9em'
+                    fontFamily: 'SFMono-Regular, "SF Mono", Monaco, Inconsolata, "Roboto Mono", Consolas, "Droid Sans Mono", monospace',
+                    fontSize: '0.85em',
+                    border: '1px solid #d1d9e0'
                   }}
                   {...rest}
                 >
-                  {children}
+                  {textContent}
                 </code>
               );
             }
@@ -357,19 +317,21 @@ export const EnhancedMessageRenderer: React.FC<EnhancedMessageRendererProps> = (
             return (
               <pre
                 style={{
-                  backgroundColor: isUser ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.1)',
-                  padding: '12px',
-                  borderRadius: '6px',
-                  fontFamily: 'monospace',
-                  fontSize: '0.9em',
+                  backgroundColor: '#f6f8fa',
+                  color: '#24292f',
+                  padding: '16px',
+                  borderRadius: '8px',
+                  fontFamily: 'SFMono-Regular, "SF Mono", Monaco, Inconsolata, "Roboto Mono", Consolas, "Droid Sans Mono", monospace',
+                  fontSize: '0.85em',
                   overflow: 'auto',
-                  margin: '8px 0',
-                  whiteSpace: 'pre-wrap',
-                  border: `1px solid ${isUser ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.2)'}`
+                  margin: '12px 0',
+                  whiteSpace: 'pre',
+                  border: '1px solid #d1d9e0',
+                  lineHeight: '1.45'
                 }}
               >
                 <code className={className}>
-                  {String(children).replace(/\n$/, '')}
+                  {textContent.replace(/\n$/, '')}
                 </code>
               </pre>
             );
@@ -381,21 +343,11 @@ export const EnhancedMessageRenderer: React.FC<EnhancedMessageRendererProps> = (
             
             // Handle Roam block references
             if (className?.includes('roam-block-ref') && props['data-uid']) {
-              console.log('RENDERER_DEBUG: Rendering block reference component:', {
-                uid: props['data-uid'],
-                className: className,
-                isUser: isUser
-              });
               return <BlockReference uid={props['data-uid']} isUser={isUser} />;
             }
             
             // Handle Roam page references
             if (className?.includes('roam-page-ref') && props['data-page-name']) {
-              console.log('RENDERER_DEBUG: Rendering page reference component:', {
-                pageName: props['data-page-name'],
-                className: className,
-                isUser: isUser
-              });
               return <PageReference pageName={props['data-page-name']} isUser={isUser} />;
             }
 
@@ -482,37 +434,37 @@ export const EnhancedMessageRenderer: React.FC<EnhancedMessageRendererProps> = (
           // Style headings appropriately
           h1: ({ children, ...rest }) => (
             <h1 style={{ 
-              fontSize: '1.8em', 
+              fontSize: '1.4em', 
               fontWeight: 'bold', 
               color: isUser ? '#ffffff' : '#393A3D',
-              margin: '16px 0 8px 0',
+              margin: '12px 0 6px 0',
               lineHeight: '1.3'
             }} {...rest}>{children}</h1>
           ),
           h2: ({ children, ...rest }) => (
             <h2 style={{ 
-              fontSize: '1.5em', 
+              fontSize: '1.2em', 
               fontWeight: 'bold', 
               color: isUser ? '#ffffff' : '#393A3D',
-              margin: '16px 0 8px 0',
+              margin: '12px 0 6px 0',
               lineHeight: '1.3'
             }} {...rest}>{children}</h2>
           ),
           h3: ({ children, ...rest }) => (
             <h3 style={{ 
-              fontSize: '1.3em', 
+              fontSize: '1.1em', 
               fontWeight: 'bold', 
               color: isUser ? '#ffffff' : '#393A3D',
-              margin: '16px 0 8px 0',
+              margin: '12px 0 6px 0',
               lineHeight: '1.3'
             }} {...rest}>{children}</h3>
           ),
           h4: ({ children, ...rest }) => (
             <h4 style={{ 
-              fontSize: '1.1em', 
+              fontSize: '1.05em', 
               fontWeight: 'bold', 
               color: isUser ? '#ffffff' : '#393A3D',
-              margin: '16px 0 8px 0',
+              margin: '10px 0 5px 0',
               lineHeight: '1.3'
             }} {...rest}>{children}</h4>
           ),
@@ -521,7 +473,7 @@ export const EnhancedMessageRenderer: React.FC<EnhancedMessageRendererProps> = (
               fontSize: '1em', 
               fontWeight: 'bold', 
               color: isUser ? '#ffffff' : '#393A3D',
-              margin: '16px 0 8px 0',
+              margin: '10px 0 5px 0',
               lineHeight: '1.3'
             }} {...rest}>{children}</h5>
           ),
@@ -530,7 +482,7 @@ export const EnhancedMessageRenderer: React.FC<EnhancedMessageRendererProps> = (
               fontSize: '0.9em', 
               fontWeight: 'bold', 
               color: isUser ? '#ffffff' : '#393A3D',
-              margin: '16px 0 8px 0',
+              margin: '10px 0 5px 0',
               lineHeight: '1.3'
             }} {...rest}>{children}</h6>
           ),

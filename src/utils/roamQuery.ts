@@ -30,28 +30,31 @@ export class RoamQuery {
       if (!blockResult || blockResult.length === 0) {
         console.log("ROAM_QUERY_DEBUG: Block not found:", uid);
         
-        // Additional debugging: check if any similar UIDs exist
-        const similarQuery = `
-          [:find ?uid ?string
-           :where
-           [?block :block/uid ?uid]
-           [?block :block/string ?string]]
-        `;
-        
-        try {
-          const allBlocks = window.roamAlphaAPI.q(similarQuery);
-          const similarUIDs = allBlocks
-            .map(([blockUid, blockString]) => ({ uid: blockUid, string: blockString }))
-            .filter(block => block.uid.includes(uid.substring(0, 6)) || uid.includes(block.uid.substring(0, 6)))
-            .slice(0, 5);
-          
-          if (similarUIDs.length > 0) {
-            console.log("ROAM_QUERY_DEBUG: Found similar UIDs:", similarUIDs);
-          } else {
-            console.log("ROAM_QUERY_DEBUG: No similar UIDs found");
+        // Additional debugging: check if any partial matches exist (only in debug mode)
+        if (uid.length >= 6) {
+          try {
+            const partialQuery = `
+              [:find ?uid ?string
+               :where
+               [?block :block/uid ?uid]
+               [?block :block/string ?string]
+               [(clojure.string/starts-with? ?uid "${uid.substring(0, 6)}")]]
+            `;
+            
+            const partialMatches = window.roamAlphaAPI.q(partialQuery);
+            if (partialMatches && partialMatches.length > 0) {
+              console.log("ROAM_QUERY_DEBUG: Found blocks with similar UID prefix:", 
+                partialMatches.slice(0, 3).map(([blockUid, blockString]) => ({ 
+                  uid: blockUid, 
+                  preview: blockString.substring(0, 50) + '...' 
+                }))
+              );
+            } else {
+              console.log("ROAM_QUERY_DEBUG: No blocks found with similar UID prefix");
+            }
+          } catch (debugError) {
+            console.log("ROAM_QUERY_DEBUG: Could not search for partial UID matches:", debugError);
           }
-        } catch (debugError) {
-          console.log("ROAM_QUERY_DEBUG: Could not search for similar UIDs:", debugError);
         }
         
         return null;
@@ -244,19 +247,32 @@ export class RoamQuery {
       
       if (!uidList) return null;
       
-      // Parse the UID list (could be JSON array or comma-separated)
+      // Parse the UID list (could be JSON array, comma-separated, or newline-separated)
       let uids: string[] = [];
       
       try {
         // Try parsing as JSON first
         uids = JSON.parse(uidList);
       } catch {
-        // Fallback to comma-separated
-        uids = uidList.split(',').map(uid => uid.trim());
+        // Check if it's newline-separated (most common from Roam drag)
+        if (uidList.includes('\n') || uidList.includes('\r')) {
+          uids = uidList.split(/[\r\n]+/).map(uid => uid.trim()).filter(uid => uid.length > 0);
+        } else {
+          // Fallback to comma-separated
+          uids = uidList.split(',').map(uid => uid.trim()).filter(uid => uid.length > 0);
+        }
       }
       
-      // Return first UID
-      return uids.length > 0 ? uids[0] : null;
+      console.log("Parsed UIDs from drag data:", uids);
+      
+      // Return first valid UID
+      for (const uid of uids) {
+        if (uid && uid.length >= 6 && uid.length <= 20 && /^[a-zA-Z0-9_-]+$/.test(uid)) {
+          return uid;
+        }
+      }
+      
+      return null;
     } catch (error) {
       console.error("Error extracting UID from drag data:", error);
       return null;

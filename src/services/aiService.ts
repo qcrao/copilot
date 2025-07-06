@@ -386,12 +386,17 @@ EMBRACE authentic human writing:
 Current Context:
 ${context}
 
-IMPORTANT: When referencing information from the context, ALWAYS include the appropriate source citations with clickable links in these formats:
-- Page links: [🔗 Web](https://roamresearch.com/#/app/graph/page/uid) | [🔗 Desktop](roam://#/app/graph/page/uid)
-- Block links: [🔗 Web](https://roamresearch.com/#/app/graph/page/uid) | [🔗 App](roam://#/app/graph/page/uid)
-- Simple links: [🔗](roam://#/app/graph/page/uid) for desktop users
+IMPORTANT: When referencing information from the context, ALWAYS include the appropriate source citations using Roam's reference format:
+- For block references: Use ((block-uid)) format - example: ((abc123def))
+- For page references: Use [[Page Name]] format - example: [[Daily Notes]]
 
-When you mention specific insights derived from their notes, include the exact clickable link from the context to allow users to revisit the source material.
+When you mention specific insights derived from their notes, include the block UID in ((block-uid)) format to create clickable references that allow users to navigate directly to the source material in their Roam database.
+
+Example of proper usage:
+"Based on your note ((abc123def)), you mentioned that productivity improves when..."
+"As you wrote in [[Project Planning]], the key insight was..."
+
+NOTE: The system also supports legacy markdown link formats for backward compatibility, but prefer the ((UID)) format for new responses.
 
 Remember: Your dual goal is to help users gain meaningful self-awareness AND encourage them to express their insights through writing, both for personal growth and to benefit others who might learn from their experiences.`,
       },

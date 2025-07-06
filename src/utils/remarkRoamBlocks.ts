@@ -41,15 +41,38 @@ const remarkRoamBlocks: Plugin<[], Root> = () => {
         const startIndex = match.index!;
         const trimmedUid = uid.trim();
 
-        console.log('REMARK_BLOCKS_DEBUG: Found block reference:', {
-          fullMatch: fullMatch,
-          rawUid: uid,
-          trimmedUid: trimmedUid,
-          uidLength: trimmedUid.length,
-          startIndex: startIndex,
-          contextBefore: value.slice(Math.max(0, startIndex - 10), startIndex),
-          contextAfter: value.slice(startIndex + fullMatch.length, Math.min(value.length, startIndex + fullMatch.length + 10))
-        });
+
+        // Clean up UID - remove ellipsis if present and validate
+        let cleanUid = trimmedUid.replace(/\.{3,}$/, ''); // Remove trailing ellipsis
+        
+        // Validate the cleaned UID
+        if (cleanUid.length < 6 || cleanUid.length > 20) {
+          // Treat as regular text
+          if (startIndex > lastIndex) {
+            newNodes.push({
+              type: 'text',
+              value: value.slice(lastIndex, startIndex + fullMatch.length)
+            });
+          }
+          lastIndex = startIndex + fullMatch.length;
+          continue;
+        }
+
+        // Check for valid UID characters (after cleaning)
+        if (!/^[a-zA-Z0-9_-]+$/.test(cleanUid)) {
+          // Treat as regular text
+          if (startIndex > lastIndex) {
+            newNodes.push({
+              type: 'text',
+              value: value.slice(lastIndex, startIndex + fullMatch.length)
+            });
+          }
+          lastIndex = startIndex + fullMatch.length;
+          continue;
+        }
+
+        // Use the cleaned UID for the node
+        const finalUid = cleanUid;
 
         // Add text before the match
         if (startIndex > lastIndex) {
@@ -62,12 +85,12 @@ const remarkRoamBlocks: Plugin<[], Root> = () => {
         // Add the Roam block reference node
         newNodes.push({
           type: 'roamBlock',
-          uid: trimmedUid,
+          uid: finalUid,
           data: {
             hName: 'span',
             hProperties: {
               className: ['roam-block-ref'],
-              'data-uid': trimmedUid
+              'data-uid': finalUid
             }
           }
         } as RoamBlockNode);

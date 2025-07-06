@@ -943,19 +943,20 @@ export class RoamService {
     for (const block of blocks) {
       if (block.string.trim()) {
         let blockReference = `((${block.uid}))`;
+        let clickableLink = "";
 
         if (graphName) {
           const blockUrls = this.generateBlockUrl(block.uid, graphName);
           if (blockUrls) {
             if (isDesktop) {
-              blockReference = `[🔗](${blockUrls.desktopUrl})`;
+              clickableLink = ` [🔗](${blockUrls.desktopUrl})`;
             } else {
-              blockReference = `[🔗 Web](${blockUrls.webUrl}) | [🔗 App](${blockUrls.desktopUrl})`;
+              clickableLink = ` [🔗 Web](${blockUrls.webUrl}) | [🔗 App](${blockUrls.desktopUrl})`;
             }
           }
         }
 
-        formatted += `${indent}- ${block.string} ${blockReference}\n`;
+        formatted += `${indent}- ${block.string} ${blockReference}${clickableLink}\n`;
 
         if (block.children && block.children.length > 0) {
           formatted += this.formatBlocksForAIWithClickableReferences(
