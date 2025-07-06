@@ -763,6 +763,13 @@ details[style*="thinking"][open] {
   box-shadow: 0 0 0 2px rgba(57, 58, 61, 0.1);
 }
 
+/* Fix search icon vertical alignment in conversation list */
+.rr-copilot-conversation-list-panel .bp3-input-group .bp3-icon {
+  top: 50% !important;
+  transform: translateY(-50%) !important;
+  margin-top: 0 !important;
+}
+
 /* Conversation item animations */
 .rr-copilot-conversation-item .bp3-button {
   transition: all 0.2s ease;

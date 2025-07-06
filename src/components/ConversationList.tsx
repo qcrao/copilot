@@ -232,8 +232,8 @@ export const ConversationList: React.FC<ConversationListProps> = ({
         style={{
           flex: 1,
           overflowY: "auto",
-          padding: "0 12px",
-          paddingBottom: "12px",
+          padding: "0 8px",
+          paddingBottom: "8px",
         }}
       >
         {state.isLoading ? (

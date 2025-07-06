@@ -72,11 +72,11 @@ export const ConversationItem: React.FC<ConversationItemProps> = ({
       onClick={onClick}
       style={{
         padding: "8px 12px",
-        borderRadius: "6px",
+        borderRadius: "8px",
         cursor: "pointer",
-        backgroundColor: isActive ? "#f5f5f5" : "transparent",
-        borderLeft: isActive ? "3px solid #393a3d" : "3px solid transparent",
-        margin: "2px 0",
+        backgroundColor: isActive ? "#f0f4ff" : "transparent",
+        border: isActive ? "1px solid #e0ebff" : "1px solid transparent",
+        margin: "1px 0",
         transition: "all 0.2s ease",
         position: "relative",
         display: "flex",
@@ -85,12 +85,24 @@ export const ConversationItem: React.FC<ConversationItemProps> = ({
       }}
       onMouseEnter={(e) => {
         if (!isActive) {
-          e.currentTarget.style.backgroundColor = "#f5f5f5";
+          e.currentTarget.style.backgroundColor = "#f9fafb";
+          e.currentTarget.style.border = "1px solid #f3f4f6";
+        }
+        // Show delete button on hover
+        const deleteBtn = e.currentTarget.querySelector('button[title="Delete conversation"]') as HTMLElement;
+        if (deleteBtn) {
+          deleteBtn.style.opacity = "0.7";
         }
       }}
       onMouseLeave={(e) => {
         if (!isActive) {
           e.currentTarget.style.backgroundColor = "transparent";
+          e.currentTarget.style.border = "1px solid transparent";
+        }
+        // Hide delete button when not hovering
+        const deleteBtn = e.currentTarget.querySelector('button[title="Delete conversation"]') as HTMLElement;
+        if (deleteBtn) {
+          deleteBtn.style.opacity = "0.0";
         }
       }}
     >
@@ -101,44 +113,17 @@ export const ConversationItem: React.FC<ConversationItemProps> = ({
             style={{
               fontSize: "13px",
               fontWeight: isActive ? "600" : "500",
-              color: "#333",
-              lineHeight: "1.2",
-              marginBottom: "2px",
+              color: "#1f2937",
+              lineHeight: "1.3",
               overflow: "hidden",
               textOverflow: "ellipsis",
-              display: "-webkit-box",
-              WebkitLineClamp: 1,
-              WebkitBoxOrient: "vertical"
+              whiteSpace: "nowrap"
             }}
             title={conversation.title}
           >
             {conversation.title}
           </div>
           
-          <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-            <span
-              style={{
-                fontSize: "10px",
-                color: "#666",
-                fontWeight: "400"
-              }}
-            >
-              {formatDate(conversation.lastUpdated)}
-            </span>
-            
-            <span
-              style={{
-                fontSize: "10px",
-                color: "#888",
-                backgroundColor: "#f0f0f0",
-                padding: "1px 4px",
-                borderRadius: "8px",
-                fontWeight: "400"
-              }}
-            >
-              {conversation.messageCount} msgs
-            </span>
-          </div>
         </div>
 
         {/* Delete button */}
@@ -149,19 +134,20 @@ export const ConversationItem: React.FC<ConversationItemProps> = ({
             icon="trash"
             onClick={handleDeleteClick}
             style={{
-              minWidth: "24px",
-              minHeight: "24px",
-              color: "#999",
-              opacity: 0.7,
-              marginLeft: "8px"
+              minWidth: "20px",
+              minHeight: "20px",
+              color: "#9ca3af",
+              opacity: 0.0,
+              marginLeft: "8px",
+              transition: "opacity 0.2s ease"
             }}
             onMouseEnter={(e) => {
               e.currentTarget.style.opacity = "1";
               e.currentTarget.style.color = "#f44336";
             }}
             onMouseLeave={(e) => {
-              e.currentTarget.style.opacity = "0.7";
-              e.currentTarget.style.color = "#999";
+              e.currentTarget.style.opacity = "0.0";
+              e.currentTarget.style.color = "#9ca3af";
             }}
             title="Delete conversation"
           />
@@ -181,8 +167,8 @@ export const ConversationItem: React.FC<ConversationItemProps> = ({
               onClick={handleConfirmDelete}
               disabled={isDeleting}
               style={{
-                minWidth: "24px",
-                minHeight: "24px",
+                minWidth: "20px",
+                minHeight: "20px",
                 color: "#f44336"
               }}
               title="Confirm delete"
@@ -194,8 +180,8 @@ export const ConversationItem: React.FC<ConversationItemProps> = ({
               onClick={handleCancelDelete}
               disabled={isDeleting}
               style={{
-                minWidth: "24px",
-                minHeight: "24px",
+                minWidth: "20px",
+                minHeight: "20px",
                 color: "#666"
               }}
               title="Cancel"
