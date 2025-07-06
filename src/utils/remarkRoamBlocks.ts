@@ -39,6 +39,17 @@ const remarkRoamBlocks: Plugin<[], Root> = () => {
       while ((match = blockRefRegex.exec(value)) !== null) {
         const [fullMatch, uid] = match;
         const startIndex = match.index!;
+        const trimmedUid = uid.trim();
+
+        console.log('REMARK_BLOCKS_DEBUG: Found block reference:', {
+          fullMatch: fullMatch,
+          rawUid: uid,
+          trimmedUid: trimmedUid,
+          uidLength: trimmedUid.length,
+          startIndex: startIndex,
+          contextBefore: value.slice(Math.max(0, startIndex - 10), startIndex),
+          contextAfter: value.slice(startIndex + fullMatch.length, Math.min(value.length, startIndex + fullMatch.length + 10))
+        });
 
         // Add text before the match
         if (startIndex > lastIndex) {
@@ -51,12 +62,12 @@ const remarkRoamBlocks: Plugin<[], Root> = () => {
         // Add the Roam block reference node
         newNodes.push({
           type: 'roamBlock',
-          uid: uid.trim(),
+          uid: trimmedUid,
           data: {
             hName: 'span',
             hProperties: {
               className: ['roam-block-ref'],
-              'data-uid': uid.trim()
+              'data-uid': trimmedUid
             }
           }
         } as RoamBlockNode);

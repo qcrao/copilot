@@ -12,7 +12,8 @@ export class RoamQuery {
    */
   static async getBlock(uid: string): Promise<BlockWithReferences | null> {
     try {
-      console.log("Getting block:", uid);
+      console.log("ROAM_QUERY_DEBUG: Getting block:", uid);
+      console.log("ROAM_QUERY_DEBUG: UID sanitized:", JSON.stringify(uid));
 
       // Query for the block itself
       const blockQuery = `
@@ -22,9 +23,37 @@ export class RoamQuery {
          [?block :block/string ?string]]
       `;
 
+      console.log("ROAM_QUERY_DEBUG: Executing query:", blockQuery);
       const blockResult = window.roamAlphaAPI.q(blockQuery);
+      console.log("ROAM_QUERY_DEBUG: Query result:", blockResult);
+      
       if (!blockResult || blockResult.length === 0) {
-        console.log("Block not found:", uid);
+        console.log("ROAM_QUERY_DEBUG: Block not found:", uid);
+        
+        // Additional debugging: check if any similar UIDs exist
+        const similarQuery = `
+          [:find ?uid ?string
+           :where
+           [?block :block/uid ?uid]
+           [?block :block/string ?string]]
+        `;
+        
+        try {
+          const allBlocks = window.roamAlphaAPI.q(similarQuery);
+          const similarUIDs = allBlocks
+            .map(([blockUid, blockString]) => ({ uid: blockUid, string: blockString }))
+            .filter(block => block.uid.includes(uid.substring(0, 6)) || uid.includes(block.uid.substring(0, 6)))
+            .slice(0, 5);
+          
+          if (similarUIDs.length > 0) {
+            console.log("ROAM_QUERY_DEBUG: Found similar UIDs:", similarUIDs);
+          } else {
+            console.log("ROAM_QUERY_DEBUG: No similar UIDs found");
+          }
+        } catch (debugError) {
+          console.log("ROAM_QUERY_DEBUG: Could not search for similar UIDs:", debugError);
+        }
+        
         return null;
       }
 

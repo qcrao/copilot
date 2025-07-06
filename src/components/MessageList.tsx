@@ -33,7 +33,7 @@ const LoadingIndicator: React.FC<{ currentModel?: string; currentProvider?: stri
   const loadingModelInfo = getModelDisplayInfo(currentModel, currentProvider);
   
   return (
-    <div style={{ marginBottom: '8px' }}>
+    <div style={{ marginBottom: '6px' }}>
       {/* Loading Header */}
       <div style={{
         display: 'flex',
@@ -83,22 +83,29 @@ const LoadingIndicator: React.FC<{ currentModel?: string; currentProvider?: stri
             </span>
           )}
         </div>
-        <div style={{
-          fontWeight: '600',
-          fontSize: '13px',
-          color: '#333'
-        }}>
-          {loadingModelInfo?.name || 'AI Assistant'}
-        </div>
-        {currentProvider && (
+
+        {/* Model Name and Provider - Single Line */}
+        <div style={{ flex: 1 }}>
           <div style={{
-            fontSize: '11px',
-            color: '#666',
-            marginTop: '1px'
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px'
           }}>
-            {currentProvider}
+            <span style={{
+              fontWeight: '600',
+              fontSize: '13px',
+              color: '#333'
+            }}>
+              {loadingModelInfo?.name || 'AI Assistant'}
+            </span>
+            <span style={{
+              fontSize: '11px',
+              color: '#666'
+            }}>
+              {currentProvider}
+            </span>
           </div>
-        )}
+        </div>
       </div>
 
       {/* Loading Content */}
@@ -237,24 +244,29 @@ const MessageItem: React.FC<MessageItemProps> = ({ message, index, onCopyMessage
           )}
         </div>
 
-        {/* Name and Model */}
+        {/* Model Name and Provider - Single Line */}
         <div style={{ flex: 1 }}>
           <div style={{
-            fontWeight: '600',
-            fontSize: '13px',
-            color: '#333'
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px'
           }}>
-            {isUser ? 'You' : (modelInfo?.name || 'AI Assistant')}
-          </div>
-          {!isUser && message.model && (
-            <div style={{
-              fontSize: '11px',
-              color: '#666',
-              marginTop: '1px'
+            <span style={{
+              fontWeight: '600',
+              fontSize: '13px',
+              color: '#333'
             }}>
-              {message.modelProvider || 'ollama'}
-            </div>
-          )}
+              {isUser ? 'You' : (modelInfo?.name || 'AI Assistant')}
+            </span>
+            {!isUser && message.modelProvider && (
+              <span style={{
+                fontSize: '11px',
+                color: '#666'
+              }}>
+                {message.modelProvider}
+              </span>
+            )}
+          </div>
         </div>
 
         {/* Timestamp */}

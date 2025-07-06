@@ -29,16 +29,61 @@ const BlockReference: React.FC<{
   useEffect(() => {
     const loadBlockContent = async () => {
       try {
+        // Enhanced UID validation with detailed logging
+        console.log('BLOCK_REF_DEBUG: Starting block reference load for UID:', uid);
+        console.log('BLOCK_REF_DEBUG: UID type:', typeof uid, 'length:', uid?.length);
+        
+        if (!uid || typeof uid !== 'string') {
+          console.warn('BLOCK_REF_DEBUG: UID is null, undefined, or not a string:', uid);
+          setBlockContent(`Invalid block reference`);
+          setIsLoading(false);
+          return;
+        }
+
+        // Roam UIDs are typically 9 characters but can vary
+        if (uid.length < 8 || uid.length > 15) {
+          console.warn('BLOCK_REF_DEBUG: UID length outside expected range:', uid, 'length:', uid.length);
+          setBlockContent(`Invalid block reference (${uid.substring(0, 8)}...)`);
+          setIsLoading(false);
+          return;
+        }
+
+        // Check for common invalid UID patterns
+        if (uid.includes(' ') || uid.includes('\n') || uid.includes('\t')) {
+          console.warn('BLOCK_REF_DEBUG: UID contains whitespace:', JSON.stringify(uid));
+          setBlockContent(`Invalid block reference (${uid.substring(0, 8)}...)`);
+          setIsLoading(false);
+          return;
+        }
+
+        console.log('BLOCK_REF_DEBUG: UID validation passed, querying database for:', uid);
         const blockData = await RoamQuery.getBlock(uid);
+        
         if (blockData) {
           const preview = RoamQuery.formatBlockPreview(blockData.string, BLOCK_PREVIEW_LENGTH);
           setBlockContent(preview);
+          console.log('BLOCK_REF_DEBUG: Block content loaded successfully:', {
+            uid: uid,
+            contentLength: blockData.string?.length || 0,
+            previewLength: preview.length,
+            preview: preview.substring(0, 50) + '...'
+          });
         } else {
-          setBlockContent(`Block ${uid.substring(0, 8)}...`);
+          console.warn('BLOCK_REF_DEBUG: Block not found in database:', uid);
+          console.warn('BLOCK_REF_DEBUG: This could indicate:');
+          console.warn('  1. The UID does not exist in the database');
+          console.warn('  2. The block was deleted');
+          console.warn('  3. The UID was generated incorrectly by the AI');
+          setBlockContent(`Block not found (${uid.substring(0, 8)}...)`);
         }
       } catch (error) {
-        console.error('Error loading block content:', error);
-        setBlockContent(`Block ${uid.substring(0, 8)}...`);
+        console.error('BLOCK_REF_DEBUG: Error loading block content for UID:', uid, error);
+        console.error('BLOCK_REF_DEBUG: Error details:', {
+          name: (error as Error).name,
+          message: (error as Error).message,
+          stack: (error as Error).stack
+        });
+        setBlockContent(`Error loading block (${uid.substring(0, 8)}...)`);
       } finally {
         setIsLoading(false);
       }
@@ -49,22 +94,70 @@ const BlockReference: React.FC<{
 
   const handleClick = (e: React.MouseEvent) => {
     e.preventDefault();
+    e.stopPropagation();
+    
+    console.log('BLOCK_REF_DEBUG: Block reference clicked for UID:', uid);
+    
     // Navigate to the block in Roam
     if (uid && typeof window !== "undefined" && (window as any).roamAlphaAPI) {
       try {
         const roamAPI = (window as any).roamAlphaAPI;
-        roamAPI.ui.mainWindow.openBlock({ block: { uid } });
+        console.log('BLOCK_REF_DEBUG: Attempting to navigate to block with Roam API');
+        
+        // Method 1: Use Roam's official navigation API
+        roamAPI.ui.mainWindow.openBlock({ block: { uid: uid } });
+        console.log('BLOCK_REF_DEBUG: Successfully called roamAPI.ui.mainWindow.openBlock');
+        
       } catch (error) {
-        console.error("Failed to navigate to block:", error);
+        console.error("BLOCK_REF_DEBUG: roamAPI.ui.mainWindow.openBlock failed:", error);
         try {
+          // Method 2: Try opening in right sidebar
           const roamAPI = (window as any).roamAlphaAPI;
+          console.log('BLOCK_REF_DEBUG: Trying right sidebar approach');
           roamAPI.ui.rightSidebar.addWindow({
-            window: { type: "block", "block-uid": uid },
+            window: { type: "block", "block-uid": uid }
           });
-        } catch (fallbackError) {
-          console.error("Fallback navigation also failed:", fallbackError);
+          console.log('BLOCK_REF_DEBUG: Successfully called roamAPI.ui.rightSidebar.addWindow');
+          
+        } catch (sidebarError) {
+          console.error("BLOCK_REF_DEBUG: Sidebar method also failed:", sidebarError);
+          try {
+            // Method 3: Try direct URL navigation to the block
+            const currentUrl = window.location.href;
+            const roamDbMatch = currentUrl.match(/\/app\/([^\/]+)/);
+            if (roamDbMatch) {
+              const dbName = roamDbMatch[1];
+              const blockUrl = `${window.location.origin}/app/${dbName}/page/${uid}`;
+              console.log('BLOCK_REF_DEBUG: Trying direct URL navigation to:', blockUrl);
+              window.location.href = blockUrl;
+            } else {
+              console.error('BLOCK_REF_DEBUG: Could not extract database name from URL:', currentUrl);
+            }
+          } catch (urlError) {
+            console.error("BLOCK_REF_DEBUG: All navigation methods failed:", urlError);
+            
+            // Method 4: Final fallback - try to focus on the block if it's visible
+            try {
+              const blockElement = document.querySelector(`[data-uid="${uid}"]`);
+              if (blockElement) {
+                console.log('BLOCK_REF_DEBUG: Found block element in DOM, scrolling to it');
+                blockElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                (blockElement as HTMLElement).focus();
+              } else {
+                console.log('BLOCK_REF_DEBUG: Block element not found in DOM');
+              }
+            } catch (focusError) {
+              console.error('BLOCK_REF_DEBUG: Focus method also failed:', focusError);
+            }
+          }
         }
       }
+    } else {
+      console.error('BLOCK_REF_DEBUG: Roam API not available or UID invalid:', { 
+        uid, 
+        hasRoamAPI: !!(window as any).roamAlphaAPI,
+        roamAPIAvailable: typeof (window as any).roamAlphaAPI
+      });
     }
   };
 
@@ -114,23 +207,86 @@ const PageReference: React.FC<{
   pageName: string;
   isUser: boolean;
 }> = ({ pageName, isUser }) => {
+  const handleClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    console.log('PAGE_REF_DEBUG: Page reference clicked for page:', pageName);
+    
+    // Navigate to the page in Roam
+    if (pageName && typeof window !== "undefined" && (window as any).roamAlphaAPI) {
+      try {
+        const roamAPI = (window as any).roamAlphaAPI;
+        console.log('PAGE_REF_DEBUG: Attempting to navigate to page with Roam API');
+        
+        // Method 1: Try to navigate to the page directly
+        roamAPI.ui.mainWindow.openPage({ page: { title: pageName } });
+        console.log('PAGE_REF_DEBUG: Successfully called roamAPI.ui.mainWindow.openPage');
+        
+      } catch (error) {
+        console.error("PAGE_REF_DEBUG: roamAPI.ui.mainWindow.openPage failed:", error);
+        try {
+          // Method 2: Try opening in right sidebar
+          const roamAPI = (window as any).roamAlphaAPI;
+          console.log('PAGE_REF_DEBUG: Trying right sidebar approach');
+          roamAPI.ui.rightSidebar.addWindow({
+            window: { type: "page", "page-title": pageName }
+          });
+          console.log('PAGE_REF_DEBUG: Successfully called roamAPI.ui.rightSidebar.addWindow');
+          
+        } catch (sidebarError) {
+          console.error("PAGE_REF_DEBUG: Sidebar method also failed:", sidebarError);
+          try {
+            // Method 3: Try direct URL navigation to the page
+            const currentUrl = window.location.href;
+            const roamDbMatch = currentUrl.match(/\/app\/([^\/]+)/);
+            if (roamDbMatch) {
+              const dbName = roamDbMatch[1];
+              const pageUrl = `${window.location.origin}/app/${dbName}/page/${encodeURIComponent(pageName)}`;
+              console.log('PAGE_REF_DEBUG: Trying direct URL navigation to:', pageUrl);
+              window.location.href = pageUrl;
+            } else {
+              console.error('PAGE_REF_DEBUG: Could not extract database name from URL:', currentUrl);
+            }
+          } catch (urlError) {
+            console.error("PAGE_REF_DEBUG: All navigation methods failed:", urlError);
+          }
+        }
+      }
+    } else {
+      console.error('PAGE_REF_DEBUG: Roam API not available or page name invalid:', { 
+        pageName, 
+        hasRoamAPI: !!(window as any).roamAlphaAPI,
+        roamAPIAvailable: typeof (window as any).roamAlphaAPI
+      });
+    }
+  };
+
   return (
     <span
       style={{
-        backgroundColor: isUser ? 'rgba(57, 58, 61, 0.1)' : 'rgba(57, 58, 61, 0.1)',
-        color: isUser ? '#393A3D' : '#393A3D',
-        padding: '2px 6px',
-        borderRadius: '4px',
-        fontWeight: '500',
-        border: `1px solid ${isUser ? 'rgba(57, 58, 61, 0.3)' : 'rgba(57, 58, 61, 0.3)'}`,
-        cursor: 'default',
-        margin: '1px 0',
-        display: 'inline-block',
-        lineHeight: '1.2'
+        color: '#106ba3',
+        cursor: 'pointer',
+        textDecoration: 'none',
+        fontWeight: 'normal',
+        margin: '0 1px',
+        display: 'inline',
+        lineHeight: 'inherit',
+        verticalAlign: 'baseline',
+        transition: 'color 0.2s ease'
       }}
-      title={`Roam page: ${pageName}`}
+      title={`Navigate to page: ${pageName}`}
+      onMouseEnter={(e) => {
+        e.currentTarget.style.color = '#0c5689';
+        e.currentTarget.style.textDecoration = 'underline';
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.color = '#106ba3';
+        e.currentTarget.style.textDecoration = 'none';
+      }}
+      onClick={handleClick}
     >
-      {pageName}
+      [[{pageName}]]
     </span>
   );
 };
@@ -225,11 +381,21 @@ export const EnhancedMessageRenderer: React.FC<EnhancedMessageRendererProps> = (
             
             // Handle Roam block references
             if (className?.includes('roam-block-ref') && props['data-uid']) {
+              console.log('RENDERER_DEBUG: Rendering block reference component:', {
+                uid: props['data-uid'],
+                className: className,
+                isUser: isUser
+              });
               return <BlockReference uid={props['data-uid']} isUser={isUser} />;
             }
             
             // Handle Roam page references
             if (className?.includes('roam-page-ref') && props['data-page-name']) {
+              console.log('RENDERER_DEBUG: Rendering page reference component:', {
+                pageName: props['data-page-name'],
+                className: className,
+                isUser: isUser
+              });
               return <PageReference pageName={props['data-page-name']} isUser={isUser} />;
             }
 
