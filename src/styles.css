@@ -1096,11 +1096,17 @@ details[style*="thinking"][open] {
   margin: 8px 0 4px 0 !important;
 }
 
-/* Tighter blockquote spacing */
+/* Improved blockquote styling */
 .rr-copilot-message-container .rr-copilot-enhanced-renderer blockquote {
-  margin: 4px 0 !important;
-  padding-left: 12px !important;
-  border-left: 3px solid #ddd !important;
+  margin: 8px 0 !important;
+  padding: 8px 12px !important;
+  border-left: 3px solid #d1d5db !important;
+  background-color: #f9fafb !important;
+  font-size: 0.9em !important;
+  line-height: 1.5 !important;
+  color: #6b7280 !important;
+  font-style: italic !important;
+  border-radius: 0 4px 4px 0 !important;
 }
 
 /* Clean code block styling */
@@ -1131,6 +1137,58 @@ details[style*="thinking"][open] {
   border: none !important;
   padding: 0 !important;
   color: #24292f !important;
+}
+
+/* Professional table styling */
+.rr-copilot-message-container .rr-copilot-enhanced-renderer table {
+  width: 100% !important;
+  border-collapse: collapse !important;
+  margin: 12px 0 !important;
+  font-size: 0.9em !important;
+  line-height: 1.4 !important;
+  border: 1px solid #e1e5e9 !important;
+  border-radius: 6px !important;
+  overflow: hidden !important;
+}
+
+.rr-copilot-message-container .rr-copilot-enhanced-renderer table thead {
+  background-color: #f6f8fa !important;
+}
+
+.rr-copilot-message-container .rr-copilot-enhanced-renderer table th {
+  padding: 8px 12px !important;
+  text-align: left !important;
+  font-weight: 600 !important;
+  color: #24292f !important;
+  border-bottom: 2px solid #e1e5e9 !important;
+  border-right: 1px solid #e1e5e9 !important;
+}
+
+.rr-copilot-message-container .rr-copilot-enhanced-renderer table th:last-child {
+  border-right: none !important;
+}
+
+.rr-copilot-message-container .rr-copilot-enhanced-renderer table td {
+  padding: 8px 12px !important;
+  border-bottom: 1px solid #e1e5e9 !important;
+  border-right: 1px solid #e1e5e9 !important;
+  vertical-align: top !important;
+}
+
+.rr-copilot-message-container .rr-copilot-enhanced-renderer table td:last-child {
+  border-right: none !important;
+}
+
+.rr-copilot-message-container .rr-copilot-enhanced-renderer table tbody tr:nth-child(even) {
+  background-color: #f9fafb !important;
+}
+
+.rr-copilot-message-container .rr-copilot-enhanced-renderer table tbody tr:hover {
+  background-color: #f1f3f4 !important;
+}
+
+.rr-copilot-message-container .rr-copilot-enhanced-renderer table tbody tr:last-child td {
+  border-bottom: none !important;
 }
 
 /* Invisible resize handles for 8-direction window resizing */

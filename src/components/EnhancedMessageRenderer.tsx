@@ -594,7 +594,82 @@ export const EnhancedMessageRenderer: React.FC<EnhancedMessageRendererProps> = (
                 {children}
               </p>
             );
-          }
+          },
+
+          // Style tables properly
+          table: ({ children, ...rest }) => (
+            <table style={{
+              width: '100%',
+              borderCollapse: 'collapse',
+              margin: '12px 0',
+              fontSize: '0.9em',
+              lineHeight: '1.4',
+              border: '1px solid #e1e5e9',
+              borderRadius: '6px',
+              overflow: 'hidden'
+            }} {...rest}>
+              {children}
+            </table>
+          ),
+
+          thead: ({ children, ...rest }) => (
+            <thead style={{ backgroundColor: '#f6f8fa' }} {...rest}>
+              {children}
+            </thead>
+          ),
+
+          th: ({ children, ...rest }) => (
+            <th style={{
+              padding: '8px 12px',
+              textAlign: 'left',
+              fontWeight: '600',
+              color: '#24292f',
+              borderBottom: '2px solid #e1e5e9',
+              borderRight: '1px solid #e1e5e9'
+            }} {...rest}>
+              {children}
+            </th>
+          ),
+
+          td: ({ children, ...rest }) => (
+            <td style={{
+              padding: '8px 12px',
+              borderBottom: '1px solid #e1e5e9',
+              borderRight: '1px solid #e1e5e9',
+              verticalAlign: 'top'
+            }} {...rest}>
+              {children}
+            </td>
+          ),
+
+          tbody: ({ children, ...rest }) => (
+            <tbody {...rest}>
+              {children}
+            </tbody>
+          ),
+
+          tr: ({ children, ...rest }) => (
+            <tr {...rest}>
+              {children}
+            </tr>
+          ),
+
+          // Style blockquotes properly
+          blockquote: ({ children, ...rest }) => (
+            <blockquote style={{
+              margin: '8px 0',
+              padding: '8px 12px',
+              borderLeft: '3px solid #d1d5db',
+              backgroundColor: '#f9fafb',
+              fontSize: '0.9em',
+              lineHeight: '1.5',
+              color: '#6b7280',
+              fontStyle: 'italic',
+              borderRadius: '0 4px 4px 0'
+            }} {...rest}>
+              {children}
+            </blockquote>
+          )
         }}
       >
         {processedContent}
