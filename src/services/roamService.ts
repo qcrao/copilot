@@ -919,6 +919,13 @@ export class RoamService {
       formattedContext += "\n";
     }
 
+    // Add guidance for AI about page references
+    formattedContext += `\n\n**IMPORTANT GUIDELINES:**\n`;
+    formattedContext += `- Only use page references [[Page Name]] that appear in the context above\n`;
+    formattedContext += `- Do NOT create new page references that are not already mentioned\n`;
+    formattedContext += `- If you need to mention a concept that doesn't have a page reference in the context, use regular text instead of [[]]\n`;
+    formattedContext += `- All [[]] references in your response should be clickable and valid\n`;
+
     const finalContext = formattedContext.trim();
 
     console.log("Final formatted context for AI:", finalContext);

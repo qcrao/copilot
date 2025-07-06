@@ -20,6 +20,7 @@ declare module 'mdast' {
   }
 }
 
+
 /**
  * Validates if a page name is a legitimate Roam page reference
  * Filters out common false positives like URLs, emojis, etc.
@@ -103,8 +104,7 @@ const remarkRoamPages: Plugin<[], Root> = () => {
 
         // Validate if this is a legitimate page reference
         if (isValidPageReference(trimmedPageName)) {
-          console.log('REMARK_PAGES_DEBUG: Valid page reference found:', trimmedPageName);
-          // Add the Roam page reference node
+          // Add the Roam page reference node with validation marker
           newNodes.push({
             type: 'roamPage',
             pageName: trimmedPageName,
@@ -112,12 +112,12 @@ const remarkRoamPages: Plugin<[], Root> = () => {
               hName: 'span',
               hProperties: {
                 className: ['roam-page-ref'],
-                'data-page-name': trimmedPageName
+                'data-page-name': trimmedPageName,
+                'data-needs-validation': 'true' // Mark for validation in renderer
               }
             }
           } as RoamPageNode);
         } else {
-          console.log('REMARK_PAGES_DEBUG: Invalid page reference, treating as plain text:', trimmedPageName);
           // Treat as regular text, not a page reference
           newNodes.push({
             type: 'text',

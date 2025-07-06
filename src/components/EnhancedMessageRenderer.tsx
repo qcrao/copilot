@@ -160,11 +160,64 @@ const BlockReference: React.FC<{
   );
 };
 
-// Component for rendering Roam page references
+// Component for rendering Roam page references with existence validation
 const PageReference: React.FC<{
   pageName: string;
   isUser: boolean;
-}> = ({ pageName, isUser }) => {
+  needsValidation?: boolean;
+}> = ({ pageName, isUser, needsValidation = false }) => {
+  const [pageExists, setPageExists] = useState<boolean | null>(needsValidation ? null : true);
+  const [isChecking, setIsChecking] = useState(needsValidation);
+
+  useEffect(() => {
+    if (needsValidation) {
+      const checkPageExists = async () => {
+        try {
+          if (typeof window === 'undefined' || !(window as any).roamAlphaAPI) {
+            setPageExists(false);
+            setIsChecking(false);
+            return;
+          }
+
+          const pageQuery = `
+            [:find ?uid
+             :where
+             [?page :node/title "${pageName}"]
+             [?page :block/uid ?uid]]
+          `;
+
+          const result = (window as any).roamAlphaAPI.q(pageQuery);
+          const exists = result && result.length > 0;
+          setPageExists(exists);
+          setIsChecking(false);
+        } catch (error) {
+          console.error('Error checking page existence:', error);
+          setPageExists(false);
+          setIsChecking(false);
+        }
+      };
+
+      checkPageExists();
+    }
+  }, [pageName, needsValidation]);
+
+  // If page doesn't exist, render as plain text
+  if (needsValidation && !isChecking && pageExists === false) {
+    return (
+      <span style={{ color: isUser ? '#ffffff' : '#393A3D' }}>
+        {pageName}
+      </span>
+    );
+  }
+
+  // If still checking, show loading state
+  if (isChecking) {
+    return (
+      <span style={{ color: isUser ? '#ffffff' : '#393A3D', fontStyle: 'italic' }}>
+        {pageName}
+      </span>
+    );
+  }
   const handleClick = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
@@ -348,7 +401,14 @@ export const EnhancedMessageRenderer: React.FC<EnhancedMessageRendererProps> = (
             
             // Handle Roam page references
             if (className?.includes('roam-page-ref') && props['data-page-name']) {
-              return <PageReference pageName={props['data-page-name']} isUser={isUser} />;
+              const needsValidation = props['data-needs-validation'] === 'true';
+              return (
+                <PageReference 
+                  pageName={props['data-page-name']} 
+                  isUser={isUser} 
+                  needsValidation={needsValidation}
+                />
+              );
             }
 
             // Default span rendering
