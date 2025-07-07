@@ -2,235 +2,16 @@
 import { AISettings, AI_PROVIDERS } from "../types";
 import { multiProviderSettings } from "../settings";
 import { RoamService } from "./roamService";
+import { LLMUtil } from "../utils/llmUtil";
 
 export class AIService {
   // Helper function to get provider for a specific model
   static async getProviderForModel(
     model: string
   ): Promise<{ provider: any; apiKey: string } | null> {
-    // First check static models for all providers
-    for (const provider of AI_PROVIDERS) {
-      if (provider.models.includes(model)) {
-        // Ollama doesn't need API key
-        if (provider.id === "ollama") {
-          return { provider, apiKey: "" };
-        }
-
-        const apiKey = multiProviderSettings.apiKeys[provider.id];
-        if (apiKey && apiKey.trim() !== "") {
-          return { provider, apiKey };
-        }
-      }
-    }
-
-    // If not found in static models, assume it's an Ollama dynamic model
-    const ollamaProvider = AI_PROVIDERS.find(p => p.id === "ollama");
-    if (ollamaProvider && ollamaProvider.supportsDynamicModels) {
-      try {
-        const dynamicModels = await this.getOllamaModels();
-        if (dynamicModels.includes(model)) {
-          return { provider: ollamaProvider, apiKey: "" };
-        }
-      } catch (error) {
-        console.log("Failed to check Ollama dynamic models:", error);
-      }
-      
-      // If we can't verify with Ollama API, but it's not in static models, 
-      // assume it's a local Ollama model
-      console.log(`Assuming model "${model}" is a local Ollama model`);
-      return { provider: ollamaProvider, apiKey: "" };
-    }
-
-    return null;
+    return LLMUtil.getProviderForModel(model);
   }
 
-  private static async callOpenAI(
-    settings: AISettings,
-    messages: any[]
-  ): Promise<string> {
-    const provider = AI_PROVIDERS.find((p) => p.id === "openai");
-    if (!provider?.baseUrl) throw new Error("OpenAI provider not configured");
-
-    const response = await fetch(`${provider.baseUrl}/chat/completions`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${settings.apiKey}`,
-      },
-      body: JSON.stringify({
-        model: settings.model,
-        messages,
-        temperature: settings.temperature || 0.7,
-        max_tokens: settings.maxTokens || 2000,
-      }),
-    });
-
-    if (!response.ok) {
-      const error = await response.json().catch(() => ({}));
-      throw new Error(
-        `OpenAI API error: ${response.status} ${
-          error.error?.message || response.statusText
-        }`
-      );
-    }
-
-    const data = await response.json();
-    return data.choices[0]?.message?.content || "No response generated";
-  }
-
-  private static async callAnthropic(
-    settings: AISettings,
-    messages: any[]
-  ): Promise<string> {
-    const provider = AI_PROVIDERS.find((p) => p.id === "anthropic");
-    if (!provider?.baseUrl)
-      throw new Error("Anthropic provider not configured");
-
-    // Convert messages format for Anthropic
-    const systemMessage = messages.find((m) => m.role === "system");
-    const conversationMessages = messages.filter((m) => m.role !== "system");
-
-    const response = await fetch(`${provider.baseUrl}/messages`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-api-key": settings.apiKey,
-        "anthropic-version": "2023-06-01",
-      },
-      body: JSON.stringify({
-        model: settings.model,
-        messages: conversationMessages,
-        system: systemMessage?.content,
-        temperature: settings.temperature || 0.7,
-        max_tokens: settings.maxTokens || 2000,
-      }),
-    });
-
-    if (!response.ok) {
-      const error = await response.json().catch(() => ({}));
-      throw new Error(
-        `Anthropic API error: ${response.status} ${
-          error.error?.message || response.statusText
-        }`
-      );
-    }
-
-    const data = await response.json();
-    return data.content[0]?.text || "No response generated";
-  }
-
-  private static async callGroq(
-    settings: AISettings,
-    messages: any[]
-  ): Promise<string> {
-    const provider = AI_PROVIDERS.find((p) => p.id === "groq");
-    if (!provider?.baseUrl) throw new Error("Groq provider not configured");
-
-    const response = await fetch(`${provider.baseUrl}/chat/completions`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${settings.apiKey}`,
-      },
-      body: JSON.stringify({
-        model: settings.model,
-        messages,
-        temperature: settings.temperature || 0.7,
-        max_tokens: settings.maxTokens || 2000,
-      }),
-    });
-
-    if (!response.ok) {
-      const error = await response.json().catch(() => ({}));
-      throw new Error(
-        `Groq API error: ${response.status} ${
-          error.error?.message || response.statusText
-        }`
-      );
-    }
-
-    const data = await response.json();
-    return data.choices[0]?.message?.content || "No response generated";
-  }
-
-  private static async callXAI(
-    settings: AISettings,
-    messages: any[]
-  ): Promise<string> {
-    const provider = AI_PROVIDERS.find((p) => p.id === "xai");
-    if (!provider?.baseUrl) throw new Error("xAI provider not configured");
-
-    const response = await fetch(`${provider.baseUrl}/chat/completions`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${settings.apiKey}`,
-      },
-      body: JSON.stringify({
-        model: settings.model,
-        messages,
-        temperature: settings.temperature || 0.7,
-        max_tokens: settings.maxTokens || 2000,
-      }),
-    });
-
-    if (!response.ok) {
-      const error = await response.json().catch(() => ({}));
-      throw new Error(
-        `xAI API error: ${response.status} ${
-          error.error?.message || response.statusText
-        }`
-      );
-    }
-
-    const data = await response.json();
-    return data.choices[0]?.message?.content || "No response generated";
-  }
-
-  private static async callOllama(
-    settings: AISettings,
-    messages: any[]
-  ): Promise<string> {
-    // Use user-configured Ollama address, fallback to default if not configured
-    const baseUrl =
-      multiProviderSettings.ollamaBaseUrl || "http://localhost:11434";
-
-    try {
-      const response = await fetch(`${baseUrl}/api/chat`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          model: settings.model,
-          messages,
-          stream: false,
-          options: {
-            temperature: settings.temperature || 0.7,
-            num_predict: settings.maxTokens || 2000,
-          },
-        }),
-      });
-
-      if (!response.ok) {
-        const error = await response.text().catch(() => "");
-        throw new Error(
-          `Ollama API error: ${response.status} ${error || response.statusText}`
-        );
-      }
-
-      const data = await response.json();
-      return data.message?.content || "No response generated";
-    } catch (error: any) {
-      // Provide more friendly error message for connection failures
-      if (error.message.includes("fetch")) {
-        throw new Error(
-          `Cannot connect to Ollama service (${baseUrl}). Please ensure:\n1. Ollama is installed and running\n2. Service URL is configured correctly\n3. Model "${settings.model}" is downloaded`
-        );
-      }
-      throw error;
-    }
-  }
 
   // New method that uses the currently selected model from multiProviderSettings
   static async sendMessageWithCurrentModel(
@@ -267,16 +48,38 @@ export class AIService {
         userMessage + `\n\nIMPORTANT: Please respond in ${responseLanguage}.`;
     }
 
-    // Create temporary settings object for the selected model
-    const tempSettings: AISettings = {
-      provider: providerInfo.provider.id,
-      model: model,
-      apiKey: providerInfo.apiKey,
-      temperature: multiProviderSettings.temperature || 0.7,
-      maxTokens: multiProviderSettings.maxTokens || 2000,
-    };
+    // Handle Ollama requests separately
+    if (providerInfo.provider.id === "ollama") {
+      return this.sendMessage({
+        provider: providerInfo.provider.id,
+        model: model,
+        apiKey: providerInfo.apiKey,
+        temperature: multiProviderSettings.temperature || 0.7,
+        maxTokens: multiProviderSettings.maxTokens || 2000,
+      }, finalUserMessage, context);
+    }
 
-    return this.sendMessage(tempSettings, finalUserMessage, context);
+    // Use LLMUtil for other providers
+    const systemMessage = this.getSystemMessage(context);
+    
+    try {
+      const result = await LLMUtil.generateResponse({
+        provider: providerInfo.provider.id,
+        model: model,
+        apiKey: providerInfo.apiKey,
+        baseUrl: providerInfo.provider.baseUrl,
+        temperature: multiProviderSettings.temperature || 0.7,
+        maxTokens: multiProviderSettings.maxTokens || 2000,
+      }, [
+        { role: "system", content: systemMessage },
+        { role: "user", content: finalUserMessage },
+      ]);
+
+      return result.text;
+    } catch (error: any) {
+      console.error("AI Service Error:", error);
+      throw new Error(`Failed to get AI response: ${error.message}`);
+    }
   }
 
   static async sendMessage(
@@ -291,11 +94,46 @@ export class AIService {
       );
     }
 
-    // Prepare messages
-    const messages = [
-      {
-        role: "system",
-        content: `You are a personal growth companion and writing mentor integrated into Roam Research. Your mission is to help users discover profound insights from their notes while encouraging them to express and share their thoughts through writing.
+    const systemMessage = this.getSystemMessage(context);
+    
+    // Handle Ollama requests separately
+    if (settings.provider === "ollama") {
+      const result = await LLMUtil.handleOllamaRequest({
+        provider: settings.provider,
+        model: settings.model,
+        apiKey: settings.apiKey,
+        temperature: settings.temperature || 0.7,
+        maxTokens: settings.maxTokens || 2000,
+      }, [
+        { role: "system", content: systemMessage },
+        { role: "user", content: userMessage },
+      ]);
+      return result.text;
+    }
+
+    // Use LLMUtil for other providers
+    try {
+      const result = await LLMUtil.generateResponse({
+        provider: settings.provider,
+        model: settings.model,
+        apiKey: settings.apiKey,
+        baseUrl: AI_PROVIDERS.find(p => p.id === settings.provider)?.baseUrl,
+        temperature: settings.temperature || 0.7,
+        maxTokens: settings.maxTokens || 2000,
+      }, [
+        { role: "system", content: systemMessage },
+        { role: "user", content: userMessage },
+      ]);
+
+      return result.text;
+    } catch (error: any) {
+      console.error("AI Service Error:", error);
+      throw new Error(`Failed to get AI response: ${error.message}`);
+    }
+  }
+
+  private static getSystemMessage(context: string): string {
+    return `You are a personal growth companion and writing mentor integrated into Roam Research. Your mission is to help users discover profound insights from their notes while encouraging them to express and share their thoughts through writing.
 
 USER GREETING:
 ${
@@ -398,65 +236,14 @@ Example of proper usage:
 
 NOTE: The system also supports legacy markdown link formats for backward compatibility, but prefer the ((UID)) format for new responses.
 
-Remember: Your dual goal is to help users gain meaningful self-awareness AND encourage them to express their insights through writing, both for personal growth and to benefit others who might learn from their experiences.`,
-      },
-      {
-        role: "user",
-        content: userMessage,
-      },
-    ];
-
-    try {
-      switch (settings.provider) {
-        case "openai":
-          return await this.callOpenAI(settings, messages);
-        case "anthropic":
-          return await this.callAnthropic(settings, messages);
-        case "groq":
-          return await this.callGroq(settings, messages);
-        case "xai":
-          return await this.callXAI(settings, messages);
-        case "ollama":
-          return await this.callOllama(settings, messages);
-        default:
-          throw new Error(`Unsupported AI provider: ${settings.provider}`);
-      }
-    } catch (error: any) {
-      console.error("AI Service Error:", error);
-      throw new Error(`Failed to get AI response: ${error.message}`);
-    }
+Remember: Your dual goal is to help users gain meaningful self-awareness AND encourage them to express their insights through writing, both for personal growth and to benefit others who might learn from their experiences.`;
   }
 
   /**
    * Get available Ollama models from the service
    */
   static async getOllamaModels(baseUrl?: string): Promise<string[]> {
-    const url =
-      baseUrl ||
-      multiProviderSettings.ollamaBaseUrl ||
-      "http://localhost:11434";
-
-    try {
-      const response = await fetch(`${url}/api/tags`, {
-        method: "GET",
-        headers: {
-          "Content-Type": "application/json",
-        },
-      });
-
-      if (!response.ok) {
-        console.warn(`Failed to fetch Ollama models: HTTP ${response.status}`);
-        return [];
-      }
-
-      const data = await response.json();
-      const models = data.models?.map((model: any) => model.name) || [];
-      console.log("Ollama models fetched:", models);
-      return models;
-    } catch (error: any) {
-      console.warn("Failed to fetch Ollama models:", error.message);
-      return [];
-    }
+    return LLMUtil.getOllamaModels(baseUrl);
   }
 
   /**
@@ -465,40 +252,7 @@ Remember: Your dual goal is to help users gain meaningful self-awareness AND enc
   static async testOllamaConnection(
     baseUrl?: string
   ): Promise<{ isConnected: boolean; models?: string[]; error?: string }> {
-    const url =
-      baseUrl ||
-      multiProviderSettings.ollamaBaseUrl ||
-      "http://localhost:11434";
-
-    try {
-      // Test basic connection
-      const response = await fetch(`${url}/api/tags`, {
-        method: "GET",
-        headers: {
-          "Content-Type": "application/json",
-        },
-      });
-
-      if (!response.ok) {
-        return {
-          isConnected: false,
-          error: `HTTP ${response.status}: ${response.statusText}`,
-        };
-      }
-
-      const data = await response.json();
-      const models = data.models?.map((model: any) => model.name) || [];
-
-      return {
-        isConnected: true,
-        models,
-      };
-    } catch (error: any) {
-      return {
-        isConnected: false,
-        error: error.message || "Connection failed",
-      };
-    }
+    return LLMUtil.testOllamaConnection(baseUrl);
   }
 
   static validateSettings(settings: AISettings): {
