@@ -1,8 +1,9 @@
-import React from 'react';
-import Select, { components, SingleValue, StylesConfig } from 'react-select';
+import React from "react";
+import Select, { components, SingleValue, StylesConfig } from "react-select";
 import { Icon } from "@blueprintjs/core";
 import { IconNames } from "@blueprintjs/icons";
-import { getModelDisplayInfo } from '../utils/iconUtils';
+import { getModelDisplayInfo } from "../utils/iconUtils";
+import { LLMUtil } from "../utils/llmUtil";
 
 interface ModelOption {
   value: string;
@@ -36,64 +37,79 @@ const CustomOption = (props: any) => {
   const { data, isSelected, isFocused } = props;
   const modelInfo = data.modelInfo;
 
+  const getModelDisplayName = (data: any) => {
+    const { value: model, provider } = data;
+    const supportsTools = LLMUtil.modelSupportsTools(provider, model);
+    const toolIcon = supportsTools ? " 🔧" : "";
+
+    return `${model}${toolIcon}`;
+  };
+
   return (
     <components.Option {...props}>
-      <div style={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: '6px',
-        padding: '0'
-      }}>
-        <div style={{
-          width: '16px',
-          height: '16px',
-          borderRadius: '3px',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          backgroundColor: modelInfo.isLocal ? 'transparent' : 'white',
-          border: modelInfo.isLocal ? 'none' : '1px solid #e1e4e8',
-          overflow: 'hidden',
-          flexShrink: 0
-        }}>
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: "6px",
+          padding: "0",
+        }}
+      >
+        <div
+          style={{
+            width: "16px",
+            height: "16px",
+            borderRadius: "3px",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            backgroundColor: modelInfo.isLocal ? "transparent" : "white",
+            border: modelInfo.isLocal ? "none" : "1px solid #e1e4e8",
+            overflow: "hidden",
+            flexShrink: 0,
+          }}
+        >
           {modelInfo.blueprintIcon ? (
-            <Icon 
+            <Icon
               icon={modelInfo.blueprintIcon}
               size={12}
-              style={{ 
-                color: modelInfo.color || '#666'
+              style={{
+                color: modelInfo.color || "#666",
               }}
             />
           ) : modelInfo.iconUrl ? (
-            <img 
-              src={modelInfo.iconUrl} 
+            <img
+              src={modelInfo.iconUrl}
               alt={`${modelInfo.name} logo`}
               style={{
-                width: '12px',
-                height: '12px',
-                objectFit: 'contain',
-                borderRadius: '1px'
+                width: "12px",
+                height: "12px",
+                objectFit: "contain",
+                borderRadius: "1px",
               }}
               onError={(e) => {
-                e.currentTarget.style.display = 'none';
-                e.currentTarget.parentElement!.innerHTML = modelInfo.fallbackIcon || '🤖';
-                e.currentTarget.parentElement!.style.color = '#666';
-                e.currentTarget.parentElement!.style.fontSize = '12px';
+                e.currentTarget.style.display = "none";
+                e.currentTarget.parentElement!.innerHTML =
+                  modelInfo.fallbackIcon || "🤖";
+                e.currentTarget.parentElement!.style.color = "#666";
+                e.currentTarget.parentElement!.style.fontSize = "12px";
               }}
             />
           ) : (
-            <span style={{ color: '#666', fontSize: '12px' }}>
-              {modelInfo.fallbackIcon || '🤖'}
+            <span style={{ color: "#666", fontSize: "12px" }}>
+              {modelInfo.fallbackIcon || "🤖"}
             </span>
           )}
         </div>
         <div style={{ flex: 1 }}>
-          <div style={{
-            fontSize: '12px',
-            fontWeight: modelInfo.isLocal ? '600' : '500',
-            color: modelInfo.isLocal ? '#2E7D32' : '#333'
-          }}>
-            {data.label}
+          <div
+            style={{
+              fontSize: "12px",
+              fontWeight: modelInfo.isLocal ? "600" : "500",
+              color: modelInfo.isLocal ? "#2E7D32" : "#333",
+            }}
+          >
+            {getModelDisplayName(data)}
           </div>
         </div>
       </div>
@@ -106,62 +122,77 @@ const CustomSingleValue = (props: any) => {
   const { data } = props;
   const modelInfo = data.modelInfo;
 
+  const getModelDisplayName = (data: any) => {
+    const { value: model, provider } = data;
+    const supportsTools = LLMUtil.modelSupportsTools(provider, model);
+    const toolIcon = supportsTools ? " 🔧" : "";
+
+    return `${model}${toolIcon}`;
+  };
+
   return (
     <components.SingleValue {...props}>
-      <div style={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: '4px'
-      }}>
-        <div style={{
-          width: '14px',
-          height: '14px',
-          borderRadius: '2px',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          backgroundColor: modelInfo.isLocal ? 'transparent' : 'white',
-          border: modelInfo.isLocal ? 'none' : '1px solid #e1e4e8',
-          overflow: 'hidden',
-          flexShrink: 0
-        }}>
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: "4px",
+        }}
+      >
+        <div
+          style={{
+            width: "14px",
+            height: "14px",
+            borderRadius: "2px",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            backgroundColor: modelInfo.isLocal ? "transparent" : "white",
+            border: modelInfo.isLocal ? "none" : "1px solid #e1e4e8",
+            overflow: "hidden",
+            flexShrink: 0,
+          }}
+        >
           {modelInfo.blueprintIcon ? (
-            <Icon 
+            <Icon
               icon={modelInfo.blueprintIcon}
               size={10}
-              style={{ 
-                color: modelInfo.color || '#666'
+              style={{
+                color: modelInfo.color || "#666",
               }}
             />
           ) : modelInfo.iconUrl ? (
-            <img 
-              src={modelInfo.iconUrl} 
+            <img
+              src={modelInfo.iconUrl}
               alt={`${modelInfo.name} logo`}
               style={{
-                width: '10px',
-                height: '10px',
-                objectFit: 'contain',
-                borderRadius: '1px'
+                width: "10px",
+                height: "10px",
+                objectFit: "contain",
+                borderRadius: "1px",
               }}
               onError={(e) => {
-                e.currentTarget.style.display = 'none';
-                e.currentTarget.parentElement!.innerHTML = modelInfo.fallbackIcon || '🤖';
-                e.currentTarget.parentElement!.style.color = '#666';
-                e.currentTarget.parentElement!.style.fontSize = '10px';
+                e.currentTarget.style.display = "none";
+                e.currentTarget.parentElement!.innerHTML =
+                  modelInfo.fallbackIcon || "🤖";
+                e.currentTarget.parentElement!.style.color = "#666";
+                e.currentTarget.parentElement!.style.fontSize = "10px";
               }}
             />
           ) : (
-            <span style={{ color: '#666', fontSize: '10px' }}>
-              {modelInfo.fallbackIcon || '🤖'}
+            <span style={{ color: "#666", fontSize: "10px" }}>
+              {modelInfo.fallbackIcon || "🤖"}
             </span>
           )}
         </div>
-        <span style={{
-          fontSize: '12px',
-          fontWeight: modelInfo.isLocal ? '600' : '500',
-          color: modelInfo.isLocal ? '#2E7D32' : '#333'
-        }}>
-          {data.label}
+        <span
+          style={{
+            fontSize: "12px",
+            fontWeight: modelInfo.isLocal ? "600" : "500",
+            color: modelInfo.isLocal ? "#2E7D32" : "#333",
+          }}
+        >
+          {getModelDisplayName(data)}
         </span>
       </div>
     </components.SingleValue>
@@ -172,58 +203,59 @@ const CustomSingleValue = (props: any) => {
 const customStyles: StylesConfig<ModelOption> = {
   control: (provided, state) => ({
     ...provided,
-    minHeight: '32px',
-    height: '32px',
-    fontSize: '12px',
-    fontWeight: '500',
-    border: state.isFocused ? '1px solid #393a3d' : '1px solid #d1d5db',
-    borderRadius: '8px',
-    backgroundColor: 'white',
-    boxShadow: 'none',
-    '&:hover': {
-      borderColor: state.isFocused ? '#393a3d' : '#9ca3af'
-    }
+    minHeight: "32px",
+    height: "32px",
+    fontSize: "12px",
+    fontWeight: "500",
+    border: state.isFocused ? "1px solid #393a3d" : "1px solid #d1d5db",
+    borderRadius: "8px",
+    backgroundColor: "white",
+    boxShadow: "none",
+    "&:hover": {
+      borderColor: state.isFocused ? "#393a3d" : "#9ca3af",
+    },
   }),
   valueContainer: (provided) => ({
     ...provided,
-    height: '30px',
-    padding: '0 4px'
+    height: "30px",
+    padding: "0 4px",
   }),
   input: (provided) => ({
     ...provided,
-    margin: '0px',
-    paddingTop: '0px',
-    paddingBottom: '0px'
+    margin: "0px",
+    paddingTop: "0px",
+    paddingBottom: "0px",
   }),
   indicatorSeparator: () => ({
-    display: 'none'
+    display: "none",
   }),
   indicatorsContainer: (provided) => ({
     ...provided,
-    height: '30px'
+    height: "30px",
   }),
   menu: (provided) => ({
     ...provided,
     zIndex: 99999,
-    boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
-    border: '1px solid #e1e4e8',
-    borderRadius: '8px',
-    position: 'absolute'
+    boxShadow:
+      "0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)",
+    border: "1px solid #e1e4e8",
+    borderRadius: "8px",
+    position: "absolute",
   }),
   menuPortal: (provided) => ({
     ...provided,
-    zIndex: 99999
+    zIndex: 99999,
   }),
   option: (provided, state) => ({
     ...provided,
-    backgroundColor: state.isFocused ? '#f8f9fa' : 'white',
-    color: '#333',
-    cursor: 'pointer',
-    padding: '6px 8px',
-    '&:hover': {
-      backgroundColor: '#f8f9fa'
-    }
-  })
+    backgroundColor: state.isFocused ? "#f8f9fa" : "white",
+    color: "#333",
+    cursor: "pointer",
+    padding: "6px 8px",
+    "&:hover": {
+      backgroundColor: "#f8f9fa",
+    },
+  }),
 };
 
 export const ModelSelector: React.FC<ModelSelectorProps> = ({
@@ -231,19 +263,20 @@ export const ModelSelector: React.FC<ModelSelectorProps> = ({
   onChange,
   options,
   disabled = false,
-  isLoading = false
+  isLoading = false,
 }) => {
   // Transform options to include model display info
-  const selectOptions: ModelOption[] = options.map(option => ({
+  const selectOptions: ModelOption[] = options.map((option) => ({
     value: option.model,
     label: option.model,
     provider: option.provider,
     providerName: option.providerName,
-    modelInfo: getModelDisplayInfo(option.model, option.provider)
+    modelInfo: getModelDisplayInfo(option.model, option.provider),
   }));
 
   // Find the selected option
-  const selectedOption = selectOptions.find(opt => opt.value === value) || null;
+  const selectedOption =
+    selectOptions.find((opt) => opt.value === value) || null;
 
   const handleChange = (option: SingleValue<ModelOption>) => {
     if (option) {
@@ -261,7 +294,7 @@ export const ModelSelector: React.FC<ModelSelectorProps> = ({
       isSearchable={false}
       components={{
         Option: CustomOption,
-        SingleValue: CustomSingleValue
+        SingleValue: CustomSingleValue,
       }}
       styles={customStyles}
       placeholder={isLoading ? "Loading models..." : "Select model..."}
@@ -270,4 +303,4 @@ export const ModelSelector: React.FC<ModelSelectorProps> = ({
       menuPlacement="top"
     />
   );
-}; 
+};

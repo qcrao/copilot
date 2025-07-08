@@ -10,7 +10,7 @@ export class RoamService {
       console.log("Getting graph name from URL:", window.location.href);
       console.log("Pathname:", window.location.pathname);
       console.log("Hash:", window.location.hash);
-      
+
       // Try to get graph name from URL - check both href and hash
       const urlMatch = window.location.href.match(/\/app\/([^\/\?#]+)/);
       if (urlMatch) {
@@ -34,7 +34,9 @@ export class RoamService {
       }
 
       // Try alternative patterns - first check for roam:// protocol
-      const roamProtocolMatch = window.location.href.match(/roam:\/\/#\/app\/([^\/\?#]+)/);
+      const roamProtocolMatch = window.location.href.match(
+        /roam:\/\/#\/app\/([^\/\?#]+)/
+      );
       if (roamProtocolMatch) {
         console.log("Graph name from roam protocol:", roamProtocolMatch[1]);
         return decodeURIComponent(roamProtocolMatch[1]);
@@ -61,20 +63,22 @@ export class RoamService {
       }
 
       // Check if we're on roamresearch.com and try to extract from current page title
-      if (window.location.hostname === 'roamresearch.com') {
+      if (window.location.hostname === "roamresearch.com") {
         // Try to get from the document title which often contains the graph name
         const titleMatch = document.title.match(/^(.+?)\s*-\s*Roam/);
-        if (titleMatch && titleMatch[1] && titleMatch[1] !== 'Roam') {
+        if (titleMatch && titleMatch[1] && titleMatch[1] !== "Roam") {
           console.log("Graph name from document title:", titleMatch[1]);
           return titleMatch[1].trim();
         }
       }
 
       // Try to get from the sidebar or other UI elements
-      const sidebarElement = document.querySelector('.roam-sidebar-container .bp3-heading');
+      const sidebarElement = document.querySelector(
+        ".roam-sidebar-container .bp3-heading"
+      );
       if (sidebarElement && sidebarElement.textContent) {
         const sidebarText = sidebarElement.textContent.trim();
-        if (sidebarText && sidebarText !== 'Roam' && sidebarText.length < 50) {
+        if (sidebarText && sidebarText !== "Roam" && sidebarText.length < 50) {
           console.log("Graph name from sidebar:", sidebarText);
           return sidebarText;
         }
@@ -489,34 +493,40 @@ export class RoamService {
           year: "numeric",
         }), // Month dd, yyyy
         // Add ordinal format like "June 25th, 2025"
-        today.toLocaleDateString("en-US", {
-          month: "long",
-          day: "numeric",
-          year: "numeric",
-        }).replace(/(\d+),/, (match, day) => {
-          const dayNum = parseInt(day);
-          let suffix = 'th';
-          if (dayNum % 10 === 1 && dayNum !== 11) suffix = 'st';
-          else if (dayNum % 10 === 2 && dayNum !== 12) suffix = 'nd';
-          else if (dayNum % 10 === 3 && dayNum !== 13) suffix = 'rd';
-          return `${dayNum}${suffix},`;
-        }), // Month ddth, yyyy
+        today
+          .toLocaleDateString("en-US", {
+            month: "long",
+            day: "numeric",
+            year: "numeric",
+          })
+          .replace(/(\d+),/, (match, day) => {
+            const dayNum = parseInt(day);
+            let suffix = "th";
+            if (dayNum % 10 === 1 && dayNum !== 11) suffix = "st";
+            else if (dayNum % 10 === 2 && dayNum !== 12) suffix = "nd";
+            else if (dayNum % 10 === 3 && dayNum !== 13) suffix = "rd";
+            return `${dayNum}${suffix},`;
+          }), // Month ddth, yyyy
         today.toISOString().split("T")[0], // yyyy-mm-dd
         // Also try common alternative formats
-        `${today.getDate()}${getOrdinalSuffix(today.getDate())} ${today.toLocaleDateString("en-US", { month: "long" })}, ${today.getFullYear()}`, // ddth Month, yyyy
+        `${today.getDate()}${getOrdinalSuffix(
+          today.getDate()
+        )} ${today.toLocaleDateString("en-US", {
+          month: "long",
+        })}, ${today.getFullYear()}`, // ddth Month, yyyy
       ];
 
       // Helper function for ordinal suffix
       function getOrdinalSuffix(day: number): string {
-        if (day % 10 === 1 && day !== 11) return 'st';
-        if (day % 10 === 2 && day !== 12) return 'nd';
-        if (day % 10 === 3 && day !== 13) return 'rd';
-        return 'th';
+        if (day % 10 === 1 && day !== 11) return "st";
+        if (day % 10 === 2 && day !== 12) return "nd";
+        if (day % 10 === 3 && day !== 13) return "rd";
+        return "th";
       }
 
       for (const format of dateFormats) {
         console.log("Trying date format:", format);
-        
+
         const query = `
           [:find ?uid
            :where
@@ -622,20 +632,29 @@ export class RoamService {
   static getModelTokenLimit(provider: string, model: string): number {
     const modelLimits: { [key: string]: { [key: string]: number } } = {
       openai: {
+        "gpt-4o": 24000, // 128k context window
         "gpt-4o-mini": 24000, // 128k context window, very cost-effective
+        "gpt-4-turbo": 24000, // 128k context window
+        "gpt-4": 6000, // 8k context window, conservative
         "gpt-3.5-turbo": 2000, // 4k context window, keep conservative
       },
       anthropic: {
-        "claude-3-haiku-20240307": 180000, // Claude 3 Haiku - 200k context
+        "claude-3-5-sonnet-20241022": 180000, // Claude 3.5 Sonnet - 200k context
         "claude-3-5-haiku-20241022": 180000, // Claude 3.5 Haiku - 200k context
+        "claude-3-opus-20240229": 180000, // Claude 3 Opus - 200k context
+        "claude-3-sonnet-20240229": 180000, // Claude 3 Sonnet - 200k context
+        "claude-3-haiku-20240307": 180000, // Claude 3 Haiku - 200k context
       },
       groq: {
+        "llama-3.3-70b-versatile": 24000, // 128k context window, latest model
+        "llama-3.1-70b-versatile": 24000, // 128k context window
         "llama-3.1-8b-instant": 24000, // 128k context window, ultra fast & cheap
-        "gemma2-9b-it": 6000, // 8k context window, very fast
+        "llama3-groq-70b-8192-tool-use-preview": 6000, // 8k context window, tool preview
+        "llama3-groq-8b-8192-tool-use-preview": 6000, // 8k context window, tool preview
       },
       xai: {
         "grok-beta": 24000, // 131k context window
-        "grok-3-mini": 24000, // 128k context window, most cost-effective
+        "grok-vision-beta": 24000, // 128k context window with vision
       },
     };
 
@@ -869,9 +888,13 @@ export class RoamService {
       hasDailyNote: !!context.dailyNote,
       dailyNoteTitle: context.dailyNote?.title,
       dailyNoteBlocks: context.dailyNote?.blocks?.length || 0,
-      dailyNoteBlocksContent: context.dailyNote?.blocks?.map(b => ({ uid: b.uid, string: b.string })) || []
+      dailyNoteBlocksContent:
+        context.dailyNote?.blocks?.map((b) => ({
+          uid: b.uid,
+          string: b.string,
+        })) || [],
     });
-    
+
     if (context.dailyNote && context.dailyNote.blocks.length > 0) {
       const dailyUrls = this.generatePageUrl(
         context.dailyNote.uid,
@@ -1197,6 +1220,312 @@ export class RoamService {
     } catch (error) {
       console.error("Error getting notes from date range:", error);
       return [];
+    }
+  }
+
+  /**
+   * Get page by exact title match (new method for getRoamNotes tool)
+   */
+  static async getPageByTitle(title: string): Promise<RoamPage | null> {
+    try {
+      console.log("Getting page by title:", title);
+
+      const query = `
+        [:find ?uid
+         :where
+         [?e :node/title "${title}"]
+         [?e :block/uid ?uid]]
+      `;
+
+      const result = window.roamAlphaAPI.q(query);
+      console.log("Page query result:", result);
+
+      if (result && result.length > 0) {
+        const uid = result[0][0];
+        const blocks = await this.getPageBlocks(uid);
+        return { title, uid, blocks };
+      }
+      return null;
+    } catch (error) {
+      console.error("Error getting page by title:", error);
+      return null;
+    }
+  }
+
+  /**
+   * Get block by UID (new method for getRoamNotes tool)
+   */
+  static async getBlockByUid(uid: string): Promise<RoamBlock | null> {
+    try {
+      console.log("Getting block by UID:", uid);
+
+      const query = `
+        [:find ?string
+         :where
+         [?e :block/uid "${uid}"]
+         [?e :block/string ?string]]
+      `;
+
+      const result = window.roamAlphaAPI.q(query);
+      console.log("Block query result:", result);
+
+      if (result && result.length > 0) {
+        const content = result[0][0];
+        const children = await this.getBlockChildren(uid);
+
+        return {
+          uid,
+          string: content,
+          children,
+        };
+      }
+      return null;
+    } catch (error) {
+      console.error("Error getting block by UID:", error);
+      return null;
+    }
+  }
+
+  /**
+   * Get blocks that reference a specific page (new method for getRoamNotes tool)
+   */
+  static async getBlocksReferencingPage(
+    pageTitle: string
+  ): Promise<RoamBlock[]> {
+    try {
+      console.log("Getting blocks referencing page:", pageTitle);
+
+      // Multiple query strategies for better coverage
+      const queries = [
+        // Standard page reference [[PageTitle]]
+        `[:find ?uid ?string
+         :where
+         [?block :block/string ?string]
+         [?block :block/uid ?uid]
+         [(clojure.string/includes? ?string "[[${pageTitle}]]]")]`,
+
+        // Tag reference #PageTitle
+        `[:find ?uid ?string
+         :where
+         [?block :block/string ?string]
+         [?block :block/uid ?uid]
+         [(clojure.string/includes? ?string "#${pageTitle}")]`,
+
+        // Direct reference relationship
+        `[:find ?uid ?string
+         :where
+         [?page :node/title "${pageTitle}"]
+         [?block :block/refs ?page]
+         [?block :block/uid ?uid]
+         [?block :block/string ?string]]`,
+      ];
+
+      const allResults: RoamBlock[] = [];
+      for (const query of queries) {
+        try {
+          console.log("Executing reference query:", query);
+          const result = window.roamAlphaAPI.q(query);
+          console.log("Reference query result:", result);
+
+          if (result) {
+            const blocks = result.map(([uid, string]: [string, string]) => ({
+              uid,
+              string: string || "",
+              children: [],
+            }));
+            allResults.push(...blocks);
+          }
+        } catch (queryError) {
+          console.warn(`Reference query failed:`, queryError);
+        }
+      }
+
+      // Remove duplicates based on UID
+      const uniqueBlocks = allResults.filter(
+        (block, index, self) =>
+          index === self.findIndex((b) => b.uid === block.uid)
+      );
+
+      console.log(
+        `Found ${uniqueBlocks.length} unique blocks referencing "${pageTitle}"`
+      );
+      return uniqueBlocks;
+    } catch (error) {
+      console.error("Error getting blocks referencing page:", error);
+      return [];
+    }
+  }
+
+  /**
+   * Full text search in all notes (new method for getRoamNotes tool)
+   */
+  static async searchNotesFullText(searchTerm: string): Promise<RoamBlock[]> {
+    try {
+      console.log("Performing full text search for:", searchTerm);
+
+      const query = `
+        [:find ?uid ?string
+         :where
+         [?block :block/string ?string]
+         [?block :block/uid ?uid]
+         [(clojure.string/includes? (clojure.string/lower-case ?string) "${searchTerm.toLowerCase()}")]]
+      `;
+
+      console.log("Executing search query:", query);
+      const result = window.roamAlphaAPI.q(query);
+      console.log("Search query result:", result);
+
+      if (!result) return [];
+
+      const searchResults = result.map(([uid, string]: [string, string]) => ({
+        uid,
+        string: string || "",
+        children: [],
+      }));
+
+      console.log(
+        `Found ${searchResults.length} blocks containing "${searchTerm}"`
+      );
+      return searchResults;
+    } catch (error) {
+      console.error("Error in full text search:", error);
+      return [];
+    }
+  }
+
+  /**
+   * Unified query method for getRoamNotes tool
+   */
+  static async queryNotes(params: any): Promise<any> {
+    const startTime = performance.now();
+    const warnings: string[] = [];
+    let notes: any[] = [];
+    let queryType = "unknown";
+
+    try {
+      console.log("🔍 Executing queryNotes with params:", params);
+
+      // 1. Current page context query
+      if (params.currentPageContext) {
+        queryType = "current-page";
+        const currentPage = await this.getCurrentPageInfo();
+        if (currentPage) {
+          notes = [currentPage];
+        } else {
+          warnings.push("无法获取当前页面信息");
+        }
+      }
+
+      // 2. Specific block query
+      else if (params.blockUid) {
+        queryType = "block-uid";
+        const block = await this.getBlockByUid(params.blockUid);
+        if (block) {
+          notes = [block];
+        } else {
+          warnings.push(`未找到 UID 为 ${params.blockUid} 的块`);
+        }
+      }
+
+      // 3. Page title query
+      else if (params.pageTitle) {
+        queryType = "page-title";
+        const page = await this.getPageByTitle(params.pageTitle);
+        if (page) {
+          notes = [page];
+        } else {
+          warnings.push(`未找到标题为 "${params.pageTitle}" 的页面`);
+        }
+      }
+
+      // 4. Single date query
+      else if (params.date) {
+        queryType = "single-date";
+        const dailyNote = await this.getNotesFromDate(params.date);
+        if (dailyNote) {
+          notes = [dailyNote];
+        } else {
+          warnings.push(`未找到 ${params.date} 的每日笔记`);
+        }
+      }
+
+      // 5. Date range query
+      else if (params.startDate && params.endDate) {
+        queryType = "date-range";
+        const rangeNotes = await this.getNotesFromDateRange(
+          params.startDate,
+          params.endDate
+        );
+        notes = rangeNotes;
+        if (notes.length === 0) {
+          warnings.push(
+            `未找到 ${params.startDate} 到 ${params.endDate} 期间的笔记`
+          );
+        }
+      }
+
+      // 6. Referenced page query
+      else if (params.referencedPage) {
+        queryType = "referenced-page";
+        const referencedBlocks = await this.getBlocksReferencingPage(
+          params.referencedPage
+        );
+        notes = referencedBlocks;
+        if (notes.length === 0) {
+          warnings.push(`未找到引用 "${params.referencedPage}" 的块`);
+        }
+      }
+
+      // 7. Full text search
+      else if (params.searchTerm) {
+        queryType = "full-text-search";
+        const searchResults = await this.searchNotesFullText(params.searchTerm);
+        notes = searchResults;
+        if (notes.length === 0) {
+          warnings.push(`未找到包含 "${params.searchTerm}" 的内容`);
+        }
+      }
+
+      // 8. Apply limit
+      if (params.limit && notes.length > params.limit) {
+        warnings.push(
+          `结果已限制为 ${params.limit} 个项目（共找到 ${notes.length} 个）`
+        );
+        notes = notes.slice(0, params.limit);
+      }
+
+      const executionTime = performance.now() - startTime;
+      console.log(
+        `🔍 queryNotes completed in ${executionTime.toFixed(2)}ms, found ${
+          notes.length
+        } results`
+      );
+
+      return {
+        success: true,
+        data: notes,
+        totalFound: notes.length,
+        executionTime,
+        warnings: warnings.length > 0 ? warnings : undefined,
+        metadata: {
+          queryType,
+          dateRange:
+            params.startDate && params.endDate
+              ? `${params.startDate} to ${params.endDate}`
+              : undefined,
+          sourcePage: params.pageTitle || params.referencedPage,
+        },
+      };
+    } catch (error: any) {
+      console.error("❌ Error in queryNotes:", error);
+      return {
+        success: false,
+        data: [],
+        totalFound: 0,
+        executionTime: performance.now() - startTime,
+        warnings: [`查询失败: ${error.message}`],
+        metadata: { queryType },
+      };
     }
   }
 }

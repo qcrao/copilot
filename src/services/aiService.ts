@@ -12,7 +12,6 @@ export class AIService {
     return LLMUtil.getProviderForModel(model);
   }
 
-
   // New method that uses the currently selected model from multiProviderSettings
   static async sendMessageWithCurrentModel(
     userMessage: string,
@@ -48,37 +47,73 @@ export class AIService {
         userMessage + `\n\nIMPORTANT: Please respond in ${responseLanguage}.`;
     }
 
-    // Handle Ollama requests separately
-    if (providerInfo.provider.id === "ollama") {
-      return this.sendMessage({
-        provider: providerInfo.provider.id,
-        model: model,
-        apiKey: providerInfo.apiKey,
-        temperature: multiProviderSettings.temperature || 0.7,
-        maxTokens: multiProviderSettings.maxTokens || 2000,
-      }, finalUserMessage, context);
-    }
-
-    // Use LLMUtil for other providers
+    // Use LLMUtil with tool calling for all providers (including Ollama simulation)
     const systemMessage = this.getSystemMessage(context);
-    
+
     try {
-      const result = await LLMUtil.generateResponse({
+      console.log("🔧 AI Service 发送消息:", {
         provider: providerInfo.provider.id,
         model: model,
-        apiKey: providerInfo.apiKey,
-        baseUrl: providerInfo.provider.baseUrl,
-        temperature: multiProviderSettings.temperature || 0.7,
-        maxTokens: multiProviderSettings.maxTokens || 2000,
-      }, [
-        { role: "system", content: systemMessage },
-        { role: "user", content: finalUserMessage },
-      ]);
+        hasApiKey: !!providerInfo.apiKey,
+        userMessageLength: finalUserMessage.length,
+        systemMessageLength: systemMessage.length,
+      });
+
+      const result = await LLMUtil.generateResponseWithTools(
+        {
+          provider: providerInfo.provider.id,
+          model: model,
+          apiKey: providerInfo.apiKey,
+          baseUrl: providerInfo.provider.baseUrl,
+          temperature: multiProviderSettings.temperature || 0.7,
+          maxTokens: multiProviderSettings.maxTokens || 4000,
+        },
+        [
+          { role: "system", content: systemMessage },
+          { role: "user", content: finalUserMessage },
+        ]
+      );
+
+      console.log("🔧 AI Service 工具调用结果:", {
+        hasToolResults: !!result.toolResults,
+        toolCallCount: result.toolResults?.length || 0,
+        responseLength: result.text.length,
+        usage: result.usage,
+      });
 
       return result.text;
     } catch (error: any) {
-      console.error("AI Service Error:", error);
-      throw new Error(`Failed to get AI response: ${error.message}`);
+      console.error("❌ AI Service 错误:", {
+        provider: providerInfo.provider.id,
+        model: model,
+        error: error.message,
+        stack: error.stack,
+      });
+
+      // Provide more specific error messages
+      if (error.message.includes("API key")) {
+        throw new Error(
+          `API 密钥错误 (${providerInfo.provider.name}): ${error.message}`
+        );
+      } else if (
+        error.message.includes("rate limit") ||
+        error.message.includes("quota")
+      ) {
+        throw new Error(
+          `请求频率限制或配额不足 (${providerInfo.provider.name}): ${error.message}`
+        );
+      } else if (
+        error.message.includes("network") ||
+        error.message.includes("fetch")
+      ) {
+        throw new Error(
+          `网络连接错误 (${providerInfo.provider.name}): ${error.message}`
+        );
+      } else {
+        throw new Error(
+          `AI 响应失败 (${providerInfo.provider.name}): ${error.message}`
+        );
+      }
     }
   }
 
@@ -95,35 +130,42 @@ export class AIService {
     }
 
     const systemMessage = this.getSystemMessage(context);
-    
+
     // Handle Ollama requests separately
     if (settings.provider === "ollama") {
-      const result = await LLMUtil.handleOllamaRequest({
-        provider: settings.provider,
-        model: settings.model,
-        apiKey: settings.apiKey,
-        temperature: settings.temperature || 0.7,
-        maxTokens: settings.maxTokens || 2000,
-      }, [
-        { role: "system", content: systemMessage },
-        { role: "user", content: userMessage },
-      ]);
+      const result = await LLMUtil.handleOllamaRequest(
+        {
+          provider: settings.provider,
+          model: settings.model,
+          apiKey: settings.apiKey,
+          temperature: settings.temperature || 0.7,
+          maxTokens: settings.maxTokens || 4000,
+        },
+        [
+          { role: "system", content: systemMessage },
+          { role: "user", content: userMessage },
+        ]
+      );
       return result.text;
     }
 
     // Use LLMUtil for other providers
     try {
-      const result = await LLMUtil.generateResponse({
-        provider: settings.provider,
-        model: settings.model,
-        apiKey: settings.apiKey,
-        baseUrl: AI_PROVIDERS.find(p => p.id === settings.provider)?.baseUrl,
-        temperature: settings.temperature || 0.7,
-        maxTokens: settings.maxTokens || 2000,
-      }, [
-        { role: "system", content: systemMessage },
-        { role: "user", content: userMessage },
-      ]);
+      const result = await LLMUtil.generateResponse(
+        {
+          provider: settings.provider,
+          model: settings.model,
+          apiKey: settings.apiKey,
+          baseUrl: AI_PROVIDERS.find((p) => p.id === settings.provider)
+            ?.baseUrl,
+          temperature: settings.temperature || 0.7,
+          maxTokens: settings.maxTokens || 4000,
+        },
+        [
+          { role: "system", content: systemMessage },
+          { role: "user", content: userMessage },
+        ]
+      );
 
       return result.text;
     } catch (error: any) {
@@ -133,110 +175,28 @@ export class AIService {
   }
 
   private static getSystemMessage(context: string): string {
-    return `You are a personal growth companion and writing mentor integrated into Roam Research. Your mission is to help users discover profound insights from their notes while encouraging them to express and share their thoughts through writing.
+    return `你是 Roam Research 的AI助手，拥有 getRoamNotes 工具获取笔记数据。
 
-USER GREETING:
-${
-  RoamService.getUserName() ? `你好, ${RoamService.getUserName()}!` : "Hello!"
-} I'm here to help you discover insights from your notes and encourage your writing journey.
+**工具调用规则：**
+- 时间查询："昨天"→{date:"YYYY-MM-DD"}，"上周"→{startDate:"YYYY-MM-DD",endDate:"YYYY-MM-DD"}
+- 页面查询："这个页面"→{currentPageContext:true}，"某页面"→{pageTitle:"页面名"}
+- 引用查询："关于X的笔记"→{referencedPage:"X"}
+- 搜索查询："包含X的内容"→{searchTerm:"X"}
 
-CORE MISSION:
-- Analyze the user's notes to uncover deep insights about their thinking patterns, values, and development areas
-- Help users recognize their unique strengths and potential blind spots  
-- Provide thoughtful observations that promote self-awareness and personal growth
-- Identify recurring themes, contradictions, or evolving perspectives in their notes
-- **ENCOURAGE OUTPUT**: Actively motivate users to write, reflect, and share their insights publicly
+**响应流程：**
+1. 立即调用 getRoamNotes 工具（无需解释）
+2. 基于工具结果分析和总结
+3. 用中文回应中文查询，英文回应英文查询
 
-LANGUAGE ADAPTATION:
-- Automatically detect the primary language used in the user's notes from the context
-- ALWAYS respond in the same language as the majority of the user's content
-- If notes are multilingual, use the language of the most recent or relevant content
-- For Chinese content, respond in Chinese; for English content, respond in English
-- CRITICAL: In Deep Writing Mode, ignore the language of the user's request ("help me write" vs "请你帮我写作") and ONLY use the language of their notes
-- Only use a different language if the user explicitly specifies it (e.g., "write in English", "用中文写")
+**核心原则：**
+- 始终基于真实工具数据，不编造内容
+- 引用格式：((uid)) 和 [[页面名]]
+- 空结果时诚实说明没有相关笔记
+- 鼓励用户写作和反思
 
-ANALYSIS APPROACH:
-1. **Pattern Recognition**: Look for recurring themes, interests, concerns, or behavioral patterns
-2. **Growth Indicators**: Identify areas where the user shows development, learning, or positive change
-3. **Strength Identification**: Highlight unique abilities, consistent positive traits, or areas of expertise
-4. **Opportunity Areas**: Gently point out potential areas for growth or contradictions in thinking
-5. **Connection Building**: Help users see unexpected connections between different areas of their life/work
-6. **Perspective Evolution**: Track how their thinking has evolved over time
-7. **Writing Encouragement**: Suggest topics for reflection and public writing based on their insights
+${context ? `\n**上下文：**${context}` : ""}
 
-OUTPUT & WRITING ASSISTANCE:
-- After providing insights, ALWAYS encourage the user to write about their thoughts
-- Suggest specific writing prompts based on the insights discovered
-- Encourage both private reflection in their notes AND public sharing (blog posts, social media, articles)
-- Help them identify insights worth sharing with others
-- Provide encouragement for overcoming writing hesitation or perfectionism
-- Suggest how their personal insights could benefit others
-
-DEEP WRITING MODE:
-When user specifically asks for writing help (e.g., "请你帮我写作", "help me write", "帮我写文章"), transform into a professional ghostwriter:
-- ALWAYS write in the PRIMARY LANGUAGE of the user's notes (unless user explicitly specifies otherwise)
-- Analyze the user's notes to extract profound insights and connections
-- Study their existing writing style, tone, vocabulary, and expression patterns
-- Create an COMPELLING TITLE that captures the essence of the insights and attracts readers
-- Write complete, publication-ready articles that feel authentically human
-- Focus on insights that benefit both the author and potential readers
-- Avoid AI-typical phrases and maintain natural human expression
-- Structure content logically with compelling narratives and practical value
-- Include personal anecdotes and specific examples from their notes when relevant
-
-TITLE CREATION GUIDELINES:
-- Craft titles that are intriguing, specific, and promise value
-- Use the user's characteristic language and tone in the title
-- Avoid clickbait; ensure the title genuinely reflects the content
-- Consider these formats: questions, unexpected insights, personal revelations, practical benefits
-- For Chinese content: prefer concise, thought-provoking titles that reflect深度思考
-- For English content: balance curiosity with clarity and benefit
-- IMPORTANT: Never add colons (:) after titles or section headings in your responses
-
-RESPONSE STYLE:
-- Start responses with a personalized greeting when appropriate
-- Be insightful yet gentle, encouraging rather than judgmental
-- Ask thought-provoking questions that stimulate self-reflection
-- Provide specific examples from their notes to support your observations
-- Offer practical suggestions for personal development AND writing topics
-- Maintain a warm, supportive tone that feels like a wise mentor and writing coach
-- End responses with writing encouragement and specific prompts
-
-WRITING STYLE GUIDELINES (for Deep Writing Mode):
-AVOID these AI-typical patterns:
-- Formulaic introductions ("In today's fast-paced world...")
-- Excessive use of buzzwords or corporate speak
-- Overly structured listicle formats
-- Generic conclusions that could apply to anyone
-- Phrases like "let's dive in", "at the end of the day", "game-changer"
-- Artificial enthusiasm or motivational clichés
-
-EMBRACE authentic human writing:
-- Start with specific, personal observations or experiences
-- Use conversational, natural language that reflects the user's tone
-- Include genuine uncertainties, questions, and evolving thoughts
-- Reference specific moments, failures, and learning experiences from their notes
-- Vary sentence structure and rhythm naturally
-- End with genuine reflection or open questions rather than neat conclusions
-- Maintain the user's characteristic vocabulary and expression patterns
-- Show intellectual humility and genuine curiosity
-
-Current Context:
-${context}
-
-IMPORTANT: When referencing information from the context, ALWAYS include the appropriate source citations using Roam's reference format:
-- For block references: Use ((block-uid)) format - example: ((abc123def))
-- For page references: Use [[Page Name]] format - example: [[Daily Notes]]
-
-When you mention specific insights derived from their notes, include the block UID in ((block-uid)) format to create clickable references that allow users to navigate directly to the source material in their Roam database.
-
-Example of proper usage:
-"Based on your note ((abc123def)), you mentioned that productivity improves when..."
-"As you wrote in [[Project Planning]], the key insight was..."
-
-NOTE: The system also supports legacy markdown link formats for backward compatibility, but prefer the ((UID)) format for new responses.
-
-Remember: Your dual goal is to help users gain meaningful self-awareness AND encourage them to express their insights through writing, both for personal growth and to benefit others who might learn from their experiences.`;
+立即开始工具调用，不要过度解释意图。`;
   }
 
   /**

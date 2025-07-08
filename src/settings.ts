@@ -7,7 +7,7 @@ const DEFAULT_SETTINGS: AISettings = {
   model: "gpt-4o-mini",
   apiKey: "",
   temperature: 0.7,
-  maxTokens: 2000,
+  maxTokens: 4000,
 };
 
 // New multi-provider settings
@@ -15,7 +15,7 @@ export let multiProviderSettings: MultiProviderSettings = {
   apiKeys: {},
   currentModel: "gpt-4o-mini",
   temperature: 0.7,
-  maxTokens: 2000,
+  maxTokens: 4000,
   responseLanguage: "English",
   ollamaBaseUrl: "http://localhost:11434", // Default Ollama address
 };
@@ -59,7 +59,7 @@ export function loadInitialSettings(extensionAPI: any) {
     apiKeys,
     currentModel,
     temperature: savedTemperature ? parseFloat(savedTemperature) : 0.7,
-    maxTokens: savedMaxTokens ? parseInt(savedMaxTokens) : 2000,
+    maxTokens: savedMaxTokens ? parseInt(savedMaxTokens) : 4000,
     responseLanguage: savedResponseLanguage || "English",
     ollamaBaseUrl: savedOllamaBaseUrl || "http://localhost:11434",
   };
@@ -475,7 +475,7 @@ export function initPanelConfig(extensionAPI: any) {
         description: "Maximum number of tokens in response",
         action: {
           type: "input",
-          placeholder: "2000",
+          placeholder: "4000",
           value: multiProviderSettings.maxTokens?.toString(),
           onChange: (evt: any) => {
             const value = evt?.target?.value;

@@ -21,7 +21,9 @@
       "Bash(true)",
       "Bash(mkdir:*)",
       "Bash(curl:*)",
-      "Bash(ls:*)"
+      "Bash(ls:*)",
+      "Bash(npm ls:*)",
+      "Bash(npx roamjs-scripts build:*)"
     ],
     "deny": []
   }
