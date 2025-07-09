@@ -1528,4 +1528,133 @@ export class RoamService {
       };
     }
   }
+
+  /**
+   * Search for pages by title (for bracket autocomplete)
+   */
+  static async searchPages(searchTerm: string, limit: number = 10): Promise<Array<{ title: string; uid: string }>> {
+    try {
+      if (!searchTerm.trim()) {
+        // Return some recent pages when no search term
+        return this.getAllPageTitles(limit);
+      }
+
+      const lowerSearchTerm = searchTerm.toLowerCase();
+      console.log(`🔍 Searching pages for: "${searchTerm}"`);
+
+      // First, get all pages and filter in JavaScript to avoid Datalog escaping issues
+      const allPagesQuery = `
+        [:find ?title ?uid
+         :where
+         [?e :node/title ?title]
+         [?e :block/uid ?uid]]
+      `;
+
+      const result = window.roamAlphaAPI.q(allPagesQuery);
+      if (!result || result.length === 0) {
+        console.log("No pages found in database");
+        return [];
+      }
+
+      // Filter and convert result to page objects
+      const allPages = result.map(([title, uid]: [string, string]) => ({ title, uid }));
+      
+      // Debug: show a few page titles to understand the data
+      console.log(`Sample page titles:`, allPages.slice(0, 10).map(p => p.title));
+      
+      // Debug: look for pages that might contain our search term
+      const candidatePages = allPages.filter(page => 
+        page.title.toLowerCase().includes('claude') || 
+        page.title.toLowerCase().includes('code')
+      );
+      console.log(`Pages containing 'claude' or 'code':`, candidatePages.map(p => p.title));
+      
+      // More flexible search: split search term and match each part
+      const searchWords = lowerSearchTerm.split(/[-\s]+/).filter(word => word.length > 0);
+      console.log(`Search words:`, searchWords);
+      
+      const pages = allPages.filter(page => {
+        const pageTitle = page.title.toLowerCase();
+        // Match if all search words are found in the title
+        const matches = searchWords.every(word => pageTitle.includes(word));
+        
+        // Debug specific pages for troubleshooting
+        if (pageTitle.includes('claude')) {
+          console.log(`Checking page "${page.title}": searchWords=[${searchWords.join(', ')}], matches=${matches}`);
+        }
+        
+        return matches;
+      });
+
+      console.log(`Found ${pages.length} matching pages out of ${result.length} total pages`);
+
+      if (pages.length === 0) {
+        console.log(`No pages found for search term: "${searchTerm}"`);
+        return [];
+      }
+
+      // Sort by relevance: exact match first, then starts with, then contains
+      pages.sort((a, b) => {
+        const aTitle = a.title.toLowerCase();
+        const bTitle = b.title.toLowerCase();
+        
+        // Exact match
+        if (aTitle === lowerSearchTerm && bTitle !== lowerSearchTerm) return -1;
+        if (bTitle === lowerSearchTerm && aTitle !== lowerSearchTerm) return 1;
+        
+        // Starts with
+        if (aTitle.startsWith(lowerSearchTerm) && !bTitle.startsWith(lowerSearchTerm)) return -1;
+        if (bTitle.startsWith(lowerSearchTerm) && !aTitle.startsWith(lowerSearchTerm)) return 1;
+        
+        // Alphabetical for similar relevance
+        return aTitle.localeCompare(bTitle);
+      });
+
+      const limitedResults = pages.slice(0, limit);
+      console.log(`Returning ${limitedResults.length} results:`, limitedResults.map(p => p.title));
+      
+      return limitedResults;
+    } catch (error) {
+      console.error("Error searching pages:", error);
+      return [];
+    }
+  }
+
+  /**
+   * Get all page titles (for initial page list)
+   */
+  static async getAllPageTitles(limit: number = 50): Promise<Array<{ title: string; uid: string }>> {
+    try {
+      console.log("🔍 Getting all page titles");
+
+      const query = `
+        [:find ?title ?uid
+         :where
+         [?e :node/title ?title]
+         [?e :block/uid ?uid]]
+      `;
+
+      const result = window.roamAlphaAPI.q(query);
+      if (!result || result.length === 0) {
+        console.log("No pages found");
+        return [];
+      }
+
+      // Convert to page objects and sort alphabetically
+      const pages = result.map(([title, uid]: [string, string]) => ({
+        title,
+        uid
+      }));
+
+      pages.sort((a, b) => a.title.localeCompare(b.title));
+
+      const limitedResults = pages.slice(0, limit);
+      console.log(`Found ${pages.length} pages, returning ${limitedResults.length}`);
+      
+      return limitedResults;
+    } catch (error) {
+      console.error("Error getting all page titles:", error);
+      return [];
+    }
+  }
 }

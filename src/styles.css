@@ -1285,3 +1285,128 @@ details[style*="thinking"][open] {
   width: 5px;
   cursor: e-resize;
 }
+
+/* Page Suggestion Dropdown Styles */
+.rr-page-suggestion-dropdown {
+  background: white;
+  border: 1px solid #d9d9d9;
+  border-radius: 6px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  max-width: 320px;
+  min-width: 240px;
+  max-height: 300px;
+  overflow: hidden;
+  font-family: inherit;
+  font-size: 14px;
+}
+
+.rr-page-suggestion-header {
+  padding: 8px 12px;
+  background: #f8f9fa;
+  border-bottom: 1px solid #e9ecef;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.rr-page-suggestion-title {
+  font-weight: 600;
+  color: #393a3d;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.rr-page-suggestion-count {
+  font-size: 11px;
+  color: #6c757d;
+}
+
+.rr-page-suggestion-list {
+  max-height: 220px;
+  overflow-y: auto;
+}
+
+.rr-page-suggestion-item {
+  padding: 8px 12px;
+  cursor: pointer;
+  border-bottom: 1px solid #f1f3f4;
+  transition: background-color 0.1s ease;
+}
+
+.rr-page-suggestion-item:last-child {
+  border-bottom: none;
+}
+
+.rr-page-suggestion-item:hover,
+.rr-page-suggestion-item.selected {
+  background-color: #e3f2fd;
+}
+
+.rr-page-suggestion-item.selected {
+  background-color: #1976d2;
+  color: white;
+}
+
+.rr-page-suggestion-content {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.rr-page-suggestion-icon {
+  font-size: 12px;
+  opacity: 0.7;
+  flex-shrink: 0;
+}
+
+.rr-page-suggestion-text {
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.3;
+}
+
+.rr-page-suggestion-highlight {
+  background-color: rgba(255, 235, 59, 0.6);
+  font-weight: 600;
+  border-radius: 2px;
+  padding: 0 1px;
+}
+
+.rr-page-suggestion-item.selected .rr-page-suggestion-highlight {
+  background-color: rgba(255, 255, 255, 0.3);
+  color: inherit;
+}
+
+.rr-page-suggestion-footer {
+  padding: 6px 12px;
+  background: #f8f9fa;
+  border-top: 1px solid #e9ecef;
+  text-align: center;
+}
+
+.rr-page-suggestion-hint {
+  font-size: 11px;
+  color: #6c757d;
+  font-style: italic;
+}
+
+/* Scrollbar styling for the suggestion list */
+.rr-page-suggestion-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.rr-page-suggestion-list::-webkit-scrollbar-track {
+  background: #f1f1f1;
+}
+
+.rr-page-suggestion-list::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 3px;
+}
+
+.rr-page-suggestion-list::-webkit-scrollbar-thumb:hover {
+  background: #a8a8a8;
+}
