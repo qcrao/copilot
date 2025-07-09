@@ -56,7 +56,88 @@ curl http://localhost:11434/api/tags
 
 This is the most important step. You need to tell Ollama to accept connections from `https://roamresearch.com`.
 
-*Note: The following `launchctl` command is specific to macOS. For other operating systems, you will need to set the `OLLAMA_ORIGINS` environment variable in the appropriate way for your system (e.g., in your shell profile or via systemd).*
+#### Option A: One-Click Setup Script (Recommended)
+
+We provide a script that automatically sets up persistent CORS configuration:
+
+```bash
+# Run the setup script (included in the repository)
+./setup_ollama_cors.sh
+```
+
+This script will:
+- Add the environment variable to your shell configuration file (`.zshrc`, `.bash_profile`, etc.)
+- Create a persistent launchd configuration on macOS
+- Restart Ollama automatically
+- Verify the CORS configuration
+
+**To test if CORS is working correctly, run:**
+```bash
+./test_ollama_cors.sh
+```
+
+**To remove the CORS configuration later, run:**
+```bash
+./cleanup_ollama_cors.sh
+```
+
+#### Option B: Manual Setup (Persistent Configuration)
+
+**For permanent configuration that survives restarts:**
+
+1. **Add to your shell configuration file:**
+
+```bash
+# For zsh users (most common on macOS)
+echo 'export OLLAMA_ORIGINS="https://roamresearch.com"' >> ~/.zshrc
+
+# For bash users
+echo 'export OLLAMA_ORIGINS="https://roamresearch.com"' >> ~/.bash_profile
+```
+
+2. **On macOS, create a persistent launchd configuration:**
+
+```bash
+# Create the plist file
+cat > ~/Library/LaunchAgents/com.ollama.environment.plist << 'EOF'
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.ollama.environment</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>sh</string>
+        <string>-c</string>
+        <string>launchctl setenv OLLAMA_ORIGINS "https://roamresearch.com"</string>
+    </array>
+    <key>RunAtLoad</key>
+    <true/>
+    <key>KeepAlive</key>
+    <false/>
+</dict>
+</plist>
+EOF
+
+# Load the plist
+launchctl load ~/Library/LaunchAgents/com.ollama.environment.plist
+```
+
+3. **Apply the changes:**
+
+```bash
+# Reload your shell configuration
+source ~/.zshrc  # or ~/.bash_profile for bash users
+
+# Set for current session
+export OLLAMA_ORIGINS="https://roamresearch.com"
+launchctl setenv OLLAMA_ORIGINS "https://roamresearch.com"
+```
+
+#### Option C: Temporary Setup (Session Only)
+
+*Note: This method requires re-running after each restart.*
 
 ```bash
 # On macOS:
@@ -68,14 +149,27 @@ launchctl setenv OLLAMA_ORIGINS "https://roamresearch.com"
 Confirm that the variable was set correctly.
 
 ```bash
-# On macOS:
+# Check environment variable
+echo $OLLAMA_ORIGINS
+
+# On macOS, also check launchctl
 launchctl getenv OLLAMA_ORIGINS
 ```
-This command should output: `https://roamresearch.com`
+Both commands should output: `https://roamresearch.com`
 
 **5. Restart Ollama**
 
-For the changes to take effect, you must restart the Ollama server. The easiest way is to use the Activity Monitor on macOS to find and quit the "Ollama" process, and then restart the application. Running `ollama list` in the terminal will also restart the server if it's not running.
+For the changes to take effect, you must restart the Ollama server:
+
+```bash
+# Stop Ollama
+pkill -f ollama
+
+# Start Ollama (or simply run)
+ollama serve
+```
+
+Alternatively, you can use Activity Monitor on macOS to find and quit the "Ollama" process, then restart the application.
 
 **6. Verify CORS Configuration**
 
