@@ -876,7 +876,7 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
           </div>
 
                         <ChatInput
-                placeholder="Ask anything. @ for notes. / for custom prompts."
+                placeholder="Ask anything — @ for pages, drag blocks, / for prompts"
                 onSend={handleSendMessage}
                 disabled={false} // Don't disable input while loading
                 onModelChange={handleModelChange}

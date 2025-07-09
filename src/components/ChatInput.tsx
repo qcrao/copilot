@@ -37,7 +37,7 @@ interface ChatInputProps {
 }
 
 export const ChatInput: React.FC<ChatInputProps> = ({
-  placeholder = "Ask anything. @ for notes. / for custom prompts.",
+  placeholder = "Ask anything — @ for pages, drag blocks, / for prompts",
   onSend,
   disabled = false,
   onModelChange,

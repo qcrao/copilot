@@ -20,7 +20,7 @@ interface CustomMessageInputProps {
 }
 
 export const CustomMessageInput: React.FC<CustomMessageInputProps> = ({
-  placeholder = "Ask anything. @ for notes. / for custom prompts.",
+  placeholder = "Ask anything — @ for pages, drag blocks, / for prompts",
   onSend,
   disabled = false,
   onModelChange,
