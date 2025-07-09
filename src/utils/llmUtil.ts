@@ -351,6 +351,92 @@ export class LLMUtil {
   }
 
   /**
+   * Format tool results for better understanding by Ollama models
+   */
+  static formatToolResultForOllama(toolResult: string): string {
+    try {
+      const parsed = JSON.parse(toolResult);
+      
+      console.log("🔧 工具结果解析状态：", {
+        success: parsed.success,
+        notesCount: parsed.notes?.length || 0,
+        queryType: parsed.queryInfo?.queryType,
+        hasWarnings: parsed.warnings?.length > 0
+      });
+      
+      if (!parsed.success || !parsed.notes || parsed.notes.length === 0) {
+        const errorMessage = `没有找到相关笔记内容。${parsed.error || ''}`;
+        console.log("🔧 工具结果：无数据，返回错误信息");
+        return errorMessage;
+      }
+
+      let formatted = `=== 笔记查询结果 ===\n`;
+      formatted += `查询类型: ${parsed.queryInfo?.queryType || '未知'}\n`;
+      if (parsed.queryInfo?.sourcePage) {
+        formatted += `查询页面: ${parsed.queryInfo.sourcePage}\n`;
+      }
+      formatted += `找到结果: ${parsed.notes.length} 条\n\n`;
+      formatted += `以下是关于"${parsed.queryInfo?.sourcePage || '查询内容'}"的所有相关笔记：\n\n`;
+
+      // Format each note
+      parsed.notes.forEach((note: any, index: number) => {
+        formatted += `【笔记 ${index + 1}】`;
+        
+        if (note.title) {
+          formatted += ` 来自页面: ${note.title}\n`;
+        } else {
+          formatted += `\n`;
+        }
+        
+        if (note.content) {
+          // Clean up the content - remove excessive whitespace and format nicely
+          const cleanContent = note.content
+            .replace(/\n\s*\n/g, '\n')
+            .replace(/\s+/g, ' ')
+            .trim();
+          formatted += `内容: ${cleanContent}\n`;
+        }
+        
+        if (note.uid) {
+          formatted += `引用ID: ((${note.uid}))\n`;
+        }
+        
+        if (note.hasMore) {
+          formatted += `[注意：内容已截断，实际内容更长]\n`;
+        }
+        
+        formatted += `---\n\n`;
+      });
+
+      if (parsed.warnings && parsed.warnings.length > 0) {
+        formatted += `\n注意事项:\n`;
+        parsed.warnings.forEach((warning: string) => {
+          formatted += `- ${warning}\n`;
+        });
+      }
+
+      formatted += `\n=== 总结指示 ===\n`;
+      formatted += `请基于以上 ${parsed.notes.length} 条笔记，总结关于"${parsed.queryInfo?.sourcePage || '查询内容'}"的主要内容。\n`;
+      formatted += `这些笔记涵盖了用户在 Roam Research 中记录的所有相关信息。\n`;
+      formatted += `请提取关键信息并组织成清晰的回答。\n`;
+
+      console.log("🔧 工具结果格式化完成：", {
+        originalLength: toolResult.length,
+        formattedLength: formatted.length,
+        notesProcessed: parsed.notes.length,
+        hasStructuredFormat: formatted.includes("=== 笔记查询结果 ==="),
+        includesSummaryInstruction: formatted.includes("=== 总结指示 ===")
+      });
+
+      return formatted;
+    } catch (error) {
+      console.warn("🔧 工具结果格式化失败:", error);
+      console.log("🔧 回退到原始工具结果");
+      return `工具执行结果:\n${toolResult}`;
+    }
+  }
+
+  /**
    * Simulate tools for Ollama (which doesn't support native tool calling)
    */
   static async simulateToolsForOllama(
@@ -377,27 +463,41 @@ export class LLMUtil {
       });
 
       // 1. First, check if the user message needs tool calling
-      const toolDetectionPrompt = `分析用户消息，判断是否需要获取 Roam 笔记数据。如果需要，请按以下格式返回工具调用：
+      const toolDetectionPrompt = `你是一个专业的工具调用分析助手。请仔细分析用户消息，判断是否需要获取 Roam 笔记数据。
+
+用户消息：${userMessage}
+
+=== 工具调用分析指南 ===
+如果用户提到以下内容，则需要调用工具：
+- 页面名或引用（如 [[页面名]]、#标签、提到特定人名/概念）
+- 时间相关查询（昨天、上周、某个日期的笔记）
+- 搜索特定内容（包含某个关键词的笔记）
+- 当前页面相关（这个页面、当前笔记）
+
+=== 工具调用格式 ===
+如果需要工具调用，请严格按以下格式返回：
 
 TOOL_CALL:getRoamNotes
 PARAMETERS:{...json参数...}
 
-参数必须使用以下字段名（不要使用"query"）：
-- date: "YYYY-MM-DD" (特定日期)
-- startDate: "YYYY-MM-DD", endDate: "YYYY-MM-DD" (日期范围)
-- pageTitle: "页面标题" (特定页面)
-- referencedPage: "页面名" (引用某页面的内容)
+参数字段说明：
+- date: "YYYY-MM-DD" (查询特定日期的笔记)
+- startDate + endDate: "YYYY-MM-DD" (查询日期范围)
+- pageTitle: "页面标题" (查询特定页面)
+- referencedPage: "页面名" (查询引用某页面的所有内容)
 - searchTerm: "搜索词" (全文搜索)
-- currentPageContext: true (当前页面内容)
+- currentPageContext: true (获取当前页面内容)
 
-示例：
-- "昨天的笔记" → {"date": "2025-07-06"}
+=== 参数选择示例 ===
+- "昨天的笔记" → {"date": "2025-07-08"}
 - "上周的工作" → {"startDate": "2025-06-30", "endDate": "2025-07-06"}
 - "关于项目的笔记" → {"referencedPage": "项目"}
+- "看一下 [[曹大]]" → {"referencedPage": "曹大"}
+- "包含Go语言的内容" → {"searchTerm": "Go语言"}
 
-用户消息：${userMessage}
+如果不需要工具调用，请回答"不需要"。
 
-请分析并返回正确的工具调用参数，或回答"不需要"。`;
+请分析并返回正确的工具调用参数：`;
 
       const detectionResult = await this.handleOllamaRequest(config, [
         { role: "system", content: toolDetectionPrompt },
@@ -469,20 +569,73 @@ PARAMETERS:{...json参数...}
 
             console.log("🔧 最终工具参数：", params);
             const toolResult = await GetRoamNotesTool.execute(params);
-            console.log("🔧 工具执行结果：", toolResult);
+            console.log("🔧 工具执行结果（原始JSON）：", {
+              length: toolResult.length,
+              preview: toolResult.substring(0, 200) + (toolResult.length > 200 ? "..." : ""),
+              isValidJson: (() => {
+                try {
+                  JSON.parse(toolResult);
+                  return true;
+                } catch {
+                  return false;
+                }
+              })()
+            });
 
-            // 3. Add tool result to context and regenerate
-            const enhancedPrompt = `${systemMessage}
+            // 3. Format tool result for better understanding
+            const formattedToolResult = this.formatToolResultForOllama(toolResult);
+            console.log("🔧 格式化后的工具结果：", {
+              length: formattedToolResult.length,
+              preview: formattedToolResult.substring(0, 300) + (formattedToolResult.length > 300 ? "..." : ""),
+              improvedReadability: formattedToolResult.includes("=== 笔记查询结果 ===")
+            });
 
-工具调用结果：
-${toolResult}
+            // 4. Add tool result to context and regenerate
+            const enhancedPrompt = `你是 Roam Research 的AI助手，已经成功获取了用户查询的笔记数据。
 
-请基于以上数据回答用户问题。`;
+=== 工具调用结果 ===
+${formattedToolResult}
 
-            return this.handleOllamaRequest(config, [
+=== 关键指示 ===
+上面的工具调用结果包含了用户查询的真实笔记数据。请严格按照以下要求回答：
+
+1. **必须基于工具结果回答**：只使用上面工具调用结果中的真实数据
+2. **总结主要内容**：如果找到了相关笔记，请总结关键信息和主要内容
+3. **引用具体内容**：可以引用具体的笔记内容和UID（如 ((uid))）
+4. **诚实回答**：如果没有找到相关内容，请明确说明
+5. **不要编造**：绝不编造或推测不存在的信息
+
+=== 回答格式 ===
+请按以下格式回答：
+- 先说明查询结果（找到了多少条相关笔记）
+- 然后总结主要内容
+- 最后可以引用具体的笔记内容
+
+用户问题：${userMessage}
+
+请基于上述工具调用结果回答：`;
+
+            console.log("🔧 生成增强 prompt：", {
+              originalSystemMessageLength: systemMessage.length,
+              enhancedPromptLength: enhancedPrompt.length,
+              includesToolResult: enhancedPrompt.includes("=== 工具调用结果 ==="),
+              includesInstructions: enhancedPrompt.includes("=== 重要指示 ===")
+            });
+
+            const finalResponse = await this.handleOllamaRequest(config, [
               { role: "system", content: enhancedPrompt },
-              { role: "user", content: userMessage },
+              { role: "user", content: `基于工具调用结果回答：${userMessage}` },
             ]);
+
+            console.log("🔧 Ollama 最终回答分析：", {
+              responseLength: finalResponse.text.length,
+              preview: finalResponse.text.substring(0, 200) + (finalResponse.text.length > 200 ? "..." : ""),
+              containsToolData: finalResponse.text.includes("曹大") || finalResponse.text.includes("Go") || finalResponse.text.includes("性能"),
+              respondsToQuery: finalResponse.text.includes("主要内容") || finalResponse.text.includes("笔记") || finalResponse.text.includes("找到"),
+              isGenericResponse: finalResponse.text.includes("没有明确的公开信息") || finalResponse.text.includes("可能是以下情况")
+            });
+
+            return finalResponse;
           }
         } catch (error) {
           console.warn("❌ Ollama 工具模拟失败：", error);
@@ -491,7 +644,15 @@ ${toolResult}
 
       // 4. No tool call needed, process normally
       console.log("🔧 无需工具调用，正常处理");
-      return this.handleOllamaRequest(config, messages);
+      const normalResponse = await this.handleOllamaRequest(config, messages);
+      
+      console.log("🔧 Ollama 常规回答分析：", {
+        responseLength: normalResponse.text.length,
+        preview: normalResponse.text.substring(0, 200) + (normalResponse.text.length > 200 ? "..." : ""),
+        isNormalFlow: true
+      });
+      
+      return normalResponse;
     } catch (error: any) {
       console.error("❌ Ollama 工具模拟错误：", error);
       return this.handleOllamaRequest(config, messages);
