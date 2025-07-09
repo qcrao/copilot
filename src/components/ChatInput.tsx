@@ -14,7 +14,6 @@ import { RoamQuery } from "../utils/roamQuery";
 import { PromptMenu } from "./PromptMenu";
 import { PROMPT_TEMPLATES } from "../data/promptTemplates";
 import { PromptTemplate } from "../types";
-import { PageSuggestionDropdown } from "./PageSuggestionDropdown";
 import { UniversalSearchDropdown } from "./UniversalSearchDropdown";
 import { RoamService } from "../services/roamService";
 import { UniversalSearchResult } from "../types";
@@ -38,7 +37,7 @@ interface ChatInputProps {
 }
 
 export const ChatInput: React.FC<ChatInputProps> = ({
-  placeholder = "Ask me anything about your notes...",
+  placeholder = "Ask anything. @ for notes. / for custom prompts.",
   onSend,
   disabled = false,
   onModelChange,
@@ -64,17 +63,6 @@ export const ChatInput: React.FC<ChatInputProps> = ({
     left: 0,
   });
 
-  // Page suggestion states
-  const [showPageSuggestions, setShowPageSuggestions] = useState(false);
-  const [pageSuggestions, setPageSuggestions] = useState<Array<{ title: string; uid: string }>>([]);
-  const [selectedPageIndex, setSelectedPageIndex] = useState(0);
-  const [pageSearchTerm, setPageSearchTerm] = useState("");
-  const [pageSuggestionPosition, setPageSuggestionPosition] = useState({ top: 0, left: 0 });
-  const [bracketContext, setBracketContext] = useState<{
-    isInBrackets: boolean;
-    startPos: number;
-    endPos: number;
-  }>({ isInBrackets: false, startPos: -1, endPos: -1 });
 
   // Universal search states for @ symbol triggered search
   const [showUniversalSearch, setShowUniversalSearch] = useState(false);
@@ -357,8 +345,6 @@ export const ChatInput: React.FC<ChatInputProps> = ({
     // Get cursor position for bracket context
     const cursorPos = editor?.state.selection.from || 0;
 
-    // Check for bracket context (page suggestions)
-    updateBracketContext(text, cursorPos);
 
     // Check for @ symbol context (universal search)
     updateAtSymbolContext(text, cursorPos);
@@ -434,14 +420,6 @@ export const ChatInput: React.FC<ChatInputProps> = ({
     setFilteredPrompts([]);
   };
 
-  // Page suggestion functions
-  const closePageSuggestions = () => {
-    setShowPageSuggestions(false);
-    setPageSuggestions([]);
-    setSelectedPageIndex(0);
-    setPageSearchTerm("");
-    setBracketContext({ isInBrackets: false, startPos: -1, endPos: -1 });
-  };
 
   // Universal search functions for @ symbol triggered search
   const closeUniversalSearch = () => {
@@ -605,161 +583,9 @@ export const ChatInput: React.FC<ChatInputProps> = ({
     }
   };
 
-  const searchPages = async (searchTerm: string) => {
-    try {
-      console.log(`🔍 ChatInput searchPages called with: "${searchTerm}"`);
-      const results = await RoamService.searchPages(searchTerm, 10);
-      console.log(`🔍 ChatInput got ${results.length} results:`, results.map(r => r.title));
-      setPageSuggestions(results);
-      setSelectedPageIndex(0);
-      console.log(`🔍 ChatInput pageSuggestions state updated, showPageSuggestions=${showPageSuggestions}`);
-    } catch (error) {
-      console.error("Error searching pages:", error);
-      setPageSuggestions([]);
-    }
-  };
 
-  const calculatePageSuggestionPosition = () => {
-    if (!editor?.view?.dom) {
-      return { top: 0, left: 0 };
-    }
 
-    const editorRect = (editor.view.dom as HTMLElement).getBoundingClientRect();
-    return {
-      top: editorRect.top - 320,
-      left: editorRect.left,
-    };
-  };
 
-  const insertPageReference = (page: { title: string; uid: string }) => {
-    if (!editor || !bracketContext.isInBrackets) return;
-
-    const { from, to } = editor.state.selection;
-    const text = editor.getText();
-    
-    // Find the actual bracket positions
-    let startPos = -1;
-    let endPos = -1;
-    
-    // Look backwards from cursor to find opening brackets
-    for (let i = from - 1; i >= 0; i--) {
-      if (text.substring(i, i + 2) === "[[") {
-        startPos = i;
-        break;
-      }
-      if (text[i] === " " || text[i] === "\n") {
-        break; // Stop if we hit whitespace
-      }
-    }
-    
-    // Look forwards from cursor to find closing brackets
-    for (let i = from; i < text.length - 1; i++) {
-      if (text.substring(i, i + 2) === "]]") {
-        endPos = i + 2;
-        break;
-      }
-      if (text[i] === " " || text[i] === "\n") {
-        break; // Stop if we hit whitespace
-      }
-    }
-
-    if (startPos !== -1 && endPos !== -1) {
-      // Replace the entire bracket content with the page title
-      editor
-        .chain()
-        .focus()
-        .setTextSelection({ from: startPos, to: endPos })
-        .insertContent(`[[${page.title}]]`)
-        .run();
-    }
-
-    closePageSuggestions();
-  };
-
-  // Check for bracket context in text
-  const updateBracketContext = (text: string, cursorPos: number) => {
-    console.log(`🔍 Bracket context check: text="${text}", cursor=${cursorPos}`);
-    
-    // Look backwards to find opening brackets
-    let openBracketsPos = -1;
-    
-    for (let i = cursorPos - 1; i >= 0; i--) {
-      if (text.substring(i, i + 2) === "[[") {
-        openBracketsPos = i;
-        console.log(`Found opening brackets at position ${i}`);
-        break;
-      }
-      // Stop if we hit whitespace, newline, or another set of closing brackets
-      if (text[i] === " " || text[i] === "\n") {
-        break;
-      }
-      // Also stop if we find closing brackets that aren't part of our current context
-      if (i > 0 && text.substring(i - 1, i + 1) === "]]") {
-        break;
-      }
-    }
-
-    // Look forward to find closing brackets
-    let closeBracketsPos = -1;
-    
-    for (let i = cursorPos; i < text.length - 1; i++) {
-      if (text.substring(i, i + 2) === "]]") {
-        closeBracketsPos = i;
-        console.log(`Found closing brackets at position ${i}`);
-        break;
-      }
-      // Stop if we hit whitespace, newline, or another set of opening brackets
-      if (text[i] === " " || text[i] === "\n") {
-        break;
-      }
-      if (text.substring(i, i + 2) === "[[") {
-        break;
-      }
-    }
-
-    // We're in brackets if:
-    // 1. We found opening brackets before cursor
-    // 2. Either no closing brackets found, or closing brackets are after cursor, or cursor is between brackets
-    const isInBrackets = openBracketsPos !== -1 && 
-      (closeBracketsPos === -1 || cursorPos <= closeBracketsPos);
-    
-    console.log(`Is in brackets: ${isInBrackets}, openPos: ${openBracketsPos}, closePos: ${closeBracketsPos}`);
-    
-    if (isInBrackets) {
-      // Extract the current search term
-      const searchStart = openBracketsPos + 2;
-      const searchEnd = closeBracketsPos !== -1 ? closeBracketsPos : cursorPos;
-      let currentSearchTerm = text.substring(searchStart, searchEnd);
-      
-      // Clean up the search term - remove any brackets that might have been included
-      currentSearchTerm = currentSearchTerm.replace(/[\[\]]/g, '').trim();
-      
-      console.log(`Current search term: "${currentSearchTerm}"`);
-      
-      setBracketContext({
-        isInBrackets: true,
-        startPos: openBracketsPos,
-        endPos: closeBracketsPos !== -1 ? closeBracketsPos + 2 : -1,
-      });
-      
-      if (currentSearchTerm !== pageSearchTerm) {
-        setPageSearchTerm(currentSearchTerm);
-        console.log(`Starting page search for: "${currentSearchTerm}"`);
-        searchPages(currentSearchTerm);
-        
-        if (!showPageSuggestions) {
-          setShowPageSuggestions(true);
-          setPageSuggestionPosition(calculatePageSuggestionPosition());
-          console.log("Showing page suggestions dropdown");
-        }
-      }
-    } else {
-      console.log("Not in brackets, closing suggestions if open");
-      if (showPageSuggestions) {
-        closePageSuggestions();
-      }
-    }
-  };
 
   // Check for @ symbol context in text
   const updateAtSymbolContext = (text: string, cursorPos: number) => {
@@ -921,33 +747,6 @@ export const ChatInput: React.FC<ChatInputProps> = ({
         }
       }
 
-      // Handle page suggestions navigation
-      if (showPageSuggestions) {
-        switch (event.key) {
-          case "ArrowDown":
-            event.preventDefault();
-            setSelectedPageIndex((prev) =>
-              prev < pageSuggestions.length - 1 ? prev + 1 : 0
-            );
-            return;
-          case "ArrowUp":
-            event.preventDefault();
-            setSelectedPageIndex((prev) =>
-              prev > 0 ? prev - 1 : pageSuggestions.length - 1
-            );
-            return;
-          case "Enter":
-            event.preventDefault();
-            if (pageSuggestions[selectedPageIndex]) {
-              insertPageReference(pageSuggestions[selectedPageIndex]);
-            }
-            return;
-          case "Escape":
-            event.preventDefault();
-            closePageSuggestions();
-            return;
-        }
-      }
 
       // Handle prompt menu navigation
       if (showPromptMenu) {
@@ -977,41 +776,6 @@ export const ChatInput: React.FC<ChatInputProps> = ({
         }
       }
 
-      // Handle bracket autocomplete
-      if (event.key === "[") {
-        const { from, to } = editor.state.selection;
-        const textBefore = editor.getText().slice(Math.max(0, from - 1), from);
-        
-        if (textBefore === "[") {
-          // User typed second [, convert to [[]]
-          event.preventDefault();
-          editor
-            .chain()
-            .focus()
-            .setTextSelection({ from: from - 1, to: from })
-            .insertContent("[[]]")
-            .setTextSelection({ from: from + 1, to: from + 1 })
-            .run();
-          
-          // Trigger page search for empty term after creating [[]]
-          setTimeout(() => {
-            const newText = editor.getText();
-            const newCursorPos = from + 1; // Position between [[]]
-            updateBracketContext(newText, newCursorPos);
-          }, 10);
-          return;
-        } else {
-          // First [, add closing ] and position cursor
-          event.preventDefault();
-          editor
-            .chain()
-            .focus()
-            .insertContent("[]")
-            .setTextSelection({ from: from + 1, to: from + 1 })
-            .run();
-          return;
-        }
-      }
 
       // Handle send message
       if (event.key === "Enter" && !event.shiftKey && !isComposing) {
@@ -1019,7 +783,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
         handleSend();
       }
     },
-    [editor, showPromptMenu, filteredPrompts, selectedPromptIndex, showPageSuggestions, pageSuggestions, selectedPageIndex, showUniversalSearch, universalSearchResults, selectedUniversalIndex, isComposing]
+    [editor, showPromptMenu, filteredPrompts, selectedPromptIndex, showUniversalSearch, universalSearchResults, selectedUniversalIndex, isComposing]
   );
 
   // Add keyboard event listener and focus management
@@ -1220,16 +984,6 @@ export const ChatInput: React.FC<ChatInputProps> = ({
         filter={promptFilter}
       />
 
-      {/* Page Suggestion Dropdown */}
-      <PageSuggestionDropdown
-        isVisible={showPageSuggestions}
-        suggestions={pageSuggestions}
-        selectedIndex={selectedPageIndex}
-        onSelect={insertPageReference}
-        onClose={closePageSuggestions}
-        position={pageSuggestionPosition}
-        searchTerm={pageSearchTerm}
-      />
 
       {/* Universal Search Dropdown */}
       <UniversalSearchDropdown

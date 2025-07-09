@@ -1,5 +1,5 @@
 // src/components/PromptMenu.tsx
-import React from "react";
+import React, { useEffect, useRef } from "react";
 import { PromptTemplate } from "../types";
 
 interface PromptMenuProps {
@@ -21,6 +21,34 @@ export const PromptMenu: React.FC<PromptMenuProps> = ({
   position,
   filter,
 }) => {
+  const selectedItemRef = useRef<HTMLDivElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  // Scroll selected item into view when selectedIndex changes
+  useEffect(() => {
+    if (selectedItemRef.current && menuRef.current) {
+      const selectedElement = selectedItemRef.current;
+      const menuElement = menuRef.current;
+      
+      // Calculate if the selected item is visible in the scrollable area
+      const menuRect = menuElement.getBoundingClientRect();
+      const selectedRect = selectedElement.getBoundingClientRect();
+      
+      // Check if the selected item is outside the visible area
+      const isAboveView = selectedRect.top < menuRect.top;
+      const isBelowView = selectedRect.bottom > menuRect.bottom;
+      
+      if (isAboveView || isBelowView) {
+        // Scroll the selected item into view
+        selectedElement.scrollIntoView({
+          behavior: 'smooth',
+          block: 'nearest',
+          inline: 'nearest'
+        });
+      }
+    }
+  }, [selectedIndex, prompts]);
+
   if (!isVisible) {
     return null;
   }
@@ -71,6 +99,7 @@ export const PromptMenu: React.FC<PromptMenuProps> = ({
 
   return (
     <div
+      ref={menuRef}
       className="rr-copilot-prompt-menu"
       style={{
         position: 'fixed', // Use fixed positioning instead of absolute
@@ -109,6 +138,7 @@ export const PromptMenu: React.FC<PromptMenuProps> = ({
         {prompts.map((prompt, index) => (
           <div
             key={prompt.id}
+            ref={index === selectedIndex ? selectedItemRef : null}
             className={`rr-copilot-prompt-menu-item ${index === selectedIndex ? 'selected' : ''}`}
             style={{
               padding: '10px 12px',
