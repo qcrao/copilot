@@ -11,30 +11,44 @@ import {
 export interface ReferenceChipAttributes {
   uid: string;
   preview: string;
+  type?: "block" | "page";
 }
 
 // React component for rendering the chip
 const ReferenceChipComponent: React.FC<ReactNodeViewProps> = ({ node }) => {
-  const { uid, preview } = node.attrs;
+  const { uid, preview, type = "block" } = node.attrs;
+  console.log('🎨 ReferenceChipComponent rendered with:', { uid, preview, type });
 
   const handleClick = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
 
-    // Navigate to the block in Roam
+    // Navigate to the page or block in Roam
     if (uid && typeof window !== "undefined" && (window as any).roamAlphaAPI) {
       try {
         const roamAPI = (window as any).roamAlphaAPI;
-        // Use Roam's API to navigate to the block
-        roamAPI.ui.mainWindow.openBlock({ block: { uid } });
+        
+        if (type === "page") {
+          // Navigate to page using the preview as the page title
+          roamAPI.ui.mainWindow.openPage({ page: { title: preview } });
+        } else {
+          // Navigate to block using the uid
+          roamAPI.ui.mainWindow.openBlock({ block: { uid } });
+        }
       } catch (error) {
-        console.error("Failed to navigate to block:", error);
-        // Fallback: try to open the block reference
+        console.error(`Failed to navigate to ${type}:`, error);
+        // Fallback: try to open in right sidebar
         try {
           const roamAPI = (window as any).roamAlphaAPI;
-          roamAPI.ui.rightSidebar.addWindow({
-            window: { type: "block", "block-uid": uid },
-          });
+          if (type === "page") {
+            roamAPI.ui.rightSidebar.addWindow({
+              window: { type: "page", "page-title": preview },
+            });
+          } else {
+            roamAPI.ui.rightSidebar.addWindow({
+              window: { type: "block", "block-uid": uid },
+            });
+          }
         } catch (fallbackError) {
           console.error("Fallback navigation also failed:", fallbackError);
         }
@@ -47,8 +61,9 @@ const ReferenceChipComponent: React.FC<ReactNodeViewProps> = ({ node }) => {
       as="span"
       className="reference-chip"
       onClick={handleClick}
-      title={`Block reference: ${uid}`}
+      title={`${type === "page" ? "Page" : "Block"} reference: ${type === "page" ? preview : uid}`}
       contentEditable={false}
+      data-type={type}
       style={{
         outline: "none",
         border: "none",
@@ -99,6 +114,18 @@ export const ReferenceChip = Node.create({
           };
         },
       },
+      type: {
+        default: "block",
+        parseHTML: (element) => element.getAttribute("data-type"),
+        renderHTML: (attributes) => {
+          if (!attributes.type) {
+            return {};
+          }
+          return {
+            "data-type": attributes.type,
+          };
+        },
+      },
     };
   },
 
@@ -109,20 +136,25 @@ export const ReferenceChip = Node.create({
         getAttrs: (element) => {
           const uid = (element as HTMLElement).getAttribute("data-uid");
           const preview = (element as HTMLElement).getAttribute("data-preview");
-          return uid ? { uid, preview: preview || "Reference" } : false;
+          const type = (element as HTMLElement).getAttribute("data-type") || "block";
+          return uid ? { uid, preview: preview || "Reference", type } : false;
         },
       },
     ];
   },
 
   renderHTML({ HTMLAttributes }) {
+    console.log('🎨 ReferenceChip renderHTML called with:', HTMLAttributes);
+    const attributes = {
+      class: "reference-chip",
+      "data-uid": HTMLAttributes.uid,
+      "data-preview": HTMLAttributes.preview,
+      "data-type": HTMLAttributes.type || "block",
+    };
+    console.log('🎨 Final attributes:', attributes);
     return [
       "span",
-      mergeAttributes(HTMLAttributes, {
-        class: "reference-chip",
-        "data-uid": HTMLAttributes.uid,
-        "data-preview": HTMLAttributes.preview,
-      }),
+      mergeAttributes(HTMLAttributes, attributes),
       HTMLAttributes.preview || "Reference",
     ];
   },
@@ -180,12 +212,14 @@ export const ReferenceChip = Node.create({
 export const insertReferenceChip = (
   editor: any,
   uid: string,
-  preview: string
+  preview: string,
+  type: "block" | "page" = "block"
 ) => {
+  console.log('🎨 insertReferenceChip called with:', { uid, preview, type });
   return editor
     .chain()
     .focus()
-    .insertReferenceChip({ uid, preview })
+    .insertReferenceChip({ uid, preview, type })
     .insertContent(" ") // Add a space after the chip
     .run();
 };

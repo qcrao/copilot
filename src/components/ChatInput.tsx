@@ -503,7 +503,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
 
     const editorRect = (editor.view.dom as HTMLElement).getBoundingClientRect();
     return {
-      top: editorRect.top - 360,
+      top: editorRect.top - 320,
       left: editorRect.left,
     };
   };
@@ -530,12 +530,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
     console.log('🔍 Current state:', { from, startPos, text: text.replace(/\n/g, '\\n') });
     
     if (startPos !== -1) {
-      // Replace from @ symbol to current cursor position
-      const insertText = result.type === 'page' || result.type === 'daily-note' 
-        ? `[[${result.title || result.preview}]]`
-        : `((${result.uid}))`;
-      
-      console.log('🔍 Inserting text:', insertText);
+      console.log('🔍 Inserting reference chip for:', result.type, result.title || result.preview);
       console.log('🔍 Selection range:', { from: startPos, to: from });
       
       try {
@@ -548,34 +543,36 @@ export const ChatInput: React.FC<ChatInputProps> = ({
           actualEndPos--;
         }
         
-        editor
-          .chain()
-          .focus()
-          .setTextSelection({ from: startPos, to: actualEndPos })
-          .insertContent(insertText)
-          .run();
+        // Set selection to replace the @ symbol and search term
+        editor.commands.setTextSelection({ from: startPos, to: actualEndPos });
         
-        console.log('🔍 Text insertion successful');
+        // Insert the reference chip based on result type
+        if (result.type === 'page' || result.type === 'daily-note') {
+          // For pages, use the title as both uid and preview, and set type to page
+          insertReferenceChip(editor, result.uid, result.title || result.preview, 'page');
+        } else {
+          // For blocks, use the uid and preview as before
+          insertReferenceChip(editor, result.uid, result.preview, 'block');
+        }
         
-        // Add space after inserted content
+        console.log('🔍 Reference chip insertion successful');
+        
+        // Ensure the editor remains focused and cursor is visible
         setTimeout(() => {
-          if (editor) {
-            editor
-              .chain()
-              .focus()
-              .insertContent(" ")
-              .run();
-            
-            // Trigger onChange to update the parent state
+          if (editor && editor.view && editor.view.dom) {
+            editor.commands.focus();
+            // Force editor to re-evaluate its content state (important for placeholder hiding)
+            editor.view.dispatch(editor.state.tr);
+            // Trigger a content change to ensure the editor is properly updated
+            const serializedContent = serializeWithReferences(editor);
             if (onChange) {
-              const serializedContent = serializeWithReferences(editor);
               onChange(serializedContent);
             }
           }
-        }, 10);
+        }, 50);
         
       } catch (error) {
-        console.error('🔍 Error inserting text:', error);
+        console.error('🔍 Error inserting reference chip:', error);
       }
     } else {
       console.warn('🔍 Invalid start position:', startPos);

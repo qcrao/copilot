@@ -325,13 +325,9 @@ details[style*="thinking"][open] {
 /* Reference Chip Styles */
 .reference-chip {
   display: inline;
-  background: rgba(33, 93, 176, 0.08) !important;
-  border: none !important;
-  color: #215db0;
   font-size: 15px;
   font-weight: normal;
   text-decoration: underline;
-  text-decoration-color: #215db0;
   text-underline-offset: 2px;
   cursor: pointer;
   padding: 2px 4px !important;
@@ -339,20 +335,43 @@ details[style*="thinking"][open] {
   border-radius: 4px !important;
   box-shadow: none !important;
   outline: none !important;
+  border: none !important;
   transition: all 0.2s ease;
   user-select: none;
   vertical-align: baseline;
   line-height: inherit;
+}
+
+/* Block references (default/existing style) */
+.reference-chip[data-type="block"],
+.reference-chip:not([data-type]) {
+  background: rgba(33, 93, 176, 0.08) !important;
+  color: #215db0;
+  text-decoration-color: #215db0;
   text-shadow: 0 1px 2px rgba(33, 93, 176, 0.1);
 }
 
-.reference-chip:hover {
+.reference-chip[data-type="block"]:hover,
+.reference-chip:not([data-type]):hover {
   background: rgba(33, 93, 176, 0.12) !important;
-  border: none !important;
   color: #1a4d96;
   text-decoration-color: #1a4d96;
-  box-shadow: none !important;
   text-shadow: 0 1px 3px rgba(33, 93, 176, 0.15);
+}
+
+/* Page references (new style with green tint) */
+.reference-chip[data-type="page"] {
+  background: rgba(34, 139, 34, 0.08) !important;
+  color: #228b22;
+  text-decoration-color: #228b22;
+  text-shadow: 0 1px 2px rgba(34, 139, 34, 0.1);
+}
+
+.reference-chip[data-type="page"]:hover {
+  background: rgba(34, 139, 34, 0.12) !important;
+  color: #1e7e1e;
+  text-decoration-color: #1e7e1e;
+  text-shadow: 0 1px 3px rgba(34, 139, 34, 0.15);
 }
 
 .reference-chip:focus {
