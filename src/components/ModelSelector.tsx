@@ -3,7 +3,6 @@ import Select, { components, SingleValue, StylesConfig } from "react-select";
 import { Icon } from "@blueprintjs/core";
 import { IconNames } from "@blueprintjs/icons";
 import { getModelDisplayInfo } from "../utils/iconUtils";
-import { LLMUtil } from "../utils/llmUtil";
 
 interface ModelOption {
   value: string;
@@ -38,11 +37,8 @@ const CustomOption = (props: any) => {
   const modelInfo = data.modelInfo;
 
   const getModelDisplayName = (data: any) => {
-    const { value: model, provider } = data;
-    const supportsTools = LLMUtil.modelSupportsTools(provider, model);
-    const toolIcon = supportsTools ? " 🔧" : "";
-
-    return `${model}${toolIcon}`;
+    const { modelInfo } = data;
+    return modelInfo.name;
   };
 
   return (
@@ -60,6 +56,87 @@ const CustomOption = (props: any) => {
             width: "16px",
             height: "16px",
             borderRadius: "3px",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            backgroundColor: modelInfo.isLocal ? "transparent" : "white",
+            border: modelInfo.isLocal ? "none" : "1px solid #e1e4e8",
+            overflow: "hidden",
+            flexShrink: 0,
+          }}
+        >
+          {modelInfo.blueprintIcon ? (
+            <Icon
+              icon={modelInfo.blueprintIcon}
+              size={14}
+              style={{
+                color: modelInfo.color || "#666",
+              }}
+            />
+          ) : modelInfo.iconUrl ? (
+            <img
+              src={modelInfo.iconUrl}
+              alt={`${modelInfo.name} logo`}
+              style={{
+                width: "14px",
+                height: "14px",
+                objectFit: "contain",
+                borderRadius: "1px",
+              }}
+              onError={(e) => {
+                e.currentTarget.style.display = "none";
+                e.currentTarget.parentElement!.innerHTML =
+                  modelInfo.fallbackIcon || "🤖";
+                e.currentTarget.parentElement!.style.color = "#666";
+                e.currentTarget.parentElement!.style.fontSize = "14px";
+              }}
+            />
+          ) : (
+            <span style={{ color: "#666", fontSize: "14px" }}>
+              {modelInfo.fallbackIcon || "🤖"}
+            </span>
+          )}
+        </div>
+        <div style={{ flex: 1 }}>
+          <div
+            style={{
+              fontSize: "12px",
+              fontWeight: modelInfo.isLocal ? "600" : "500",
+              color: modelInfo.isLocal ? "#2E7D32" : "#333",
+            }}
+          >
+            {getModelDisplayName(data)}
+          </div>
+        </div>
+      </div>
+    </components.Option>
+  );
+};
+
+// Custom SingleValue component (for selected value display)
+const CustomSingleValue = (props: any) => {
+  const { data } = props;
+  const modelInfo = data.modelInfo;
+
+  const getModelDisplayName = (data: any) => {
+    const { modelInfo } = data;
+    return modelInfo.name;
+  };
+
+  return (
+    <components.SingleValue {...props}>
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: "4px",
+        }}
+      >
+        <div
+          style={{
+            width: "14px",
+            height: "14px",
+            borderRadius: "2px",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
@@ -101,90 +178,6 @@ const CustomOption = (props: any) => {
             </span>
           )}
         </div>
-        <div style={{ flex: 1 }}>
-          <div
-            style={{
-              fontSize: "12px",
-              fontWeight: modelInfo.isLocal ? "600" : "500",
-              color: modelInfo.isLocal ? "#2E7D32" : "#333",
-            }}
-          >
-            {getModelDisplayName(data)}
-          </div>
-        </div>
-      </div>
-    </components.Option>
-  );
-};
-
-// Custom SingleValue component (for selected value display)
-const CustomSingleValue = (props: any) => {
-  const { data } = props;
-  const modelInfo = data.modelInfo;
-
-  const getModelDisplayName = (data: any) => {
-    const { value: model, provider } = data;
-    const supportsTools = LLMUtil.modelSupportsTools(provider, model);
-    const toolIcon = supportsTools ? " 🔧" : "";
-
-    return `${model}${toolIcon}`;
-  };
-
-  return (
-    <components.SingleValue {...props}>
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: "4px",
-        }}
-      >
-        <div
-          style={{
-            width: "14px",
-            height: "14px",
-            borderRadius: "2px",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            backgroundColor: modelInfo.isLocal ? "transparent" : "white",
-            border: modelInfo.isLocal ? "none" : "1px solid #e1e4e8",
-            overflow: "hidden",
-            flexShrink: 0,
-          }}
-        >
-          {modelInfo.blueprintIcon ? (
-            <Icon
-              icon={modelInfo.blueprintIcon}
-              size={10}
-              style={{
-                color: modelInfo.color || "#666",
-              }}
-            />
-          ) : modelInfo.iconUrl ? (
-            <img
-              src={modelInfo.iconUrl}
-              alt={`${modelInfo.name} logo`}
-              style={{
-                width: "10px",
-                height: "10px",
-                objectFit: "contain",
-                borderRadius: "1px",
-              }}
-              onError={(e) => {
-                e.currentTarget.style.display = "none";
-                e.currentTarget.parentElement!.innerHTML =
-                  modelInfo.fallbackIcon || "🤖";
-                e.currentTarget.parentElement!.style.color = "#666";
-                e.currentTarget.parentElement!.style.fontSize = "10px";
-              }}
-            />
-          ) : (
-            <span style={{ color: "#666", fontSize: "10px" }}>
-              {modelInfo.fallbackIcon || "🤖"}
-            </span>
-          )}
-        </div>
         <span
           style={{
             fontSize: "12px",
@@ -211,6 +204,9 @@ const customStyles: StylesConfig<ModelOption> = {
     borderRadius: "8px",
     backgroundColor: "white",
     boxShadow: "none",
+    minWidth: "120px",
+    maxWidth: "220px",
+    width: "fit-content",
     "&:hover": {
       borderColor: state.isFocused ? "#393a3d" : "#9ca3af",
     },
@@ -241,6 +237,9 @@ const customStyles: StylesConfig<ModelOption> = {
     border: "1px solid #e1e4e8",
     borderRadius: "8px",
     position: "absolute",
+    minWidth: "160px",
+    maxWidth: "240px",
+    width: "fit-content",
   }),
   menuPortal: (provided) => ({
     ...provided,

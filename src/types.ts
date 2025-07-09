@@ -218,11 +218,8 @@ export const AI_PROVIDERS: AIProvider[] = [
     id: "openai",
     name: "OpenAI",
     models: [
-      "gpt-4o", // ✅ Supports tools
-      "gpt-4o-mini", // ✅ Supports tools
-      "gpt-4-turbo", // ✅ Supports tools
-      "gpt-4", // ✅ Supports tools
-      "gpt-3.5-turbo", // ✅ Supports tools
+      "gpt-4o", // Best model
+      "gpt-4o-mini", // Most cost-effective
     ],
     apiKeyUrl: "https://platform.openai.com/api-keys",
     billingUrl: "https://platform.openai.com/usage",
@@ -233,11 +230,8 @@ export const AI_PROVIDERS: AIProvider[] = [
     id: "anthropic",
     name: "Anthropic",
     models: [
-      "claude-3-5-sonnet-20241022", // ✅ Supports tools
-      "claude-3-5-haiku-20241022", // ✅ Supports tools
-      "claude-3-opus-20240229", // ✅ Supports tools
-      "claude-3-sonnet-20240229", // ✅ Supports tools
-      "claude-3-haiku-20240307", // ✅ Supports tools
+      "claude-3-5-sonnet-20241022", // Best model
+      "claude-3-5-haiku-20241022", // Most cost-effective
     ],
     apiKeyUrl: "https://console.anthropic.com/settings/keys",
     billingUrl: "https://console.anthropic.com/settings/billing",
@@ -248,11 +242,8 @@ export const AI_PROVIDERS: AIProvider[] = [
     id: "groq",
     name: "Groq",
     models: [
-      "llama-3.3-70b-versatile", // ✅ Supports tools
-      "llama-3.1-70b-versatile", // ✅ Supports tools
-      "llama-3.1-8b-instant", // ✅ Supports tools
-      "llama3-groq-70b-8192-tool-use-preview", // ✅ Supports tools
-      "llama3-groq-8b-8192-tool-use-preview", // ✅ Supports tools
+      "llama-3.3-70b-versatile", // Best model
+      "llama-3.1-8b-instant", // Most cost-effective
     ],
     apiKeyUrl: "https://console.groq.com/keys",
     billingUrl: "https://console.groq.com/settings/billing",
@@ -263,10 +254,8 @@ export const AI_PROVIDERS: AIProvider[] = [
     id: "xai",
     name: "xAI (Grok)",
     models: [
-      "grok-3", // ✅ Supports tools - Latest main model
-      "grok-3-beta", // ✅ Supports tools - Beta version
-      "grok-2-vision-1212", // ✅ Supports tools - Vision support
-      "grok-2", // ✅ Supports tools - Previous generation
+      "grok-3", // Best model
+      "grok-2", // Most cost-effective
     ],
     apiKeyUrl: "https://console.x.ai/",
     billingUrl: "https://console.x.ai/",
@@ -277,11 +266,8 @@ export const AI_PROVIDERS: AIProvider[] = [
     id: "ollama",
     name: "Ollama (Local)",
     models: [
-      "llama3.2:latest",
-      "llama3.1:latest",
-      "qwen2.5:latest",
-      "deepseek-r1:latest",
-      "gemma2:latest",
+      "llama3.2:latest", // Best balance
+      "qwen2.5:latest", // Good alternative
     ],
     isLocal: true,
     requiresApiKey: false,

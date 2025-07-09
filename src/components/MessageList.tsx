@@ -283,6 +283,7 @@ const MessageItem: React.FC<MessageItemProps> = ({ message, index, onCopyMessage
       <div className="rr-copilot-message-container" style={{
         marginLeft: '34px', // Align with content under avatar
         marginRight: '6px', // Further reduced for compactness
+        position: 'relative'
       }}>
         <div style={{
           width: '100%',
@@ -294,7 +295,8 @@ const MessageItem: React.FC<MessageItemProps> = ({ message, index, onCopyMessage
           lineHeight: '1.5', // Tighter line height
           wordBreak: 'break-word',
           marginBottom: '3px', // Reduced spacing
-          color: isUser ? '#374151' : '#374151'
+          color: isUser ? '#374151' : '#374151',
+          paddingRight: '32px' // Make room for copy button
         }}>
           <EnhancedMessageRenderer 
             content={message.content} 
@@ -303,29 +305,39 @@ const MessageItem: React.FC<MessageItemProps> = ({ message, index, onCopyMessage
           />
         </div>
 
-        {/* Copy Button Row */}
-        <div style={{
-          display: 'flex',
-          justifyContent: 'flex-end',
-          paddingTop: '0px',
-          marginTop: '-2px' // Pull button closer to content
-        }}>
-          <Button
-            minimal
-            small
+        {/* Copy Button - positioned at bottom right */}
+        <div 
+          className="rr-copilot-copy-button-container"
+          style={{
+            position: 'absolute',
+            bottom: '3px',
+            right: '0px',
+            display: 'flex',
+            alignItems: 'flex-end'
+          }}
+        >
+          <Icon
             icon={copiedMessageIndex === index ? "tick" : "duplicate"}
             onClick={() => onCopyMessage(message.content, index)}
-            className="rr-copilot-copy-button"
+            className="rr-copilot-copy-icon"
             style={{
-              minWidth: "20px",
-              minHeight: "20px",
               color: "#666",
-              opacity: 0.7,
-              backgroundColor: 'white',
-              boxShadow: '0 1px 2px rgba(0,0,0,0.08)',
-              padding: '2px'
+              cursor: 'pointer',
+              fontSize: '14px',
+              transition: 'opacity 0.2s ease',
+              background: 'none',
+              border: 'none',
+              boxShadow: 'none',
+              padding: '0',
+              margin: '0'
             }}
             title="Copy message"
+            onMouseEnter={(e) => {
+              (e.currentTarget as HTMLElement).style.opacity = '1';
+            }}
+            onMouseLeave={(e) => {
+              (e.currentTarget as HTMLElement).style.opacity = '0.7';
+            }}
           />
         </div>
       </div>

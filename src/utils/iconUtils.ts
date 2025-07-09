@@ -52,6 +52,34 @@ export const getIconUrl = (provider: string, model?: string): string | null => {
   return null;
 };
 
+// Helper function to clean model names by removing date suffixes and other clutter
+const cleanModelName = (modelName: string): string => {
+  // Remove date patterns like -20241022, -20240229, etc.
+  const cleanedName = modelName.replace(/-\d{8}$/, '');
+  
+  // Additional cleanups for better display
+  return cleanedName
+    .replace(/gpt-4o-mini/i, 'GPT-4o Mini')
+    .replace(/gpt-4o/i, 'GPT-4o')
+    .replace(/gpt-4-turbo/i, 'GPT-4 Turbo')
+    .replace(/gpt-4/i, 'GPT-4')
+    .replace(/gpt-3.5-turbo/i, 'GPT-3.5 Turbo')
+    .replace(/claude-3-5-sonnet/i, 'Claude 3.5 Sonnet')
+    .replace(/claude-3-5-haiku/i, 'Claude 3.5 Haiku')
+    .replace(/claude-3-opus/i, 'Claude 3 Opus')
+    .replace(/claude-3-sonnet/i, 'Claude 3 Sonnet')
+    .replace(/claude-3-haiku/i, 'Claude 3 Haiku')
+    .replace(/llama-3\.3-70b-versatile/i, 'Llama 3.3 70B')
+    .replace(/llama-3\.1-70b-versatile/i, 'Llama 3.1 70B')
+    .replace(/llama-3\.1-8b-instant/i, 'Llama 3.1 8B')
+    .replace(/grok-3-beta/i, 'Grok 3 Beta')
+    .replace(/grok-3/i, 'Grok 3')
+    .replace(/grok-2/i, 'Grok 2')
+    .replace(/qwen2\.5:latest/i, 'Qwen 2.5')
+    .replace(/llama3\.2:latest/i, 'Llama 3.2')
+    .replace(/:latest/i, '');
+};
+
 export const getModelDisplayInfo = (model?: string, provider?: string) => {
   if (!model) {
     return { 
@@ -64,6 +92,9 @@ export const getModelDisplayInfo = (model?: string, provider?: string) => {
     };
   }
 
+  // Clean the model name for display
+  const cleanedName = cleanModelName(model);
+  
   // Normalize model name for comparison
   const normalizedModel = model.toLowerCase();
   
@@ -99,8 +130,19 @@ export const getModelDisplayInfo = (model?: string, provider?: string) => {
       return { 
         iconUrl: ICON_URLS.groq,
         fallbackIcon: '⚡', 
-        name: 'Llama', 
+        name: cleanedName,
         color: '#FF6B6B',
+        isLocal: true,
+        blueprintIcon: null
+      };
+    }
+    
+    if (normalizedModel.includes('qwen')) {
+      return { 
+        iconUrl: ICON_URLS.ollama,
+        fallbackIcon: '🏠', 
+        name: cleanedName,
+        color: '#2E7D32',
         isLocal: true,
         blueprintIcon: null
       };
@@ -110,14 +152,24 @@ export const getModelDisplayInfo = (model?: string, provider?: string) => {
     return {
       iconUrl: ICON_URLS.ollama,
       fallbackIcon: '🏠',
-      name: model,
+      name: cleanedName,
       color: '#2E7D32',
       isLocal: true,
       blueprintIcon: null
     };
   }
   
-  // Cloud/API models
+  // Cloud/API models - use cleaned names
+  if (normalizedModel.includes('gpt-4o-mini')) {
+    return { 
+      iconUrl: ICON_URLS.openai,
+      fallbackIcon: '🤖', 
+      name: 'GPT-4o Mini', 
+      color: '#10A37F',
+      isLocal: false,
+      blueprintIcon: null
+    };
+  }
   if (normalizedModel.includes('gpt-4o')) {
     return { 
       iconUrl: ICON_URLS.openai,
@@ -132,7 +184,7 @@ export const getModelDisplayInfo = (model?: string, provider?: string) => {
     return { 
       iconUrl: ICON_URLS.openai,
       fallbackIcon: '🤖', 
-      name: 'GPT-4', 
+      name: cleanedName,
       color: '#10A37F',
       isLocal: false,
       blueprintIcon: null
@@ -142,8 +194,18 @@ export const getModelDisplayInfo = (model?: string, provider?: string) => {
     return { 
       iconUrl: ICON_URLS.openai,
       fallbackIcon: '🤖', 
-      name: 'GPT-3.5', 
+      name: 'GPT-3.5 Turbo',
       color: '#10A37F',
+      isLocal: false,
+      blueprintIcon: null
+    };
+  }
+  if (normalizedModel.includes('claude-3.5-sonnet')) {
+    return { 
+      iconUrl: ICON_URLS.anthropic,
+      fallbackIcon: '🧠', 
+      name: 'Claude 3.5 Sonnet', 
+      color: '#CC785C',
       isLocal: false,
       blueprintIcon: null
     };
@@ -153,6 +215,26 @@ export const getModelDisplayInfo = (model?: string, provider?: string) => {
       iconUrl: ICON_URLS.anthropic,
       fallbackIcon: '🧠', 
       name: 'Claude 3.5 Haiku', 
+      color: '#CC785C',
+      isLocal: false,
+      blueprintIcon: null
+    };
+  }
+  if (normalizedModel.includes('claude-3-opus')) {
+    return { 
+      iconUrl: ICON_URLS.anthropic,
+      fallbackIcon: '🧠', 
+      name: 'Claude 3 Opus', 
+      color: '#CC785C',
+      isLocal: false,
+      blueprintIcon: null
+    };
+  }
+  if (normalizedModel.includes('claude-3-sonnet')) {
+    return { 
+      iconUrl: ICON_URLS.anthropic,
+      fallbackIcon: '🧠', 
+      name: 'Claude 3 Sonnet', 
       color: '#CC785C',
       isLocal: false,
       blueprintIcon: null
@@ -172,7 +254,7 @@ export const getModelDisplayInfo = (model?: string, provider?: string) => {
     return { 
       iconUrl: ICON_URLS.anthropic,
       fallbackIcon: '🧠', 
-      name: 'Claude', 
+      name: cleanedName,
       color: '#CC785C',
       isLocal: false,
       blueprintIcon: null
@@ -182,7 +264,7 @@ export const getModelDisplayInfo = (model?: string, provider?: string) => {
     return { 
       iconUrl: ICON_URLS.grok,
       fallbackIcon: '🚀', 
-      name: 'Grok', 
+      name: cleanedName,
       color: '#1D9BF0',
       isLocal: false,
       blueprintIcon: null
@@ -192,7 +274,7 @@ export const getModelDisplayInfo = (model?: string, provider?: string) => {
     return { 
       iconUrl: ICON_URLS.groq,
       fallbackIcon: '⚡', 
-      name: normalizedModel.includes('llama') ? 'Llama' : 'Gemma',
+      name: cleanedName,
       color: normalizedModel.includes('llama') ? '#FF6B6B' : '#4285F4',
       isLocal: false,
       blueprintIcon: null
@@ -203,7 +285,7 @@ export const getModelDisplayInfo = (model?: string, provider?: string) => {
   return { 
     iconUrl: null,
     fallbackIcon: '🤖', 
-    name: model, 
+    name: cleanedName, 
     color: '#666',
     isLocal: false,
     blueprintIcon: null

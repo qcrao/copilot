@@ -454,8 +454,8 @@ details[style*="thinking"][open] {
   font-size: 13px;
   font-weight: 500;
   color: #393a3d;
-  min-width: 100px;
-  max-width: 280px;
+  min-width: 120px;
+  max-width: 320px;
   transition: all 0.3s cubic-bezier(0.2, 0, 0, 1);
   box-shadow: 0 1px 3px rgba(60, 64, 67, 0.08);
   cursor: pointer;
@@ -1007,23 +1007,30 @@ details[style*="thinking"][open] {
   margin-bottom: 6px;
 }
 
-/* Copy button hover transition for messages - compact version */
-.rr-copilot-message-container .rr-copilot-copy-button {
-  transition: opacity 0.2s ease;
-  opacity: 0 !important;
-  transform: scale(0.9); /* Slightly smaller for compactness */
+/* Copy button hover transition for messages - only show on hover */
+.rr-copilot-copy-button-container {
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.2s ease, visibility 0.2s ease;
 }
 
-.rr-copilot-message-container:hover .rr-copilot-copy-button {
-  opacity: 0.8 !important;
-  transform: scale(1);
+.rr-copilot-message-container:hover .rr-copilot-copy-button-container {
+  opacity: 1;
+  visibility: visible;
 }
 
-/* Override Blueprint button hover effects for copy buttons - compact */
-.rr-copilot-copy-button:hover {
-  transform: scale(1.05) !important;
-  background-color: white !important;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12) !important;
+/* Copy icon hover effects */
+.rr-copilot-copy-icon {
+  opacity: 0.7;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.rr-copilot-copy-icon:hover {
+  opacity: 1 !important;
+  transform: scale(1.1) !important;
+  background: none !important;
+  box-shadow: none !important;
+  border: none !important;
 }
 
 /* Prevent any Blueprint button hover effects in message containers */
