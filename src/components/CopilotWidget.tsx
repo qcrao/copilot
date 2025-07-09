@@ -280,9 +280,15 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
         modelProvider: finalProvider,
       });
     } catch (error: any) {
+      const currentModel = multiProviderSettings.currentModel;
+      const provider = await AIService.getProviderForModel(currentModel);
+      const finalProvider = provider?.provider?.id || 'ollama';
+      
       addMessage({
         role: "assistant",
         content: `❌ Error: ${error.message}`,
+        model: currentModel,
+        modelProvider: finalProvider,
       });
     } finally {
       setState((prev) => ({ ...prev, isLoading: false }));
