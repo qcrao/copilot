@@ -245,10 +245,10 @@ export const AI_PROVIDERS: AIProvider[] = [
     id: "xai",
     name: "xAI (Grok)",
     models: [
-      "grok-3", // ✅ Supports tools - 最新主要模型
-      "grok-3-beta", // ✅ Supports tools - 测试版本
-      "grok-2-vision-1212", // ✅ Supports tools - 支持视觉
-      "grok-2", // ✅ Supports tools - 上一代模型
+      "grok-3", // ✅ Supports tools - Latest main model
+      "grok-3-beta", // ✅ Supports tools - Beta version
+      "grok-2-vision-1212", // ✅ Supports tools - Vision support
+      "grok-2", // ✅ Supports tools - Previous generation
     ],
     apiKeyUrl: "https://console.x.ai/",
     billingUrl: "https://console.x.ai/",

@@ -60,7 +60,7 @@ export class GetRoamNotesTool {
    */
   static async execute(params: RoamQueryInput): Promise<string> {
     try {
-      console.log("🔧 执行 getRoamNotes 工具，参数：", params);
+      console.log("🔧 Executing getRoamNotes tool with params:", params);
       const startTime = performance.now();
       
       // Validate parameters
@@ -70,12 +70,12 @@ export class GetRoamNotesTool {
       const result = await this.executeQuery(validatedParams);
       
       const executionTime = performance.now() - startTime;
-      console.log(`🔧 getRoamNotes 执行完成，耗时 ${executionTime.toFixed(2)}ms，找到 ${result.data.length} 个结果`);
+      console.log(`🔧 getRoamNotes execution completed in ${executionTime.toFixed(2)}ms, found ${result.data.length} results`);
       
       // Format result for AI consumption
       const formattedResult = {
         success: result.success,
-        summary: `找到 ${result.totalFound} 个结果 (${result.metadata.queryType} 查询)`,
+        summary: `Found ${result.totalFound} results (${result.metadata.queryType} query)`,
         queryInfo: result.metadata,
         notes: result.data.map(note => ({
           type: note.type,
@@ -96,11 +96,11 @@ export class GetRoamNotesTool {
 
       return JSON.stringify(formattedResult, null, 2);
     } catch (error: any) {
-      console.error("❌ getRoamNotes 工具执行错误：", error);
+      console.error("❌ getRoamNotes tool execution error:", error);
       const errorResult = {
         success: false,
         error: error.message,
-        summary: "工具执行失败",
+        summary: "Tool execution failed",
         notes: [],
         executionTime: "0ms"
       };
@@ -125,7 +125,7 @@ export class GetRoamNotesTool {
         if (currentPage) {
           notes = [await this.convertPageToNoteContent(currentPage)];
         } else {
-          warnings.push("无法获取当前页面信息");
+          warnings.push("Unable to get current page information");
         }
       }
       
@@ -136,7 +136,7 @@ export class GetRoamNotesTool {
         if (block) {
           notes = [block];
         } else {
-          warnings.push(`未找到 UID 为 ${params.blockUid} 的块`);
+          warnings.push(`Block with UID ${params.blockUid} not found`);
         }
       }
       
@@ -147,7 +147,7 @@ export class GetRoamNotesTool {
         if (page) {
           notes = [await this.convertPageToNoteContent(page)];
         } else {
-          warnings.push(`未找到标题为 "${params.pageTitle}" 的页面`);
+          warnings.push(`Page with title "${params.pageTitle}" not found`);
         }
       }
       
@@ -158,7 +158,7 @@ export class GetRoamNotesTool {
         if (dailyNote) {
           notes = [await this.convertPageToNoteContent(dailyNote)];
         } else {
-          warnings.push(`未找到 ${params.date} 的每日笔记`);
+          warnings.push(`Daily note for ${params.date} not found`);
         }
       }
       
@@ -168,7 +168,7 @@ export class GetRoamNotesTool {
         const rangeNotes = await RoamService.getNotesFromDateRange(params.startDate, params.endDate);
         notes = await Promise.all(rangeNotes.map(page => this.convertPageToNoteContent(page)));
         if (notes.length === 0) {
-          warnings.push(`未找到 ${params.startDate} 到 ${params.endDate} 期间的笔记`);
+          warnings.push(`No notes found between ${params.startDate} and ${params.endDate}`);
         }
       }
       
@@ -178,7 +178,7 @@ export class GetRoamNotesTool {
         const referencedBlocks = await this.getBlocksReferencingPage(params.referencedPage);
         notes = referencedBlocks.map(block => this.convertBlockToNoteContent(block));
         if (notes.length === 0) {
-          warnings.push(`未找到引用 "${params.referencedPage}" 的块`);
+          warnings.push(`No blocks found referencing "${params.referencedPage}"`);
         }
       }
       
@@ -187,7 +187,7 @@ export class GetRoamNotesTool {
         queryType = "full-text-search";
         notes = await this.searchNotesFullText(params.searchTerm);
         if (notes.length === 0) {
-          warnings.push(`未找到包含 "${params.searchTerm}" 的内容`);
+          warnings.push(`No content found containing "${params.searchTerm}"`);
         }
       }
 
@@ -218,7 +218,7 @@ export class GetRoamNotesTool {
         data: [],
         totalFound: 0,
         executionTime: performance.now() - startTime,
-        warnings: [`查询失败: ${error.message}`],
+        warnings: [`Query failed: ${error.message}`],
         metadata: { queryType }
       };
     }
@@ -441,7 +441,7 @@ export class GetRoamNotesTool {
 
     // 4. Apply limit
     if (params.limit && processed.length > params.limit) {
-      warnings.push(`结果已限制为 ${params.limit} 个项目（共找到 ${processed.length} 个）`);
+      warnings.push(`Results limited to ${params.limit} items (found ${processed.length} total)`);
       processed = processed.slice(0, params.limit);
     }
 

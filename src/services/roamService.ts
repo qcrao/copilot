@@ -1412,7 +1412,7 @@ export class RoamService {
         if (currentPage) {
           notes = [currentPage];
         } else {
-          warnings.push("无法获取当前页面信息");
+          warnings.push("Unable to get current page information");
         }
       }
 
@@ -1423,7 +1423,7 @@ export class RoamService {
         if (block) {
           notes = [block];
         } else {
-          warnings.push(`未找到 UID 为 ${params.blockUid} 的块`);
+          warnings.push(`Block with UID ${params.blockUid} not found`);
         }
       }
 
@@ -1434,7 +1434,7 @@ export class RoamService {
         if (page) {
           notes = [page];
         } else {
-          warnings.push(`未找到标题为 "${params.pageTitle}" 的页面`);
+          warnings.push(`Page with title "${params.pageTitle}" not found`);
         }
       }
 
@@ -1445,7 +1445,7 @@ export class RoamService {
         if (dailyNote) {
           notes = [dailyNote];
         } else {
-          warnings.push(`未找到 ${params.date} 的每日笔记`);
+          warnings.push(`Daily note for ${params.date} not found`);
         }
       }
 
@@ -1459,7 +1459,7 @@ export class RoamService {
         notes = rangeNotes;
         if (notes.length === 0) {
           warnings.push(
-            `未找到 ${params.startDate} 到 ${params.endDate} 期间的笔记`
+            `No notes found between ${params.startDate} and ${params.endDate}`
           );
         }
       }
@@ -1472,7 +1472,7 @@ export class RoamService {
         );
         notes = referencedBlocks;
         if (notes.length === 0) {
-          warnings.push(`未找到引用 "${params.referencedPage}" 的块`);
+          warnings.push(`No blocks found referencing "${params.referencedPage}"`);
         }
       }
 
@@ -1482,14 +1482,14 @@ export class RoamService {
         const searchResults = await this.searchNotesFullText(params.searchTerm);
         notes = searchResults;
         if (notes.length === 0) {
-          warnings.push(`未找到包含 "${params.searchTerm}" 的内容`);
+          warnings.push(`No content found containing "${params.searchTerm}"`);
         }
       }
 
       // 8. Apply limit
       if (params.limit && notes.length > params.limit) {
         warnings.push(
-          `结果已限制为 ${params.limit} 个项目（共找到 ${notes.length} 个）`
+          `Results limited to ${params.limit} items (found ${notes.length} total)`
         );
         notes = notes.slice(0, params.limit);
       }
@@ -1523,7 +1523,7 @@ export class RoamService {
         data: [],
         totalFound: 0,
         executionTime: performance.now() - startTime,
-        warnings: [`查询失败: ${error.message}`],
+        warnings: [`Query failed: ${error.message}`],
         metadata: { queryType },
       };
     }

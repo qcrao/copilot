@@ -84,3 +84,17 @@ This is the main build command for compiling the Roam extension. It uses `roamjs
 - JSX: React (external dependency)
 - Global Roam API types in `src/global.d.ts`
 - Module system: ESNext with CommonJS output
+
+## Code Style Guidelines
+
+### Language Requirements
+
+- **All code text must be in English**: Console logs, error messages, comments, and string literals should use English
+- **No Chinese characters in code**: This ensures international compatibility and maintainability
+- **Exception**: User-facing messages that are dynamically generated based on user's language preference may use other languages
+
+### Development Workflow
+
+- Always run `sh build.sh` after making code changes to compile and verify the build
+- Test changes thoroughly before committing
+- Follow existing patterns and architecture when adding new features

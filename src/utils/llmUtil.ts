@@ -30,36 +30,36 @@ export class LLMUtil {
    * Define getRoamNotes tool for AI SDK
    */
   static getRoamNotesTool = tool({
-    description: `检索 Roam Research 中的笔记内容。这是一个强大的工具，可以根据多种条件获取用户的笔记数据。
+    description: `Retrieve note content from Roam Research. This is a powerful tool that can fetch user's note data based on various conditions.
 
-使用指南：
-- **获取特定日期笔记**：使用 date 参数 (YYYY-MM-DD)
-- **获取日期范围笔记**：使用 startDate 和 endDate 参数
-- **获取特定页面**：使用 pageTitle 参数
-- **获取当前查看内容**：使用 currentPageContext: true
-- **查找引用内容**：使用 referencedPage 参数
-- **获取特定块**：使用 blockUid 参数
-- **搜索内容**：使用 searchTerm 参数
+Usage Guide:
+- **Get notes from specific date**: Use date parameter (YYYY-MM-DD)
+- **Get notes from date range**: Use startDate and endDate parameters
+- **Get specific page**: Use pageTitle parameter
+- **Get current viewing content**: Use currentPageContext: true
+- **Find referenced content**: Use referencedPage parameter
+- **Get specific block**: Use blockUid parameter
+- **Search content**: Use searchTerm parameter
 
-最佳实践：
-- 当用户提到时间（"昨天"、"本周"、"上个月"）时，自动转换为对应的日期参数
-- 当用户说"当前笔记"、"这个页面"时，使用 currentPageContext
-- 当用户询问某个概念或项目时，使用 referencedPage 查找相关内容
-- 总是使用 limit 参数来控制返回数量，避免数据过载`,
+Best Practices:
+- When user mentions time ("yesterday", "this week", "last month"), automatically convert to corresponding date parameters
+- When user says "current notes", "this page", use currentPageContext
+- When user asks about a concept or project, use referencedPage to find related content
+- Always use limit parameter to control return count and avoid data overload`,
 
     parameters: RoamQuerySchema,
 
     execute: async (params) => {
       try {
-        console.log("🔧 执行 getRoamNotes 工具，参数：", params);
+        console.log("🔧 Executing getRoamNotes tool with params:", params);
         const result = await GetRoamNotesTool.execute(params);
         return result;
       } catch (error: any) {
-        console.error("❌ getRoamNotes 工具执行错误：", error);
+        console.error("❌ getRoamNotes tool execution error:", error);
         return JSON.stringify({
           success: false,
           error: error.message,
-          summary: "工具执行失败",
+          summary: "Tool execution failed",
         });
       }
     },
@@ -214,7 +214,7 @@ export class LLMUtil {
   ): Promise<LLMResult> {
     const { temperature = 0.7, maxTokens = 4000 } = config;
 
-    console.log("🔧 开始工具调用生成 - 配置:", {
+    console.log("🔧 Starting tool call generation - config:", {
       provider: config.provider,
       model: config.model,
       temperature,
@@ -228,21 +228,21 @@ export class LLMUtil {
       config.model
     );
     console.log(
-      `🔧 模型工具支持检查: ${config.provider}/${config.model} -> ${
-        supportsTools ? "✅ 支持" : "❌ 不支持"
+      `🔧 Model tool support check: ${config.provider}/${config.model} -> ${
+        supportsTools ? "✅ Supported" : "❌ Not supported"
       }`
     );
 
     try {
       // Ollama doesn't support native tool calling, use simulation
       if (config.provider === "ollama") {
-        console.log("🔧 使用 Ollama 工具模拟");
+        console.log("🔧 Using Ollama tool simulation");
         return this.simulateToolsForOllama(config, messages);
       }
 
       // For non-tool-supporting models, fall back to regular generation
       if (!supportsTools) {
-        console.warn(`⚠️ 模型 ${config.model} 不支持工具调用，回退到常规生成`);
+        console.warn(`⚠️ Model ${config.model} does not support tool calling, falling back to regular generation`);
         return this.generateResponse(config, messages);
       }
 
@@ -250,7 +250,7 @@ export class LLMUtil {
       const systemMessage = messages.find((m) => m.role === "system");
       const conversationMessages = messages.filter((m) => m.role !== "system");
 
-      console.log("🔧 使用 AI SDK 工具调用生成响应", {
+      console.log("🔧 Using AI SDK tool call response generation", {
         systemMessageLength: systemMessage?.content?.length || 0,
         conversationMessageCount: conversationMessages.length,
         hasTools: true,
@@ -268,7 +268,7 @@ export class LLMUtil {
         maxSteps: 3, // Allow multiple rounds of tool calling
       });
 
-      console.log("🔧 AI SDK 工具调用结果：", {
+      console.log("🔧 AI SDK tool call results:", {
         hasToolResults: !!result.toolResults,
         toolCallCount: result.toolResults?.length || 0,
         textLength: result.text.length,
@@ -284,7 +284,7 @@ export class LLMUtil {
       // Log tool results details if any
       if (result.toolResults && result.toolResults.length > 0) {
         result.toolResults.forEach((toolResult, index) => {
-          console.log(`🔧 工具结果 ${index + 1}:`, {
+          console.log(`🔧 Tool result ${index + 1}:`, {
             toolName: toolResult.toolName,
             args: toolResult.args,
             resultLength: JSON.stringify(toolResult.result).length,
@@ -302,31 +302,31 @@ export class LLMUtil {
         toolResults: result.toolResults,
       };
     } catch (error: any) {
-      console.error("❌ AI SDK 工具调用生成失败：", {
+      console.error("❌ AI SDK tool call generation failed:", {
         provider: config.provider,
         model: config.model,
         error: error.message,
         stack: error.stack,
       });
 
-      // 检查是否是网络连接问题
+      // Check if it's a network connection issue
       if (
         error.message.includes("Failed to fetch") ||
         error.message.includes("ERR_EMPTY_RESPONSE")
       ) {
         if (config.provider === "xai") {
-          throw new Error(`xAI (Grok) 服务连接失败。可能的原因：
-1. xAI API 服务暂时不可用
-2. 网络连接问题
-3. API Key 配置错误
+          throw new Error(`xAI (Grok) service connection failed. Possible reasons:
+1. xAI API service temporarily unavailable
+2. Network connection issue
+3. API Key configuration error
 
-建议：
-- 检查网络连接
-- 验证 API Key 是否有效
-- 尝试其他模型（如 OpenAI 或 Anthropic）
-- 稍后重试
+Suggestions:
+- Check network connection
+- Verify API Key validity
+- Try other models (like OpenAI or Anthropic)
+- Retry later
 
-原始错误: ${error.message}`);
+Original error: ${error.message}`);
         }
       }
 
@@ -335,18 +335,18 @@ export class LLMUtil {
         error.message.includes("tool") ||
         error.message.includes("function")
       ) {
-        console.warn(`⚠️ 工具调用失败，尝试回退到常规生成: ${error.message}`);
+        console.warn(`⚠️ Tool call failed, attempting fallback to regular generation: ${error.message}`);
         try {
           return this.generateResponse(config, messages);
         } catch (fallbackError: any) {
-          console.error("❌ 回退生成也失败：", fallbackError.message);
+          console.error("❌ Fallback generation also failed:", fallbackError.message);
           throw new Error(
-            `工具调用和回退生成都失败: ${error.message} | 回退错误: ${fallbackError.message}`
+            `Both tool call and fallback generation failed: ${error.message} | Fallback error: ${fallbackError.message}`
           );
         }
       }
 
-      throw new Error(`LLM 工具调用生成失败: ${error.message}`);
+      throw new Error(`LLM tool call generation failed: ${error.message}`);
     }
   }
 
@@ -357,7 +357,7 @@ export class LLMUtil {
     try {
       const parsed = JSON.parse(toolResult);
       
-      console.log("🔧 工具结果解析状态：", {
+      console.log("🔧 Tool result parsing status:", {
         success: parsed.success,
         notesCount: parsed.notes?.length || 0,
         queryType: parsed.queryInfo?.queryType,
@@ -365,25 +365,25 @@ export class LLMUtil {
       });
       
       if (!parsed.success || !parsed.notes || parsed.notes.length === 0) {
-        const errorMessage = `没有找到相关笔记内容。${parsed.error || ''}`;
-        console.log("🔧 工具结果：无数据，返回错误信息");
+        const errorMessage = `No relevant note content found. ${parsed.error || ''}`;
+        console.log("🔧 Tool result: no data, returning error message");
         return errorMessage;
       }
 
-      let formatted = `=== 笔记查询结果 ===\n`;
-      formatted += `查询类型: ${parsed.queryInfo?.queryType || '未知'}\n`;
+      let formatted = `=== Note Query Results ===\n`;
+      formatted += `Query Type: ${parsed.queryInfo?.queryType || 'unknown'}\n`;
       if (parsed.queryInfo?.sourcePage) {
-        formatted += `查询页面: ${parsed.queryInfo.sourcePage}\n`;
+        formatted += `Query Page: ${parsed.queryInfo.sourcePage}\n`;
       }
-      formatted += `找到结果: ${parsed.notes.length} 条\n\n`;
-      formatted += `以下是关于"${parsed.queryInfo?.sourcePage || '查询内容'}"的所有相关笔记：\n\n`;
+      formatted += `Results Found: ${parsed.notes.length} entries\n\n`;
+      formatted += `The following are all relevant notes about "${parsed.queryInfo?.sourcePage || 'query content'}":\n\n`;
 
       // Format each note
       parsed.notes.forEach((note: any, index: number) => {
-        formatted += `【笔记 ${index + 1}】`;
+        formatted += `【Note ${index + 1}】`;
         
         if (note.title) {
-          formatted += ` 来自页面: ${note.title}\n`;
+          formatted += ` From page: ${note.title}\n`;
         } else {
           formatted += `\n`;
         }
@@ -394,45 +394,45 @@ export class LLMUtil {
             .replace(/\n\s*\n/g, '\n')
             .replace(/\s+/g, ' ')
             .trim();
-          formatted += `内容: ${cleanContent}\n`;
+          formatted += `Content: ${cleanContent}\n`;
         }
         
         if (note.uid) {
-          formatted += `引用ID: ((${note.uid}))\n`;
+          formatted += `Reference ID: ((${note.uid}))\n`;
         }
         
         if (note.hasMore) {
-          formatted += `[注意：内容已截断，实际内容更长]\n`;
+          formatted += `[Note: Content truncated, actual content is longer]\n`;
         }
         
         formatted += `---\n\n`;
       });
 
       if (parsed.warnings && parsed.warnings.length > 0) {
-        formatted += `\n注意事项:\n`;
+        formatted += `\nWarnings:\n`;
         parsed.warnings.forEach((warning: string) => {
           formatted += `- ${warning}\n`;
         });
       }
 
-      formatted += `\n=== 总结指示 ===\n`;
-      formatted += `请基于以上 ${parsed.notes.length} 条笔记，总结关于"${parsed.queryInfo?.sourcePage || '查询内容'}"的主要内容。\n`;
-      formatted += `这些笔记涵盖了用户在 Roam Research 中记录的所有相关信息。\n`;
-      formatted += `请提取关键信息并组织成清晰的回答。\n`;
+      formatted += `\n=== Summary Instructions ===\n`;
+      formatted += `Please summarize the main content about "${parsed.queryInfo?.sourcePage || 'query content'}" based on the above ${parsed.notes.length} notes.\n`;
+      formatted += `These notes contain all relevant information that the user has recorded in Roam Research.\n`;
+      formatted += `Please extract key information and organize it into a clear response.\n`;
 
-      console.log("🔧 工具结果格式化完成：", {
+      console.log("🔧 Tool result formatting complete:", {
         originalLength: toolResult.length,
         formattedLength: formatted.length,
         notesProcessed: parsed.notes.length,
-        hasStructuredFormat: formatted.includes("=== 笔记查询结果 ==="),
-        includesSummaryInstruction: formatted.includes("=== 总结指示 ===")
+        hasStructuredFormat: formatted.includes("=== Note Query Results ==="),
+        includesSummaryInstruction: formatted.includes("=== Summary Instructions ===")
       });
 
       return formatted;
     } catch (error) {
-      console.warn("🔧 工具结果格式化失败:", error);
-      console.log("🔧 回退到原始工具结果");
-      return `工具执行结果:\n${toolResult}`;
+      console.warn("🔧 Tool result formatting failed:", error);
+      console.log("🔧 Falling back to raw tool result");
+      return `Tool execution result:\n${toolResult}`;
     }
   }
 
@@ -444,7 +444,7 @@ export class LLMUtil {
     messages: any[]
   ): Promise<LLMResult> {
     try {
-      console.log("🔧 为 Ollama 模拟工具调用", {
+      console.log("🔧 Simulating tool calls for Ollama", {
         model: config.model,
         messageCount: messages.length,
       });
@@ -454,7 +454,7 @@ export class LLMUtil {
       const systemMessage =
         messages.find((m) => m.role === "system")?.content || "";
 
-      console.log("🔧 Ollama 消息分析:", {
+      console.log("🔧 Ollama message analysis:", {
         userMessageLength: userMessage.length,
         systemMessageLength: systemMessage.length,
         userMessagePreview:
@@ -463,48 +463,48 @@ export class LLMUtil {
       });
 
       // 1. First, check if the user message needs tool calling
-      const toolDetectionPrompt = `你是一个专业的工具调用分析助手。请仔细分析用户消息，判断是否需要获取 Roam 笔记数据。
+      const toolDetectionPrompt = `You are a professional tool call analysis assistant. Please carefully analyze the user message to determine if Roam note data needs to be retrieved.
 
-用户消息：${userMessage}
+User message: ${userMessage}
 
-=== 工具调用分析指南 ===
-如果用户提到以下内容，则需要调用工具：
-- 页面名或引用（如 [[页面名]]、#标签、提到特定人名/概念）
-- 时间相关查询（昨天、上周、某个日期的笔记）
-- 搜索特定内容（包含某个关键词的笔记）
-- 当前页面相关（这个页面、当前笔记）
+=== Tool Call Analysis Guide ===
+If the user mentions the following content, tool calling is needed:
+- Page names or references (like [[PageName]], #tags, mentioning specific people/concepts)
+- Time-related queries (yesterday, last week, specific date notes)
+- Search for specific content (notes containing certain keywords)
+- Current page related (this page, current notes)
 
-=== 工具调用格式 ===
-如果需要工具调用，请严格按以下格式返回：
+=== Tool Call Format ===
+If tool calling is needed, return strictly in the following format:
 
 TOOL_CALL:getRoamNotes
-PARAMETERS:{...json参数...}
+PARAMETERS:{...json parameters...}
 
-参数字段说明：
-- date: "YYYY-MM-DD" (查询特定日期的笔记)
-- startDate + endDate: "YYYY-MM-DD" (查询日期范围)
-- pageTitle: "页面标题" (查询特定页面)
-- referencedPage: "页面名" (查询引用某页面的所有内容)
-- searchTerm: "搜索词" (全文搜索)
-- currentPageContext: true (获取当前页面内容)
+Parameter field descriptions:
+- date: "YYYY-MM-DD" (query notes from specific date)
+- startDate + endDate: "YYYY-MM-DD" (query date range)
+- pageTitle: "Page Title" (query specific page)
+- referencedPage: "Page Name" (query all content referencing a page)
+- searchTerm: "Search Term" (full text search)
+- currentPageContext: true (get current page content)
 
-=== 参数选择示例 ===
-- "昨天的笔记" → {"date": "2025-07-08"}
-- "上周的工作" → {"startDate": "2025-06-30", "endDate": "2025-07-06"}
-- "关于项目的笔记" → {"referencedPage": "项目"}
-- "看一下 [[曹大]]" → {"referencedPage": "曹大"}
-- "包含Go语言的内容" → {"searchTerm": "Go语言"}
+=== Parameter Selection Examples ===
+- "yesterday's notes" → {"date": "2025-07-08"}
+- "last week's work" → {"startDate": "2025-06-30", "endDate": "2025-07-06"}
+- "notes about project" → {"referencedPage": "project"}
+- "look at [[Cao Da]]" → {"referencedPage": "Cao Da"}
+- "content containing Go language" → {"searchTerm": "Go language"}
 
-如果不需要工具调用，请回答"不需要"。
+If no tool calling is needed, answer "not needed".
 
-请分析并返回正确的工具调用参数：`;
+Please analyze and return the correct tool call parameters:`;
 
       const detectionResult = await this.handleOllamaRequest(config, [
         { role: "system", content: toolDetectionPrompt },
         { role: "user", content: userMessage },
       ]);
 
-      console.log("🔧 Ollama 工具检测结果：", detectionResult.text);
+      console.log("🔧 Ollama tool detection result:", detectionResult.text);
 
       // 2. Parse if there's a tool call
       if (detectionResult.text.includes("TOOL_CALL:getRoamNotes")) {
@@ -514,9 +514,9 @@ PARAMETERS:{...json参数...}
           );
           if (paramMatch) {
             let params = JSON.parse(paramMatch[1]);
-            console.log("🔧 解析到原始参数：", params);
+            console.log("🔧 Parsed raw parameters:", params);
 
-            // 处理错误的参数格式
+            // Handle incorrect parameter format
             if (
               params.query &&
               !params.startDate &&
@@ -525,12 +525,12 @@ PARAMETERS:{...json参数...}
               !params.referencedPage &&
               !params.searchTerm
             ) {
-              console.log("🔧 检测到错误的 query 参数，转换为正确格式");
+              console.log("🔧 Detected incorrect query parameter, converting to correct format");
               const query = params.query;
 
-              // 根据查询内容推断正确的参数
+              // Infer correct parameters based on query content
               if (query.includes("上周") || query.includes("last week")) {
-                // 计算上周的日期范围
+                // Calculate last week's date range
                 const today = new Date();
                 const lastWeekEnd = new Date(
                   today.getTime() - (today.getDay() + 1) * 24 * 60 * 60 * 1000
@@ -554,9 +554,9 @@ PARAMETERS:{...json参数...}
                   date: yesterday.toISOString().split("T")[0],
                   limit: 10,
                 };
-              } else if (query.includes("工作") || query.includes("项目")) {
+              } else if (query.includes("工作") || query.includes("项目") || query.includes("work") || query.includes("project")) {
                 params = {
-                  searchTerm: "工作",
+                  searchTerm: query.includes("工作") ? "工作" : "work",
                   limit: 10,
                 };
               } else {
@@ -567,9 +567,9 @@ PARAMETERS:{...json参数...}
               }
             }
 
-            console.log("🔧 最终工具参数：", params);
+            console.log("🔧 Final tool parameters:", params);
             const toolResult = await GetRoamNotesTool.execute(params);
-            console.log("🔧 工具执行结果（原始JSON）：", {
+            console.log("🔧 Tool execution result (raw JSON):", {
               length: toolResult.length,
               preview: toolResult.substring(0, 200) + (toolResult.length > 200 ? "..." : ""),
               isValidJson: (() => {
@@ -584,69 +584,69 @@ PARAMETERS:{...json参数...}
 
             // 3. Format tool result for better understanding
             const formattedToolResult = this.formatToolResultForOllama(toolResult);
-            console.log("🔧 格式化后的工具结果：", {
+            console.log("🔧 Formatted tool result:", {
               length: formattedToolResult.length,
               preview: formattedToolResult.substring(0, 300) + (formattedToolResult.length > 300 ? "..." : ""),
-              improvedReadability: formattedToolResult.includes("=== 笔记查询结果 ===")
+              improvedReadability: formattedToolResult.includes("=== Note Query Results ===")
             });
 
             // 4. Add tool result to context and regenerate
-            const enhancedPrompt = `你是 Roam Research 的AI助手，已经成功获取了用户查询的笔记数据。
+            const enhancedPrompt = `You are a Roam Research AI assistant that has successfully retrieved the user's queried note data.
 
-=== 工具调用结果 ===
+=== Tool Call Results ===
 ${formattedToolResult}
 
-=== 关键指示 ===
-上面的工具调用结果包含了用户查询的真实笔记数据。请严格按照以下要求回答：
+=== Key Instructions ===
+The tool call results above contain the real note data from the user's query. Please strictly follow these requirements when answering:
 
-1. **必须基于工具结果回答**：只使用上面工具调用结果中的真实数据
-2. **总结主要内容**：如果找到了相关笔记，请总结关键信息和主要内容
-3. **引用具体内容**：可以引用具体的笔记内容和UID（如 ((uid))）
-4. **诚实回答**：如果没有找到相关内容，请明确说明
-5. **不要编造**：绝不编造或推测不存在的信息
+1. **Must answer based on tool results**: Only use the real data from the tool call results above
+2. **Summarize main content**: If relevant notes are found, please summarize key information and main content
+3. **Quote specific content**: You can quote specific note content and UIDs (like ((uid)))
+4. **Answer honestly**: If no relevant content is found, please clearly state so
+5. **Do not fabricate**: Never fabricate or speculate about non-existent information
 
-=== 回答格式 ===
-请按以下格式回答：
-- 先说明查询结果（找到了多少条相关笔记）
-- 然后总结主要内容
-- 最后可以引用具体的笔记内容
+=== Answer Format ===
+Please answer in the following format:
+- First state the query results (how many relevant notes were found)
+- Then summarize the main content
+- Finally quote specific note content if applicable
 
-用户问题：${userMessage}
+User question: ${userMessage}
 
-请基于上述工具调用结果回答：`;
+Please answer based on the above tool call results:`;
 
-            console.log("🔧 生成增强 prompt：", {
+            console.log("🔧 Generated enhanced prompt:", {
               originalSystemMessageLength: systemMessage.length,
               enhancedPromptLength: enhancedPrompt.length,
-              includesToolResult: enhancedPrompt.includes("=== 工具调用结果 ==="),
-              includesInstructions: enhancedPrompt.includes("=== 重要指示 ===")
+              includesToolResult: enhancedPrompt.includes("=== Tool Call Results ==="),
+              includesInstructions: enhancedPrompt.includes("=== Key Instructions ===")
             });
 
             const finalResponse = await this.handleOllamaRequest(config, [
               { role: "system", content: enhancedPrompt },
-              { role: "user", content: `基于工具调用结果回答：${userMessage}` },
+              { role: "user", content: `Answer based on tool call results: ${userMessage}` },
             ]);
 
-            console.log("🔧 Ollama 最终回答分析：", {
+            console.log("🔧 Ollama final response analysis:", {
               responseLength: finalResponse.text.length,
               preview: finalResponse.text.substring(0, 200) + (finalResponse.text.length > 200 ? "..." : ""),
-              containsToolData: finalResponse.text.includes("曹大") || finalResponse.text.includes("Go") || finalResponse.text.includes("性能"),
-              respondsToQuery: finalResponse.text.includes("主要内容") || finalResponse.text.includes("笔记") || finalResponse.text.includes("找到"),
-              isGenericResponse: finalResponse.text.includes("没有明确的公开信息") || finalResponse.text.includes("可能是以下情况")
+              containsToolData: finalResponse.text.includes("曹大") || finalResponse.text.includes("Go") || finalResponse.text.includes("performance") || finalResponse.text.includes("性能"),
+              respondsToQuery: finalResponse.text.includes("main content") || finalResponse.text.includes("notes") || finalResponse.text.includes("found") || finalResponse.text.includes("主要内容") || finalResponse.text.includes("笔记") || finalResponse.text.includes("找到"),
+              isGenericResponse: finalResponse.text.includes("no clear public information") || finalResponse.text.includes("possible situations") || finalResponse.text.includes("没有明确的公开信息") || finalResponse.text.includes("可能是以下情况")
             });
 
             return finalResponse;
           }
         } catch (error) {
-          console.warn("❌ Ollama 工具模拟失败：", error);
+          console.warn("❌ Ollama tool simulation failed:", error);
         }
       }
 
       // 4. No tool call needed, process normally
-      console.log("🔧 无需工具调用，正常处理");
+      console.log("🔧 No tool call needed, processing normally");
       const normalResponse = await this.handleOllamaRequest(config, messages);
       
-      console.log("🔧 Ollama 常规回答分析：", {
+      console.log("🔧 Ollama normal response analysis:", {
         responseLength: normalResponse.text.length,
         preview: normalResponse.text.substring(0, 200) + (normalResponse.text.length > 200 ? "..." : ""),
         isNormalFlow: true
@@ -654,7 +654,7 @@ ${formattedToolResult}
       
       return normalResponse;
     } catch (error: any) {
-      console.error("❌ Ollama 工具模拟错误：", error);
+      console.error("❌ Ollama tool simulation error:", error);
       return this.handleOllamaRequest(config, messages);
     }
   }

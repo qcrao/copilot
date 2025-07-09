@@ -51,7 +51,7 @@ export class AIService {
     const systemMessage = this.getSystemMessage(context);
 
     try {
-      console.log("🔧 AI Service 发送消息:", {
+      console.log("🔧 AI Service sending message:", {
         provider: providerInfo.provider.id,
         model: model,
         hasApiKey: !!providerInfo.apiKey,
@@ -74,7 +74,7 @@ export class AIService {
         ]
       );
 
-      console.log("🔧 AI Service 工具调用结果:", {
+      console.log("🔧 AI Service tool call results:", {
         hasToolResults: !!result.toolResults,
         toolCallCount: result.toolResults?.length || 0,
         responseLength: result.text.length,
@@ -83,7 +83,7 @@ export class AIService {
 
       return result.text;
     } catch (error: any) {
-      console.error("❌ AI Service 错误:", {
+      console.error("❌ AI Service error:", {
         provider: providerInfo.provider.id,
         model: model,
         error: error.message,
@@ -93,25 +93,25 @@ export class AIService {
       // Provide more specific error messages
       if (error.message.includes("API key")) {
         throw new Error(
-          `API 密钥错误 (${providerInfo.provider.name}): ${error.message}`
+          `API key error (${providerInfo.provider.name}): ${error.message}`
         );
       } else if (
         error.message.includes("rate limit") ||
         error.message.includes("quota")
       ) {
         throw new Error(
-          `请求频率限制或配额不足 (${providerInfo.provider.name}): ${error.message}`
+          `Rate limit or quota exceeded (${providerInfo.provider.name}): ${error.message}`
         );
       } else if (
         error.message.includes("network") ||
         error.message.includes("fetch")
       ) {
         throw new Error(
-          `网络连接错误 (${providerInfo.provider.name}): ${error.message}`
+          `Network connection error (${providerInfo.provider.name}): ${error.message}`
         );
       } else {
         throw new Error(
-          `AI 响应失败 (${providerInfo.provider.name}): ${error.message}`
+          `AI response failed (${providerInfo.provider.name}): ${error.message}`
         );
       }
     }
@@ -175,28 +175,28 @@ export class AIService {
   }
 
   private static getSystemMessage(context: string): string {
-    return `你是 Roam Research 的AI助手，拥有 getRoamNotes 工具获取笔记数据。
+    return `You are a Roam Research AI assistant with access to the getRoamNotes tool to retrieve note data.
 
-**工具调用规则：**
-- 时间查询："昨天"→{date:"YYYY-MM-DD"}，"上周"→{startDate:"YYYY-MM-DD",endDate:"YYYY-MM-DD"}
-- 页面查询："这个页面"→{currentPageContext:true}，"某页面"→{pageTitle:"页面名"}
-- 引用查询："关于X的笔记"→{referencedPage:"X"}
-- 搜索查询："包含X的内容"→{searchTerm:"X"}
+**Tool Call Rules:**
+- Time queries: "yesterday"→{date:"YYYY-MM-DD"}, "last week"→{startDate:"YYYY-MM-DD",endDate:"YYYY-MM-DD"}
+- Page queries: "this page"→{currentPageContext:true}, "some page"→{pageTitle:"page name"}
+- Reference queries: "notes about X"→{referencedPage:"X"}
+- Search queries: "content containing X"→{searchTerm:"X"}
 
-**响应流程：**
-1. 立即调用 getRoamNotes 工具（无需解释）
-2. 基于工具结果分析和总结
-3. 用中文回应中文查询，英文回应英文查询
+**Response Flow:**
+1. Immediately call getRoamNotes tool (no explanation needed)
+2. Analyze and summarize based on tool results
+3. Respond in Chinese for Chinese queries, English for English queries
 
-**核心原则：**
-- 始终基于真实工具数据，不编造内容
-- 引用格式：((uid)) 和 [[页面名]]
-- 空结果时诚实说明没有相关笔记
-- 鼓励用户写作和反思
+**Core Principles:**
+- Always base responses on real tool data, don't fabricate content
+- Reference format: ((uid)) and [[page name]]
+- Honestly state when no relevant notes are found
+- Encourage user writing and reflection
 
-${context ? `\n**上下文：**${context}` : ""}
+${context ? `\n**Context:**${context}` : ""}
 
-立即开始工具调用，不要过度解释意图。`;
+Start tool calling immediately, don't over-explain intentions.`;
   }
 
   /**

@@ -169,7 +169,7 @@ export class PromptBuilder {
         referencesCount: blockData.references?.length || 0
       });
 
-      let expandedContent = `\n### 引用块 ((${uid}))\n`;
+      let expandedContent = `\n### Referenced Block ((${uid}))\n`;
       
       // Add the main block content
       expandedContent += `${blockData.string}\n`;
