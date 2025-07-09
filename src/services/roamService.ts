@@ -1,5 +1,5 @@
 // src/services/roamService.ts
-import { RoamBlock, RoamPage, PageContext } from "../types";
+import { RoamBlock, RoamPage, PageContext, UniversalSearchResult, UniversalSearchResponse } from "../types";
 
 export class RoamService {
   /**
@@ -1656,5 +1656,377 @@ export class RoamService {
       console.error("Error getting all page titles:", error);
       return [];
     }
+  }
+
+  /**
+   * Universal search that combines page titles and block content search
+   * Used for @ symbol triggered search feature
+   */
+  static async universalSearch(searchTerm: string, limit: number = 10): Promise<UniversalSearchResponse> {
+    const startTime = Date.now();
+    console.log(`🔍 UniversalSearch called with: "${searchTerm}", limit: ${limit}`);
+
+    if (!searchTerm || searchTerm.trim().length === 0) {
+      return {
+        results: [],
+        totalFound: 0,
+        searchTerm: searchTerm,
+        executionTime: Date.now() - startTime,
+      };
+    }
+
+    try {
+      // Run page and block searches in parallel for better performance
+      const [pageResults, blockResults] = await Promise.all([
+        this.searchPagesForUniversal(searchTerm, Math.ceil(limit * 0.6)), // Prefer pages slightly
+        this.searchBlocksForUniversal(searchTerm, Math.ceil(limit * 0.7)), // Allow some overlap
+      ]);
+
+      // Combine and sort results by relevance
+      const allResults = [...pageResults, ...blockResults];
+      const sortedResults = this.sortUniversalSearchResults(allResults, searchTerm);
+      const limitedResults = sortedResults.slice(0, limit);
+
+      const executionTime = Date.now() - startTime;
+      console.log(`🔍 UniversalSearch completed: ${limitedResults.length} results in ${executionTime}ms`);
+
+      return {
+        results: limitedResults,
+        totalFound: allResults.length,
+        searchTerm: searchTerm,
+        executionTime: executionTime,
+      };
+    } catch (error) {
+      console.error("Error in universal search:", error);
+      return {
+        results: [],
+        totalFound: 0,
+        searchTerm: searchTerm,
+        executionTime: Date.now() - startTime,
+      };
+    }
+  }
+
+  /**
+   * Enhanced page search that matches Roam's native search behavior
+   */
+  private static async searchPagesForUniversal(searchTerm: string, limit: number): Promise<UniversalSearchResult[]> {
+    try {
+      if (!window.roamAlphaAPI?.q) {
+        console.warn("Roam API not available for page search");
+        return [];
+      }
+
+      const lowerSearchTerm = searchTerm.toLowerCase().trim();
+      
+      // Use the proven working method: get all pages first, then filter in JavaScript
+      const allPagesQuery = `
+        [:find ?title ?uid
+         :where
+         [?e :node/title ?title]
+         [?e :block/uid ?uid]]
+      `;
+
+      const result = await window.roamAlphaAPI.q(allPagesQuery);
+      
+      if (!result || result.length === 0) {
+        console.log("No pages found in database");
+        return [];
+      }
+
+      // Convert to our format
+      const allPages = result.map((row: any[]) => ({
+        title: row[0] as string,
+        uid: row[1] as string,
+      }));
+
+      console.log(`🔍 Found ${allPages.length} total pages`);
+
+      // Filter pages that match the search term
+      const matchingPages = allPages.filter(page => {
+        const pageTitle = page.title.toLowerCase();
+        return pageTitle.includes(lowerSearchTerm);
+      });
+
+      console.log(`🔍 Found ${matchingPages.length} matching pages for "${searchTerm}"`);
+
+      // Apply Roam-like relevance sorting
+      const sortedPages = this.sortPagesByRelevance(matchingPages, searchTerm);
+      const limitedPages = sortedPages.slice(0, limit);
+
+      return limitedPages.map(page => {
+        const isDaily = this.isDailyNotePage(page.title);
+        return {
+          type: isDaily ? "daily-note" as const : "page" as const,
+          uid: page.uid,
+          title: page.title,
+          preview: page.title,
+          highlightedText: this.highlightSearchTerm(page.title, searchTerm),
+        };
+      });
+    } catch (error) {
+      console.error("Error searching pages for universal search:", error);
+      return [];
+    }
+  }
+
+  /**
+   * Enhanced block search that matches Roam's native search behavior
+   */
+  private static async searchBlocksForUniversal(searchTerm: string, limit: number): Promise<UniversalSearchResult[]> {
+    try {
+      // Use the existing working searchNotesFullText method
+      const blockResults = await this.searchNotesFullText(searchTerm);
+      
+      if (!blockResults || blockResults.length === 0) {
+        console.log(`🔍 No blocks found for "${searchTerm}"`);
+        return [];
+      }
+
+      console.log(`🔍 Found ${blockResults.length} matching blocks for "${searchTerm}"`);
+
+      // Apply relevance sorting
+      const sortedBlocks = this.sortBlocksByRelevance(blockResults, searchTerm);
+      const limitedBlocks = sortedBlocks.slice(0, limit);
+      
+      // Get parent page titles for blocks in parallel
+      const resultsWithPages = await Promise.all(
+        limitedBlocks.map(async (block) => {
+          const parentPageTitle = await this.getParentPageTitle(block.uid);
+          const preview = this.formatBlockPreview(block.string, 80);
+          
+          return {
+            type: "block" as const,
+            uid: block.uid,
+            content: block.string,
+            preview: preview,
+            pageTitle: parentPageTitle,
+            highlightedText: this.highlightSearchTerm(preview, searchTerm),
+          };
+        })
+      );
+
+      return resultsWithPages;
+    } catch (error) {
+      console.error("Error searching blocks for universal search:", error);
+      return [];
+    }
+  }
+
+  /**
+   * Get the parent page title for a block UID
+   */
+  private static async getParentPageTitle(blockUid: string): Promise<string | undefined> {
+    try {
+      if (!window.roamAlphaAPI?.q) {
+        console.warn("Roam API not available for getting parent page title");
+        return undefined;
+      }
+
+      // Query to find the page that contains this block
+      const pageQuery = `
+        [:find ?title
+         :where
+         [?page :node/title ?title]
+         [?page :block/children ?child]
+         [?child :block/uid "${blockUid}"]]
+      `;
+
+      const result = await window.roamAlphaAPI.q(pageQuery);
+      
+      if (result && result.length > 0) {
+        return result[0][0] as string;
+      }
+
+      // If direct child query fails, try to find through parent hierarchy
+      const hierarchyQuery = `
+        [:find ?title
+         :where
+         [?block :block/uid "${blockUid}"]
+         [?parent :block/children ?block]
+         [?page :block/children ?parent]
+         [?page :node/title ?title]]
+      `;
+
+      const hierarchyResult = await window.roamAlphaAPI.q(hierarchyQuery);
+      
+      if (hierarchyResult && hierarchyResult.length > 0) {
+        return hierarchyResult[0][0] as string;
+      }
+
+      return undefined;
+    } catch (error) {
+      console.error("Error getting parent page title for block:", blockUid, error);
+      return undefined;
+    }
+  }
+
+  /**
+   * Check if a page title represents a daily note
+   */
+  private static isDailyNotePage(title: string): boolean {
+    // Roam daily notes typically follow formats like:
+    // "January 1st, 2024", "01-01-2024", "2024-01-01", etc.
+    const dailyNotePatterns = [
+      /^\w+ \d{1,2}(st|nd|rd|th), \d{4}$/, // "January 1st, 2024"
+      /^\d{1,2}-\d{1,2}-\d{4}$/, // "01-01-2024"
+      /^\d{4}-\d{1,2}-\d{1,2}$/, // "2024-01-01"
+      /^\d{1,2}\/\d{1,2}\/\d{4}$/, // "01/01/2024"
+    ];
+    
+    return dailyNotePatterns.some(pattern => pattern.test(title));
+  }
+
+  /**
+   * Format block content for preview display
+   */
+  private static formatBlockPreview(content: string, maxLength: number = 60): string {
+    if (!content) return "";
+    
+    // Remove Roam markup for cleaner preview
+    let cleaned = content
+      .replace(/\[\[([^\]]+)\]\]/g, '$1') // Remove page links
+      .replace(/\(\(([^)]+)\)\)/g, '') // Remove block references
+      .replace(/#\[\[([^\]]+)\]\]/g, '#$1') // Simplify hashtags
+      .replace(/\*\*([^*]+)\*\*/g, '$1') // Remove bold
+      .replace(/\*([^*]+)\*/g, '$1') // Remove italic
+      .replace(/~~([^~]+)~~/g, '$1') // Remove strikethrough
+      .replace(/`([^`]+)`/g, '$1') // Remove code
+      .trim();
+
+    if (cleaned.length <= maxLength) {
+      return cleaned;
+    }
+
+    return cleaned.substring(0, maxLength - 3) + "...";
+  }
+
+  /**
+   * Highlight search term in text for display
+   */
+  private static highlightSearchTerm(text: string, searchTerm: string): string {
+    if (!searchTerm || !text) return text;
+    
+    const regex = new RegExp(`(${searchTerm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+    return text.replace(regex, '<mark>$1</mark>');
+  }
+
+  /**
+   * Sort pages by relevance using Roam-like algorithm
+   */
+  private static sortPagesByRelevance(pages: Array<{title: string; uid: string}>, searchTerm: string): Array<{title: string; uid: string}> {
+    const lowerSearchTerm = searchTerm.toLowerCase().trim();
+    
+    return pages.sort((a, b) => {
+      const titleA = a.title.toLowerCase();
+      const titleB = b.title.toLowerCase();
+      
+      // Exact match has highest priority
+      if (titleA === lowerSearchTerm && titleB !== lowerSearchTerm) return -1;
+      if (titleB === lowerSearchTerm && titleA !== lowerSearchTerm) return 1;
+      
+      // Case-insensitive exact match
+      if (titleA === lowerSearchTerm && titleB === lowerSearchTerm) {
+        return a.title.localeCompare(b.title);
+      }
+      
+      // Starts with search term
+      const startsA = titleA.startsWith(lowerSearchTerm);
+      const startsB = titleB.startsWith(lowerSearchTerm);
+      if (startsA && !startsB) return -1;
+      if (!startsA && startsB) return 1;
+      
+      if (startsA && startsB) {
+        // Both start with search term, prefer shorter titles
+        return titleA.length - titleB.length;
+      }
+      
+      // Word boundary matching (search term at start of a word)
+      const wordBoundaryA = new RegExp(`\\b${lowerSearchTerm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`, 'i').test(titleA);
+      const wordBoundaryB = new RegExp(`\\b${lowerSearchTerm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`, 'i').test(titleB);
+      if (wordBoundaryA && !wordBoundaryB) return -1;
+      if (!wordBoundaryA && wordBoundaryB) return 1;
+      
+      // Position of match (earlier position = higher relevance)
+      const posA = titleA.indexOf(lowerSearchTerm);
+      const posB = titleB.indexOf(lowerSearchTerm);
+      if (posA !== posB) return posA - posB;
+      
+      // Prefer shorter titles
+      if (titleA.length !== titleB.length) {
+        return titleA.length - titleB.length;
+      }
+      
+      // Alphabetical as final tie-breaker
+      return titleA.localeCompare(titleB);
+    });
+  }
+
+  /**
+   * Sort blocks by relevance using Roam-like algorithm
+   */
+  private static sortBlocksByRelevance(blocks: Array<{uid: string; string: string}>, searchTerm: string): Array<{uid: string; string: string}> {
+    const lowerSearchTerm = searchTerm.toLowerCase().trim();
+    
+    return blocks.sort((a, b) => {
+      const contentA = a.string.toLowerCase();
+      const contentB = b.string.toLowerCase();
+      
+      // Exact match has highest priority
+      if (contentA === lowerSearchTerm && contentB !== lowerSearchTerm) return -1;
+      if (contentB === lowerSearchTerm && contentA !== lowerSearchTerm) return 1;
+      
+      // Word boundary matching
+      const wordBoundaryA = new RegExp(`\\b${lowerSearchTerm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`, 'i').test(contentA);
+      const wordBoundaryB = new RegExp(`\\b${lowerSearchTerm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`, 'i').test(contentB);
+      if (wordBoundaryA && !wordBoundaryB) return -1;
+      if (!wordBoundaryA && wordBoundaryB) return 1;
+      
+      // Position of match (earlier position = higher relevance)
+      const posA = contentA.indexOf(lowerSearchTerm);
+      const posB = contentB.indexOf(lowerSearchTerm);
+      if (posA !== posB) return posA - posB;
+      
+      // Prefer shorter content (more focused)
+      if (contentA.length !== contentB.length) {
+        return contentA.length - contentB.length;
+      }
+      
+      // Alphabetical as final tie-breaker
+      return contentA.localeCompare(contentB);
+    });
+  }
+
+  /**
+   * Sort universal search results by relevance
+   */
+  private static sortUniversalSearchResults(results: UniversalSearchResult[], searchTerm: string): UniversalSearchResult[] {
+    const lowerSearchTerm = searchTerm.toLowerCase();
+    
+    return results.sort((a, b) => {
+      // Get text to compare for each result
+      const textA = (a.title || a.preview || "").toLowerCase();
+      const textB = (b.title || b.preview || "").toLowerCase();
+      
+      // Exact match first
+      const exactA = textA === lowerSearchTerm;
+      const exactB = textB === lowerSearchTerm;
+      if (exactA && !exactB) return -1;
+      if (!exactA && exactB) return 1;
+      
+      // Starts with search term
+      const startsA = textA.startsWith(lowerSearchTerm);
+      const startsB = textB.startsWith(lowerSearchTerm);
+      if (startsA && !startsB) return -1;
+      if (!startsA && startsB) return 1;
+      
+      // Type preference: pages > daily-notes > blocks
+      const typeOrder = { "page": 0, "daily-note": 1, "block": 2 };
+      const typeCompare = typeOrder[a.type] - typeOrder[b.type];
+      if (typeCompare !== 0) return typeCompare;
+      
+      // Alphabetical as final tie-breaker
+      return textA.localeCompare(textB);
+    });
   }
 }

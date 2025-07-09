@@ -1,5 +1,5 @@
 // src/components/ChatInput.tsx
-import React, { useState, useRef, useEffect, useCallback } from "react";
+import React, { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import { Dropcursor } from "@tiptap/extension-dropcursor";
@@ -15,7 +15,9 @@ import { PromptMenu } from "./PromptMenu";
 import { PROMPT_TEMPLATES } from "../data/promptTemplates";
 import { PromptTemplate } from "../types";
 import { PageSuggestionDropdown } from "./PageSuggestionDropdown";
+import { UniversalSearchDropdown } from "./UniversalSearchDropdown";
 import { RoamService } from "../services/roamService";
+import { UniversalSearchResult } from "../types";
 import {
   aiSettings,
   multiProviderSettings,
@@ -73,6 +75,22 @@ export const ChatInput: React.FC<ChatInputProps> = ({
     startPos: number;
     endPos: number;
   }>({ isInBrackets: false, startPos: -1, endPos: -1 });
+
+  // Universal search states for @ symbol triggered search
+  const [showUniversalSearch, setShowUniversalSearch] = useState(false);
+  const [universalSearchResults, setUniversalSearchResults] = useState<UniversalSearchResult[]>([]);
+  const [selectedUniversalIndex, setSelectedUniversalIndex] = useState(0);
+  const [universalSearchTerm, setUniversalSearchTerm] = useState("");
+  const [universalSearchPosition, setUniversalSearchPosition] = useState({ top: 0, left: 0 });
+  const [universalSearchLoading, setUniversalSearchLoading] = useState(false);
+  const [atSymbolContext, setAtSymbolContext] = useState<{
+    isInAtContext: boolean;
+    startPos: number;
+  }>({ isInAtContext: false, startPos: -1 });
+
+  // Performance optimization: Simple cache for search results
+  const searchCache = useRef<Map<string, UniversalSearchResult[]>>(new Map());
+  const debounceTimeoutRef = useRef<number | null>(null);
 
   // TipTap editor
   const editor = useEditor({
@@ -342,6 +360,9 @@ export const ChatInput: React.FC<ChatInputProps> = ({
     // Check for bracket context (page suggestions)
     updateBracketContext(text, cursorPos);
 
+    // Check for @ symbol context (universal search)
+    updateAtSymbolContext(text, cursorPos);
+
     // Check for prompt command
     const commandInfo = parsePromptCommand(text);
 
@@ -420,6 +441,168 @@ export const ChatInput: React.FC<ChatInputProps> = ({
     setSelectedPageIndex(0);
     setPageSearchTerm("");
     setBracketContext({ isInBrackets: false, startPos: -1, endPos: -1 });
+  };
+
+  // Universal search functions for @ symbol triggered search
+  const closeUniversalSearch = () => {
+    setShowUniversalSearch(false);
+    setUniversalSearchResults([]);
+    setSelectedUniversalIndex(0);
+    setUniversalSearchTerm("");
+    setUniversalSearchLoading(false);
+    setAtSymbolContext({ isInAtContext: false, startPos: -1 });
+  };
+
+  const searchUniversal = async (searchTerm: string) => {
+    try {
+      console.log(`🔍 ChatInput searchUniversal called with: "${searchTerm}"`);
+      
+      // Check cache first
+      const cacheKey = searchTerm.toLowerCase().trim();
+      if (searchCache.current.has(cacheKey)) {
+        console.log(`🔍 Using cached results for: "${searchTerm}"`);
+        const cachedResults = searchCache.current.get(cacheKey)!;
+        setUniversalSearchResults(cachedResults);
+        setSelectedUniversalIndex(0);
+        setUniversalSearchLoading(false);
+        return;
+      }
+      
+      setUniversalSearchLoading(true);
+      const response = await RoamService.universalSearch(searchTerm, 10);
+      console.log(`🔍 ChatInput got ${response.results.length} results:`, response.results.map(r => r.preview));
+      
+      // Cache the results (limit cache size to prevent memory issues)
+      if (searchCache.current.size > 50) {
+        // Remove oldest entries
+        const firstKey = searchCache.current.keys().next().value;
+        if (firstKey !== undefined) {
+          searchCache.current.delete(firstKey);
+        }
+      }
+      searchCache.current.set(cacheKey, response.results);
+      
+      setUniversalSearchResults(response.results);
+      setSelectedUniversalIndex(0);
+      console.log(`🔍 ChatInput universalSearchResults state updated, showUniversalSearch=${showUniversalSearch}`);
+    } catch (error) {
+      console.error("Error in universal search:", error);
+      setUniversalSearchResults([]);
+    } finally {
+      setUniversalSearchLoading(false);
+    }
+  };
+
+  // Debounced search function to prevent excessive API calls
+  const debouncedSearchUniversal = useCallback((searchTerm: string) => {
+    // Clear existing timeout
+    if (debounceTimeoutRef.current) {
+      window.clearTimeout(debounceTimeoutRef.current);
+    }
+    
+    // Set loading state immediately for better UX
+    setUniversalSearchLoading(true);
+    
+    // Set new timeout
+    debounceTimeoutRef.current = window.setTimeout(() => {
+      searchUniversal(searchTerm);
+    }, 300); // 300ms debounce delay
+  }, []);
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (debounceTimeoutRef.current) {
+        window.clearTimeout(debounceTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  const calculateUniversalSearchPosition = () => {
+    if (!editor?.view?.dom) {
+      return { top: 0, left: 0 };
+    }
+
+    const editorRect = (editor.view.dom as HTMLElement).getBoundingClientRect();
+    return {
+      top: editorRect.top - 360,
+      left: editorRect.left,
+    };
+  };
+
+  const insertUniversalSearchResult = (result: UniversalSearchResult) => {
+    console.log('🔍 insertUniversalSearchResult called with:', result);
+    console.log('🔍 editor available:', !!editor);
+    console.log('🔍 atSymbolContext:', atSymbolContext);
+    
+    if (!editor) {
+      console.warn('🔍 No editor available');
+      return;
+    }
+    
+    if (!atSymbolContext.isInAtContext) {
+      console.warn('🔍 Not in @ context');
+      return;
+    }
+
+    const { from } = editor.state.selection;
+    const text = editor.getText();
+    const startPos = atSymbolContext.startPos;
+    
+    console.log('🔍 Current state:', { from, startPos, text: text.replace(/\n/g, '\\n') });
+    
+    if (startPos !== -1) {
+      // Replace from @ symbol to current cursor position
+      const insertText = result.type === 'page' || result.type === 'daily-note' 
+        ? `[[${result.title || result.preview}]]`
+        : `((${result.uid}))`;
+      
+      console.log('🔍 Inserting text:', insertText);
+      console.log('🔍 Selection range:', { from: startPos, to: from });
+      
+      try {
+        // Close the search first to prevent interference
+        closeUniversalSearch();
+        
+        // Find the actual end position, skipping newlines
+        let actualEndPos = from;
+        while (actualEndPos > startPos && text[actualEndPos - 1] === '\n') {
+          actualEndPos--;
+        }
+        
+        editor
+          .chain()
+          .focus()
+          .setTextSelection({ from: startPos, to: actualEndPos })
+          .insertContent(insertText)
+          .run();
+        
+        console.log('🔍 Text insertion successful');
+        
+        // Add space after inserted content
+        setTimeout(() => {
+          if (editor) {
+            editor
+              .chain()
+              .focus()
+              .insertContent(" ")
+              .run();
+            
+            // Trigger onChange to update the parent state
+            if (onChange) {
+              const serializedContent = serializeWithReferences(editor);
+              onChange(serializedContent);
+            }
+          }
+        }, 10);
+        
+      } catch (error) {
+        console.error('🔍 Error inserting text:', error);
+      }
+    } else {
+      console.warn('🔍 Invalid start position:', startPos);
+      closeUniversalSearch();
+    }
   };
 
   const searchPages = async (searchTerm: string) => {
@@ -578,6 +761,76 @@ export const ChatInput: React.FC<ChatInputProps> = ({
     }
   };
 
+  // Check for @ symbol context in text
+  const updateAtSymbolContext = (text: string, cursorPos: number) => {
+    console.log(`🔍 @ symbol context check: text="${text}", cursor=${cursorPos}`);
+    
+    // Look backwards to find @ symbol
+    let atSymbolPos = -1;
+    
+    for (let i = cursorPos - 1; i >= 0; i--) {
+      if (text[i] === '@') {
+        // Check if this @ symbol is at word boundary (start of line or after space)
+        if (i === 0 || text[i - 1] === ' ' || text[i - 1] === '\n') {
+          atSymbolPos = i;
+          console.log(`Found @ symbol at position ${i}`);
+          break;
+        }
+      }
+      // For @ context, only stop on space, not newline (allow multiline @ context)
+      if (text[i] === ' ' && i < cursorPos - 1) {
+        break;
+      }
+    }
+
+    // Check if we're in a valid @ context
+    const isInAtContext = atSymbolPos !== -1;
+    
+    console.log(`Is in @ context: ${isInAtContext}, atPos: ${atSymbolPos}`);
+    
+    if (isInAtContext) {
+      // Extract the current search term (everything after @ excluding newlines)
+      const searchStart = atSymbolPos + 1;
+      let currentSearchTerm = text.substring(searchStart, cursorPos);
+      
+      // Remove newlines but preserve other whitespace for now
+      currentSearchTerm = currentSearchTerm.replace(/\n/g, '');
+      const trimmedSearchTerm = currentSearchTerm.trim();
+      
+      console.log(`Current @ search term: "${currentSearchTerm}" (trimmed: "${trimmedSearchTerm}")`);
+      
+      setAtSymbolContext({
+        isInAtContext: true,
+        startPos: atSymbolPos,
+      });
+      
+      // Use trimmed version for comparison but keep original for context
+      if (trimmedSearchTerm !== universalSearchTerm) {
+        setUniversalSearchTerm(trimmedSearchTerm);
+        console.log(`Starting universal search for: "${trimmedSearchTerm}"`);
+        
+        if (trimmedSearchTerm.length > 0) {
+          debouncedSearchUniversal(trimmedSearchTerm);
+        } else {
+          // Show empty search state for @ with no search term
+          setUniversalSearchResults([]);
+          setUniversalSearchLoading(false);
+        }
+        
+        if (!showUniversalSearch) {
+          setShowUniversalSearch(true);
+          setUniversalSearchPosition(calculateUniversalSearchPosition());
+          console.log("Showing universal search dropdown");
+        }
+      }
+    } else {
+      console.log("Not in @ context, closing universal search if open");
+      if (showUniversalSearch) {
+        closeUniversalSearch();
+      }
+    }
+  };
+
   const handlePromptSelect = (template: PromptTemplate) => {
     if (!editor) return;
 
@@ -630,6 +883,43 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   const handleKeyDown = useCallback(
     (event: KeyboardEvent) => {
       if (!editor) return;
+
+      // Handle universal search navigation
+      if (showUniversalSearch && universalSearchResults.length > 0) {
+        console.log('🔍 Universal search active, handling key:', event.key);
+        switch (event.key) {
+          case "ArrowDown":
+            event.preventDefault();
+            setSelectedUniversalIndex((prev) =>
+              prev < universalSearchResults.length - 1 ? prev + 1 : 0
+            );
+            console.log('🔍 Arrow down, new index:', selectedUniversalIndex);
+            return;
+          case "ArrowUp":
+            event.preventDefault();
+            setSelectedUniversalIndex((prev) =>
+              prev > 0 ? prev - 1 : universalSearchResults.length - 1
+            );
+            console.log('🔍 Arrow up, new index:', selectedUniversalIndex);
+            return;
+          case "Enter":
+            event.preventDefault();
+            event.stopPropagation(); // Prevent any other handlers from running
+            console.log('🔍 Enter pressed, selectedIndex:', selectedUniversalIndex);
+            console.log('🔍 Available results:', universalSearchResults.length);
+            console.log('🔍 Selected result:', universalSearchResults[selectedUniversalIndex]);
+            if (universalSearchResults[selectedUniversalIndex]) {
+              insertUniversalSearchResult(universalSearchResults[selectedUniversalIndex]);
+            } else {
+              console.warn('🔍 No result at selected index');
+            }
+            return;
+          case "Escape":
+            event.preventDefault();
+            closeUniversalSearch();
+            return;
+        }
+      }
 
       // Handle page suggestions navigation
       if (showPageSuggestions) {
@@ -729,7 +1019,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
         handleSend();
       }
     },
-    [editor, showPromptMenu, filteredPrompts, selectedPromptIndex, showPageSuggestions, pageSuggestions, selectedPageIndex, isComposing]
+    [editor, showPromptMenu, filteredPrompts, selectedPromptIndex, showPageSuggestions, pageSuggestions, selectedPageIndex, showUniversalSearch, universalSearchResults, selectedUniversalIndex, isComposing]
   );
 
   // Add keyboard event listener and focus management
@@ -939,6 +1229,18 @@ export const ChatInput: React.FC<ChatInputProps> = ({
         onClose={closePageSuggestions}
         position={pageSuggestionPosition}
         searchTerm={pageSearchTerm}
+      />
+
+      {/* Universal Search Dropdown */}
+      <UniversalSearchDropdown
+        isVisible={showUniversalSearch}
+        results={universalSearchResults}
+        selectedIndex={selectedUniversalIndex}
+        onSelect={insertUniversalSearchResult}
+        onClose={closeUniversalSearch}
+        position={universalSearchPosition}
+        searchTerm={universalSearchTerm}
+        isLoading={universalSearchLoading}
       />
     </div>
   );

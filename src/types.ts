@@ -194,6 +194,24 @@ export interface PromptTemplateState {
   isProcessing: boolean;
 }
 
+// Universal search interfaces for @ symbol triggered search
+export interface UniversalSearchResult {
+  type: "page" | "block" | "daily-note";
+  uid: string;
+  title?: string; // for pages and daily notes
+  content?: string; // for blocks
+  preview: string; // formatted preview text for display
+  pageTitle?: string; // parent page title for blocks
+  highlightedText?: string; // text with search term highlighted
+}
+
+export interface UniversalSearchResponse {
+  results: UniversalSearchResult[];
+  totalFound: number;
+  searchTerm: string;
+  executionTime: number;
+}
+
 // Cost-effective models selection, suitable for cost-sensitive Roam extensions
 export const AI_PROVIDERS: AIProvider[] = [
   {
