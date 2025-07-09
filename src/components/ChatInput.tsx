@@ -502,8 +502,10 @@ export const ChatInput: React.FC<ChatInputProps> = ({
     }
 
     const editorRect = (editor.view.dom as HTMLElement).getBoundingClientRect();
+    
+    // Return the top position of the input box so that the search dropdown's bottom aligns with it
     return {
-      top: editorRect.top - 320,
+      top: editorRect.top,
       left: editorRect.left,
     };
   };

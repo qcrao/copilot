@@ -135,7 +135,7 @@ export const UniversalSearchDropdown: React.FC<UniversalSearchDropdownProps> = (
       className="rr-universal-search-dropdown"
       style={{
         position: "fixed",
-        top: position.top,
+        bottom: window.innerHeight - position.top,
         left: position.left,
         zIndex: 1000,
       }}
