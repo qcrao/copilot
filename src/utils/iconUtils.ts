@@ -9,7 +9,8 @@ const ICON_URLS = {
   grok: 'https://unpkg.com/@lobehub/icons-static-svg@latest/icons/grok.svg',
   ollama: 'https://unpkg.com/@lobehub/icons-static-svg@latest/icons/ollama.svg',
   deepseek: 'https://unpkg.com/@lobehub/icons-static-svg@latest/icons/deepseek.svg',
-  gemma: 'https://unpkg.com/@lobehub/icons-static-svg@latest/icons/gemma.svg'
+  gemma: 'https://unpkg.com/@lobehub/icons-static-svg@latest/icons/gemma.svg',
+  qwen: 'https://unpkg.com/@lobehub/icons-static-svg@latest/icons/qwen.svg'
 };
 
 export const getIconUrl = (provider: string, model?: string): string | null => {
@@ -32,6 +33,10 @@ export const getIconUrl = (provider: string, model?: string): string | null => {
   
   if (normalizedModel.includes('gemma')) {
     return ICON_URLS.gemma;
+  }
+  
+  if (normalizedModel.includes('qwen')) {
+    return ICON_URLS.qwen;
   }
   
   // Groq models (llama without gemma)
@@ -139,10 +144,10 @@ export const getModelDisplayInfo = (model?: string, provider?: string) => {
     
     if (normalizedModel.includes('qwen')) {
       return { 
-        iconUrl: ICON_URLS.ollama,
-        fallbackIcon: '🏠', 
+        iconUrl: ICON_URLS.qwen,
+        fallbackIcon: '🧠', 
         name: cleanedName,
-        color: '#2E7D32',
+        color: '#6366F1',
         isLocal: true,
         blueprintIcon: null
       };
