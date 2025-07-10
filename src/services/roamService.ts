@@ -470,49 +470,37 @@ export class RoamService {
   }
 
   /**
-   * Get today's daily note
+   * Get current daily note (either today's or the currently opened daily note)
    */
-  static async getTodaysDailyNote(): Promise<RoamPage | null> {
+  static async getCurrentDailyNote(): Promise<RoamPage | null> {
     try {
+      // First, check if the current page is already a daily note
+      const currentPage = await this.getCurrentPageInfo();
+      if (currentPage && this.isDailyNotePage(currentPage.title)) {
+        console.log("Current page is already a daily note:", currentPage.title);
+        return currentPage; // Return the current daily note page
+      }
+
+      // If current page is not a daily note, get today's daily note as fallback
       const today = new Date();
-      const dateString = today
-        .toLocaleDateString("en-US", {
-          month: "2-digit",
-          day: "2-digit",
-          year: "numeric",
-        })
-        .replace(/\//g, "-");
-
-      console.log("Looking for daily note:", dateString);
-
-      // Use standardized Roam date format and common alternatives
       const todayISO = today.toISOString().split("T")[0];
       const roamDateFormat = LLMUtil.convertToRoamDateFormat(todayISO);
       
+      console.log("Looking for today's daily note:", roamDateFormat);
+
       const dateFormats = [
-        roamDateFormat, // Standard Roam format: "July 8th, 2025"
-        dateString, // MM-dd-yyyy
+        roamDateFormat, // Standard Roam format: "July 10th, 2025"
+        todayISO, // yyyy-mm-dd
+        today.toLocaleDateString("en-US", {
+          month: "2-digit",
+          day: "2-digit", 
+          year: "numeric",
+        }).replace(/\//g, "-"), // MM-dd-yyyy
         today.toLocaleDateString("en-US", {
           month: "long",
-          day: "numeric",
+          day: "numeric", 
           year: "numeric",
         }), // Month dd, yyyy (without ordinal)
-        todayISO, // yyyy-mm-dd
-        // Legacy formats for compatibility
-        today
-          .toLocaleDateString("en-US", {
-            month: "long",
-            day: "numeric",
-            year: "numeric",
-          })
-          .replace(/(\d+),/, (match, day) => {
-            const dayNum = parseInt(day);
-            let suffix = "th";
-            if (dayNum % 10 === 1 && dayNum !== 11) suffix = "st";
-            else if (dayNum % 10 === 2 && dayNum !== 12) suffix = "nd";
-            else if (dayNum % 10 === 3 && dayNum !== 13) suffix = "rd";
-            return `${dayNum}${suffix},`;
-          }), // Month ddth, yyyy (legacy)
       ];
 
       for (const format of dateFormats) {
@@ -525,9 +513,7 @@ export class RoamService {
            [?e :block/uid ?uid]]
         `;
 
-        console.log("Executing query:", query);
         const result = window.roamAlphaAPI.q(query);
-        console.log("Query result:", result);
         if (result && result.length > 0) {
           const uid = result[0][0];
           const blocks = await this.getPageBlocks(uid);
@@ -542,7 +528,7 @@ export class RoamService {
 
       return null;
     } catch (error) {
-      console.error("Error getting today's daily note:", error);
+      console.error("Error getting current daily note:", error);
       return null;
     }
   }
@@ -589,7 +575,7 @@ export class RoamService {
         this.getCurrentPageInfo(),
         Promise.resolve(this.getVisibleBlocks()),
         Promise.resolve(this.getSelectedText()),
-        this.getTodaysDailyNote(),
+        this.getCurrentDailyNote(),
       ]);
 
     // Get linked references if we have a current page
@@ -614,6 +600,34 @@ export class RoamService {
       selectedText: selectedText || undefined,
       dailyNote: dailyNote || undefined,
       linkedReferences,
+    };
+  }
+
+  /**
+   * Get minimal page context for tool calls (to avoid interference)
+   */
+  static async getToolCallContext(): Promise<PageContext> {
+    console.log("🎯 Getting minimal context for tool call...");
+
+    // Only get selected text to avoid context contamination
+    const selectedText = this.getSelectedText();
+    
+    // For debugging: get current page info but don't include it in context
+    const currentPage = await this.getCurrentPageInfo();
+    
+    console.log("🎯 Tool call context summary:", {
+      selectedText: selectedText ? `Yes (${selectedText.length} chars)` : "No",
+      currentPage: currentPage?.title || "None",
+      strategy: "minimal - selected text only"
+    });
+
+    // Return ultra-minimal context to avoid AI confusion
+    return {
+      currentPage: undefined, // Explicitly skip to avoid date confusion
+      visibleBlocks: [], // Skip all visible content
+      selectedText: selectedText || undefined, // Only include if actually selected
+      dailyNote: undefined, // Skip daily note context
+      linkedReferences: [], // Skip all references
     };
   }
 
@@ -829,6 +843,29 @@ export class RoamService {
     const graphName = this.getCurrentGraphName();
     const isDesktop = this.isDesktopApp();
 
+    // For tool calls, use ultra-minimal context
+    const isToolCallContext = !context.currentPage && !context.dailyNote && 
+                             context.visibleBlocks.length === 0 && 
+                             context.linkedReferences.length === 0;
+
+    if (isToolCallContext) {
+      console.log("🎯 Formatting minimal tool call context");
+      
+      if (context.selectedText) {
+        formattedContext += `**Selected Text:**\n${context.selectedText}\n\n`;
+      }
+      
+      // Add minimal guidance
+      formattedContext += `**Context Note:** This is minimal context for tool execution to avoid interference.\n`;
+      
+      const finalContext = formattedContext.trim();
+      console.log("🎯 Minimal context length:", finalContext.length, "characters");
+      return finalContext;
+    }
+
+    // Standard context formatting for regular queries
+    console.log("📋 Formatting full context for regular query");
+
     if (context.selectedText) {
       formattedContext += `**Selected Text:**\n${context.selectedText}\n\n`;
     }
@@ -942,8 +979,8 @@ export class RoamService {
 
     const finalContext = formattedContext.trim();
 
-    console.log("Final formatted context for AI:", finalContext);
-    console.log("Context length:", finalContext.length, "characters");
+    console.log("📋 Final formatted context for AI:", finalContext);
+    console.log("📋 Context length:", finalContext.length, "characters");
 
     // Apply truncation if context is too long
     return this.truncateContext(finalContext, maxTokens);
@@ -1099,61 +1136,20 @@ export class RoamService {
    */
   static async getNotesFromDate(dateString: string): Promise<RoamPage | null> {
     try {
-      console.log("Getting notes from date:", dateString);
+      console.log("🗓️ Getting notes from date:", dateString);
 
-      // Convert date string to various formats that Roam might use
+      // Validate input date
       const inputDate = new Date(dateString);
       if (isNaN(inputDate.getTime())) {
-        console.error("Invalid date string:", dateString);
+        console.error("❌ Invalid date string:", dateString);
         return null;
       }
 
-      const dateFormats = [
-        // MM-dd-yyyy
-        inputDate
-          .toLocaleDateString("en-US", {
-            month: "2-digit",
-            day: "2-digit",
-            year: "numeric",
-          })
-          .replace(/\//g, "-"),
-        // Month dd, yyyy
-        inputDate.toLocaleDateString("en-US", {
-          month: "long",
-          day: "numeric",
-          year: "numeric",
-        }),
-        // yyyy-mm-dd
-        inputDate.toISOString().split("T")[0],
-        // dd-MM-yyyy
-        inputDate.toLocaleDateString("en-GB").replace(/\//g, "-"),
-        // Just the year-month-day without leading zeros
-        `${inputDate.getFullYear()}-${
-          inputDate.getMonth() + 1
-        }-${inputDate.getDate()}`,
-        // With ordinal suffix
-        inputDate
-          .toLocaleDateString("en-US", {
-            month: "long",
-            day: "numeric",
-            year: "numeric",
-          })
-          .replace(/(\d+)/, (match) => {
-            const day = parseInt(match);
-            const suffix =
-              day % 10 === 1 && day !== 11
-                ? "st"
-                : day % 10 === 2 && day !== 12
-                ? "nd"
-                : day % 10 === 3 && day !== 13
-                ? "rd"
-                : "th";
-            return day + suffix;
-          }),
-      ];
+      // Use the improved date format generation from LLMUtil
+      const dateFormats = LLMUtil.generateRoamDateFormats(dateString);
 
       for (const format of dateFormats) {
-        console.log("Trying date format:", format);
+        console.log("🔍 Trying date format:", format);
 
         const query = `
           [:find ?uid
@@ -1163,12 +1159,13 @@ export class RoamService {
         `;
 
         const result = window.roamAlphaAPI.q(query);
-        console.log("Query result for", format, ":", result);
+        console.log("📊 Query result for", format, ":", result);
 
         if (result && result.length > 0) {
           const uid = result[0][0];
           const blocks = await this.getPageBlocks(uid);
 
+          console.log("✅ Found daily note:", { format, uid, blockCount: blocks.length });
           return {
             title: format,
             uid,
@@ -1177,10 +1174,10 @@ export class RoamService {
         }
       }
 
-      console.log("No daily note found for date:", dateString);
+      console.log("❌ No daily note found for date:", dateString);
       return null;
     } catch (error) {
-      console.error("Error getting notes from date:", error);
+      console.error("❌ Error getting notes from date:", error);
       return null;
     }
   }

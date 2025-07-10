@@ -24,7 +24,8 @@
       "Bash(ls:*)",
       "Bash(npm ls:*)",
       "Bash(npx roamjs-scripts build:*)",
-      "Bash(rg:*)"
+      "Bash(rg:*)",
+      "mcp__ide__getDiagnostics"
     ],
     "deny": []
   }
