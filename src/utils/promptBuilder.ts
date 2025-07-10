@@ -146,7 +146,9 @@ export class PromptBuilder {
    */
   private static async expandReferenceChip(chipNode: any): Promise<string> {
     const uid = chipNode.attrs?.uid;
-    console.log('EXPAND_CHIP_DEBUG: Starting expansion for UID:', uid);
+    const type = chipNode.attrs?.type || 'block';
+    const preview = chipNode.attrs?.preview;
+    console.log('EXPAND_CHIP_DEBUG: Starting expansion for UID:', uid, 'Type:', type);
     
     if (!uid) {
       console.warn('EXPAND_CHIP_DEBUG: No UID found in chip node:', chipNode);
@@ -154,55 +156,92 @@ export class PromptBuilder {
     }
 
     try {
-      console.log('EXPAND_CHIP_DEBUG: Querying block data for UID:', uid);
-      const blockData = await RoamQuery.getBlock(uid);
-      
-      if (!blockData) {
-        console.warn('EXPAND_CHIP_DEBUG: Block not found for UID:', uid);
-        return `((${uid})) [Block not found]`;
-      }
+      // Handle page references differently from block references
+      if (type === 'page') {
+        console.log('EXPAND_CHIP_DEBUG: Expanding page reference:', preview);
+        const pageData = await RoamQuery.getPageByTitle(preview);
+        
+        if (!pageData) {
+          console.warn('EXPAND_CHIP_DEBUG: Page not found:', preview);
+          return `[[${preview}]]`;
+        }
 
-      console.log('EXPAND_CHIP_DEBUG: Block data retrieved:', {
-        uid: blockData.uid,
-        stringLength: blockData.string?.length || 0,
-        childrenCount: blockData.children?.length || 0,
-        referencesCount: blockData.references?.length || 0
-      });
+        console.log('EXPAND_CHIP_DEBUG: Page data retrieved:', {
+          title: pageData.title,
+          uid: pageData.uid,
+          blocksCount: pageData.blocks?.length || 0
+        });
 
-      let expandedContent = `\n### Referenced Block ((${uid}))\n`;
-      
-      // Add the main block content
-      expandedContent += `${blockData.string}\n`;
-      
-      // Add children if any (with indentation)
-      if (blockData.children && blockData.children.length > 0) {
-        console.log('EXPAND_CHIP_DEBUG: Adding children blocks');
-        expandedContent += this.formatBlocksForExpansion(blockData.children, 1);
-      }
+        let expandedContent = `\n### Referenced Page [[${pageData.title}]]\n`;
+        
+        // Add page blocks if any
+        if (pageData.blocks && pageData.blocks.length > 0) {
+          console.log('EXPAND_CHIP_DEBUG: Adding page blocks');
+          expandedContent += this.formatBlocksForExpansion(pageData.blocks, 1);
+        }
+        
+        expandedContent += '\n';
+        
+        console.log('EXPAND_CHIP_DEBUG: Final expanded page content:', {
+          length: expandedContent.length,
+          preview: expandedContent.substring(0, 200) + '...'
+        });
+        
+        return expandedContent;
+      } else {
+        // Handle block references
+        console.log('EXPAND_CHIP_DEBUG: Querying block data for UID:', uid);
+        const blockData = await RoamQuery.getBlock(uid);
+        
+        if (!blockData) {
+          console.warn('EXPAND_CHIP_DEBUG: Block not found for UID:', uid);
+          // Return the original reference format without error text to avoid confusing the AI
+          return `((${uid}))`;
+        }
 
-      // Add referenced pages if any
-      if (blockData.references && blockData.references.length > 0) {
-        console.log('EXPAND_CHIP_DEBUG: Adding referenced pages');
-        expandedContent += '\n**Referenced Pages:**\n';
-        for (const page of blockData.references) {
-          expandedContent += `\n**Page: ${page.title}**\n`;
-          if (page.blocks && page.blocks.length > 0) {
-            expandedContent += this.formatBlocksForExpansion(page.blocks, 1);
+        console.log('EXPAND_CHIP_DEBUG: Block data retrieved:', {
+          uid: blockData.uid,
+          stringLength: blockData.string?.length || 0,
+          childrenCount: blockData.children?.length || 0,
+          referencesCount: blockData.references?.length || 0
+        });
+
+        let expandedContent = `\n### Referenced Block ((${uid}))\n`;
+        
+        // Add the main block content
+        expandedContent += `${blockData.string}\n`;
+        
+        // Add children if any (with indentation)
+        if (blockData.children && blockData.children.length > 0) {
+          console.log('EXPAND_CHIP_DEBUG: Adding children blocks');
+          expandedContent += this.formatBlocksForExpansion(blockData.children, 1);
+        }
+
+        // Add referenced pages if any
+        if (blockData.references && blockData.references.length > 0) {
+          console.log('EXPAND_CHIP_DEBUG: Adding referenced pages');
+          expandedContent += '\n**Referenced Pages:**\n';
+          for (const page of blockData.references) {
+            expandedContent += `\n**Page: ${page.title}**\n`;
+            if (page.blocks && page.blocks.length > 0) {
+              expandedContent += this.formatBlocksForExpansion(page.blocks, 1);
+            }
           }
         }
+        
+        expandedContent += '\n';
+        
+        console.log('EXPAND_CHIP_DEBUG: Final expanded content:', {
+          length: expandedContent.length,
+          preview: expandedContent.substring(0, 200) + '...'
+        });
+        
+        return expandedContent;
       }
-      
-      expandedContent += '\n';
-      
-      console.log('EXPAND_CHIP_DEBUG: Final expanded content:', {
-        length: expandedContent.length,
-        preview: expandedContent.substring(0, 200) + '...'
-      });
-      
-      return expandedContent;
     } catch (error) {
       console.error('EXPAND_CHIP_DEBUG: Error expanding reference chip:', error);
-      return `((${uid})) [Error loading content]`;
+      // Return the original reference format without error text to avoid confusing the AI
+      return `((${uid}))`;
     }
   }
 
@@ -369,7 +408,16 @@ export class PromptBuilder {
     }
 
     if (node.type === 'referenceChip') {
-      return `((${node.attrs?.uid || ''}))`;
+      const type = node.attrs?.type || 'block';
+      const uid = node.attrs?.uid || '';
+      const preview = node.attrs?.preview || '';
+      
+      // For page references, use [[PageName]] format
+      if (type === 'page') {
+        return `[[${preview}]]`;
+      }
+      // For block references, use ((uid)) format
+      return `((${uid}))`;
     }
 
     if (node.type === 'paragraph') {

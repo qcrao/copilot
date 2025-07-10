@@ -254,7 +254,16 @@ function serializeNodeToText(node: any): string {
   }
 
   if (node.type === "referenceChip") {
-    return `((${node.attrs?.uid || ""}))`;
+    const type = node.attrs?.type || 'block';
+    const uid = node.attrs?.uid || '';
+    const preview = node.attrs?.preview || '';
+    
+    // For page references, use [[PageName]] format
+    if (type === 'page') {
+      return `[[${preview}]]`;
+    }
+    // For block references, use ((uid)) format
+    return `((${uid}))`;
   }
 
   if (node.type === "paragraph") {
