@@ -73,7 +73,7 @@ export class AIService {
           apiKey: providerInfo.apiKey,
           baseUrl: providerInfo.provider.baseUrl,
           temperature: multiProviderSettings.temperature || 0.7,
-          maxTokens: multiProviderSettings.maxTokens || 4000,
+          maxTokens: multiProviderSettings.maxTokens || 8000,
         },
         messagesWithHistory
       );
@@ -150,7 +150,7 @@ export class AIService {
           model: settings.model,
           apiKey: settings.apiKey,
           temperature: settings.temperature || 0.7,
-          maxTokens: settings.maxTokens || 4000,
+          maxTokens: settings.maxTokens || 8000,
         },
         messagesWithHistory
       );
@@ -167,7 +167,7 @@ export class AIService {
           baseUrl: AI_PROVIDERS.find((p) => p.id === settings.provider)
             ?.baseUrl,
           temperature: settings.temperature || 0.7,
-          maxTokens: settings.maxTokens || 4000,
+          maxTokens: settings.maxTokens || 8000,
         },
         messagesWithHistory
       );

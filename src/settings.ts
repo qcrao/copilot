@@ -2,25 +2,29 @@
 import React from "react";
 import { AISettings, MultiProviderSettings, AI_PROVIDERS } from "./types";
 
-const DEFAULT_SETTINGS: AISettings = {
+// Default settings for legacy AISettings
+const DEFAULT_AI_SETTINGS: AISettings = {
   provider: "openai",
   model: "gpt-4o-mini",
   apiKey: "",
   temperature: 0.7,
-  maxTokens: 4000,
+  maxTokens: 8000,
+};
+
+// Default settings for MultiProviderSettings
+const DEFAULT_MULTI_PROVIDER_SETTINGS: MultiProviderSettings = {
+  currentModel: "gpt-4o-mini",
+  temperature: 0.7,
+  maxTokens: 8000,
+  responseLanguage: "English",
+  apiKeys: {},
+  ollamaBaseUrl: "http://localhost:11434",
 };
 
 // New multi-provider settings
-export let multiProviderSettings: MultiProviderSettings = {
-  apiKeys: {},
-  currentModel: "gpt-4o-mini",
-  temperature: 0.7,
-  maxTokens: 4000,
-  responseLanguage: "English",
-  ollamaBaseUrl: "http://localhost:11434", // Default Ollama address
-};
+export let multiProviderSettings: MultiProviderSettings = { ...DEFAULT_MULTI_PROVIDER_SETTINGS };
 
-export let aiSettings: AISettings = { ...DEFAULT_SETTINGS };
+export let aiSettings: AISettings = { ...DEFAULT_AI_SETTINGS };
 
 export function loadInitialSettings(extensionAPI: any) {
   // Load new multi-provider settings
@@ -59,7 +63,7 @@ export function loadInitialSettings(extensionAPI: any) {
     apiKeys,
     currentModel,
     temperature: savedTemperature ? parseFloat(savedTemperature) : 0.7,
-    maxTokens: savedMaxTokens ? parseInt(savedMaxTokens) : 4000,
+    maxTokens: savedMaxTokens ? parseInt(savedMaxTokens) : 8000,
     responseLanguage: savedResponseLanguage || "English",
     ollamaBaseUrl: savedOllamaBaseUrl || "http://localhost:11434",
   };
@@ -70,12 +74,12 @@ export function loadInitialSettings(extensionAPI: any) {
   const savedApiKey = extensionAPI.settings.get("copilot-api-key");
 
   aiSettings = {
-    provider: savedProvider || DEFAULT_SETTINGS.provider,
-    model: savedModel || DEFAULT_SETTINGS.model,
-    apiKey: savedApiKey || DEFAULT_SETTINGS.apiKey,
+    provider: savedProvider || DEFAULT_AI_SETTINGS.provider,
+    model: savedModel || DEFAULT_AI_SETTINGS.model,
+    apiKey: savedApiKey || DEFAULT_AI_SETTINGS.apiKey,
     temperature:
-      multiProviderSettings.temperature || DEFAULT_SETTINGS.temperature,
-    maxTokens: multiProviderSettings.maxTokens || DEFAULT_SETTINGS.maxTokens,
+      multiProviderSettings.temperature || DEFAULT_AI_SETTINGS.temperature,
+    maxTokens: multiProviderSettings.maxTokens || DEFAULT_AI_SETTINGS.maxTokens,
   };
 }
 
@@ -475,7 +479,7 @@ export function initPanelConfig(extensionAPI: any) {
         description: "Maximum number of tokens in response",
         action: {
           type: "input",
-          placeholder: "4000",
+          placeholder: "8000",
           value: multiProviderSettings.maxTokens?.toString(),
           onChange: (evt: any) => {
             const value = evt?.target?.value;

@@ -296,6 +296,10 @@ export const EnhancedMessageRenderer: React.FC<EnhancedMessageRendererProps> = (
       .replace(/^\s*\n/gm, '\n') // Remove lines that only contain whitespace
       .replace(/\n\s*\n\s*\n/g, '\n\n') // Collapse multiple empty lines to single empty line
       .replace(/\s+$/, '') // Remove all trailing whitespace
+      // Convert plain image URLs to markdown image syntax
+      .replace(/(?<!\!\[.*?\]\()(?<!\]\()(?<!\()(?<!\[)(https?:\/\/[^\s<>\[\]]+\.(?:jpg|jpeg|png|gif|webp|svg|bmp|tiff|ico)(?:\?[^\s<>\[\]]*)?(?:#[^\s<>\[\]]*)?)/gi, '![Image]($1)')
+      // Handle images that are on their own line
+      .replace(/^\s*(https?:\/\/[^\s<>\[\]]+\.(?:jpg|jpeg|png|gif|webp|svg|bmp|tiff|ico)(?:\?[^\s<>\[\]]*)?(?:#[^\s<>\[\]]*)?)\s*$/gim, '![Image]($1)')
       .trim(); // Remove leading/trailing whitespace
   };
 

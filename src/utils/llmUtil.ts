@@ -371,7 +371,7 @@ Best Practices:
     config: LLMConfig,
     messages: any[]
   ): Promise<LLMResult> {
-    const { temperature = 0.7, maxTokens = 4000 } = config;
+    const { temperature = 0.7, maxTokens = 8000 } = config;
 
     try {
       const model = this.getProviderClient(config);
@@ -425,7 +425,7 @@ Best Practices:
       apiKey: providerInfo.apiKey,
       baseUrl: providerInfo.provider.baseUrl,
       temperature: multiProviderSettings.temperature || 0.7,
-      maxTokens: multiProviderSettings.maxTokens || 4000,
+      maxTokens: multiProviderSettings.maxTokens || 8000,
     };
 
     const messages = [
@@ -444,7 +444,7 @@ Best Practices:
     config: LLMConfig,
     messages: any[]
   ): Promise<LLMResult> {
-    const { temperature = 0.7, maxTokens = 4000 } = config;
+    const { temperature = 0.7, maxTokens = 8000 } = config;
 
     console.log("🔧 Starting tool call generation - config:", {
       provider: config.provider,
@@ -962,7 +962,7 @@ Please provide a helpful response based on the current time information above. A
   ): Promise<LLMResult> {
     const baseUrl =
       multiProviderSettings.ollamaBaseUrl || "http://localhost:11434";
-    const { model, temperature = 0.7, maxTokens = 4000 } = config;
+    const { model, temperature = 0.7, maxTokens = 8000 } = config;
 
     try {
       const response = await fetch(`${baseUrl}/api/chat`, {
