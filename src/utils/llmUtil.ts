@@ -2,6 +2,7 @@
 import { createOpenAI } from "@ai-sdk/openai";
 import { createAnthropic } from "@ai-sdk/anthropic";
 import { CoreMessage, generateText, LanguageModel, tool } from "ai";
+import { z } from "zod";
 import { multiProviderSettings } from "../settings";
 import { AI_PROVIDERS } from "../types";
 import { GetRoamNotesTool, RoamQuerySchema } from "../tools/getRoamNotes";
@@ -26,6 +27,166 @@ interface LLMResult {
 }
 
 export class LLMUtil {
+  /**
+   * Convert ISO date format to Roam date format
+   * @param isoDate - Date in YYYY-MM-DD format
+   * @returns Date in Roam format (e.g., "July 8th, 2025")
+   */
+  static convertToRoamDateFormat(isoDate: string): string {
+    try {
+      const date = new Date(isoDate + 'T00:00:00');
+      const months = [
+        'January', 'February', 'March', 'April', 'May', 'June',
+        'July', 'August', 'September', 'October', 'November', 'December'
+      ];
+      
+      const day = date.getDate();
+      const month = months[date.getMonth()];
+      const year = date.getFullYear();
+      
+      // Add ordinal suffix (st, nd, rd, th)
+      const getOrdinalSuffix = (day: number): string => {
+        if (day > 3 && day < 21) return 'th';
+        switch (day % 10) {
+          case 1: return 'st';
+          case 2: return 'nd';
+          case 3: return 'rd';
+          default: return 'th';
+        }
+      };
+      
+      return `${month} ${day}${getOrdinalSuffix(day)}, ${year}`;
+    } catch (error) {
+      console.error('Error converting date to Roam format:', error);
+      return isoDate; // Return original if conversion fails
+    }
+  }
+
+  /**
+   * Get local date string in YYYY-MM-DD format
+   * @param daysOffset - Number of days to offset from today (negative for past days)
+   * @returns Local date string in YYYY-MM-DD format
+   */
+  private static getLocalDateString(daysOffset: number = 0): string {
+    const date = new Date();
+    // Use local time instead of UTC to respect user's timezone
+    date.setDate(date.getDate() + daysOffset);
+    
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    
+    return `${year}-${month}-${day}`;
+  }
+
+  /**
+   * Get local date range for a specific period
+   * @param period - The period type ('last_week', 'this_week', etc.)
+   * @returns Object with startDate and endDate in YYYY-MM-DD format
+   */
+  private static getLocalDateRange(period: string): { startDate: string; endDate: string } {
+    const today = new Date();
+    const dayOfWeek = today.getDay(); // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
+    
+    switch (period) {
+      case 'last_week':
+        // Last week: Monday to Sunday of previous week
+        const lastWeekStart = new Date(today);
+        lastWeekStart.setDate(today.getDate() - dayOfWeek - 6); // Go to last Monday
+        const lastWeekEnd = new Date(lastWeekStart);
+        lastWeekEnd.setDate(lastWeekStart.getDate() + 6); // Go to last Sunday
+        
+        return {
+          startDate: this.dateToLocalString(lastWeekStart),
+          endDate: this.dateToLocalString(lastWeekEnd)
+        };
+        
+      case 'this_week':
+        // This week: Monday to today
+        const thisWeekStart = new Date(today);
+        thisWeekStart.setDate(today.getDate() - dayOfWeek + 1); // Go to this Monday
+        
+        return {
+          startDate: this.dateToLocalString(thisWeekStart),
+          endDate: this.getLocalDateString(0)
+        };
+        
+      default:
+        return {
+          startDate: this.getLocalDateString(0),
+          endDate: this.getLocalDateString(0)
+        };
+    }
+  }
+
+  /**
+   * Convert Date object to local date string
+   * @param date - Date object
+   * @returns Local date string in YYYY-MM-DD format
+   */
+  private static dateToLocalString(date: Date): string {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    
+    return `${year}-${month}-${day}`;
+  }
+
+  /**
+   * Define getCurrentTime tool for basic time information queries
+   */
+  static getCurrentTimeTool = tool({
+    description: `Get current time and date information. Use this tool when users ask for current time, date, or basic time information like:
+    - "What time is it?"
+    - "What's today's date?"
+    - "What day is it?"
+    - "今天是几号?"
+    - "现在几点了?"
+    
+    This tool provides basic time information without searching notes.`,
+    
+    parameters: z.object({
+      format: z.enum(['date', 'time', 'datetime', 'day', 'all']).default('all').describe('The format of time information requested')
+    }),
+    
+    execute: async (params) => {
+      try {
+        const now = new Date();
+        const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+        
+        const result = {
+          timestamp: now.toISOString(),
+          timezone: timezone,
+          date: now.toLocaleDateString('en-US', {
+            weekday: 'long',
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric'
+          }),
+          time: now.toLocaleTimeString('en-US', {
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit',
+            hour12: false
+          }),
+          roamDate: LLMUtil.convertToRoamDateFormat(now.toISOString().split('T')[0]),
+          dayOfWeek: now.toLocaleDateString('en-US', { weekday: 'long' }),
+          dayOfMonth: now.getDate(),
+          month: now.toLocaleDateString('en-US', { month: 'long' }),
+          year: now.getFullYear()
+        };
+        
+        return JSON.stringify(result);
+      } catch (error: any) {
+        console.error('❌ getCurrentTime tool execution error:', error);
+        return JSON.stringify({
+          error: error.message,
+          summary: 'Failed to get current time information'
+        });
+      }
+    }
+  });
+
   /**
    * Define getRoamNotes tool for AI SDK
    */
@@ -261,6 +422,7 @@ Best Practices:
         system: systemMessage?.content,
         messages: this.convertToAISDKMessages(conversationMessages),
         tools: {
+          getCurrentTime: this.getCurrentTimeTool,
           getRoamNotes: this.getRoamNotesTool,
         },
         temperature,
@@ -388,6 +550,14 @@ Original error: ${error.message}`);
           formatted += `\n`;
         }
         
+        // Add date information with proper Roam format
+        if (note.date) {
+          const roamDate = note.date.match(/^\d{4}-\d{2}-\d{2}$/) 
+            ? LLMUtil.convertToRoamDateFormat(note.date)
+            : note.date;
+          formatted += `Date: ${roamDate}\n`;
+        }
+        
         if (note.content) {
           // Clean up the content - remove excessive whitespace and format nicely
           const cleanContent = note.content
@@ -449,8 +619,9 @@ Original error: ${error.message}`);
         messageCount: messages.length,
       });
 
-      const userMessage =
-        messages.find((m) => m.role === "user")?.content || "";
+      // Get the LAST user message (current input), not the first one from history
+      const userMessages = messages.filter((m) => m.role === "user");
+      const userMessage = userMessages.length > 0 ? userMessages[userMessages.length - 1].content : "";
       const systemMessage =
         messages.find((m) => m.role === "system")?.content || "";
 
@@ -463,41 +634,43 @@ Original error: ${error.message}`);
       });
 
       // 1. First, check if the user message needs tool calling
-      const toolDetectionPrompt = `You are a professional tool call analysis assistant. Please carefully analyze the user message to determine if Roam note data needs to be retrieved.
+      const toolDetectionPrompt = `You are a professional tool call analysis assistant. Analyze the user message to determine if Roam note data needs to be retrieved.
 
 User message: ${userMessage}
 
 === Tool Call Analysis Guide ===
-If the user mentions the following content, tool calling is needed:
-- Page names or references (like [[PageName]], #tags, mentioning specific people/concepts)
-- Time-related queries (yesterday, last week, specific date notes)
-- Search for specific content (notes containing certain keywords)
-- Current page related (this page, current notes)
+
+**ALWAYS call getRoamNotes tool for these queries:**
+- Time-related note queries: "昨天的笔记", "yesterday's notes", "上周", "last week", "今天写了什么"
+- Content search: "找一下关于X的笔记", "搜索包含Y的内容", "notes about Z"
+- Page references: "[[PageName]]" mentioned, "看看X页面", "this page", "当前页面"
+- General note queries: "我记了什么", "what did I write", "看下笔记", "show me notes"
+
+**NEVER call getRoamNotes for:**
+- Simple time info: "今天几号", "what time is it", "现在几点" (use getCurrentTime instead)
+- General questions without note context: "如何做X", "怎么办", "help me with"
+
+=== Key Examples ===
+- "看下昨天我记了哪些笔记" → NEED TOOL CALL (time-related note query)
+- "昨天的工作内容" → NEED TOOL CALL (time + content query)
+- "今天是几号" → NO TOOL CALL (simple time info)
+- "找一下关于项目的笔记" → NEED TOOL CALL (content search)
 
 === Tool Call Format ===
-If tool calling is needed, return strictly in the following format:
+If tool calling is needed, return:
 
 TOOL_CALL:getRoamNotes
-PARAMETERS:{...json parameters...}
+PARAMETERS:{"date": "YYYY-MM-DD"} or other appropriate parameters
 
-Parameter field descriptions:
-- date: "YYYY-MM-DD" (query notes from specific date)
-- startDate + endDate: "YYYY-MM-DD" (query date range)
-- pageTitle: "Page Title" (query specific page)
-- referencedPage: "Page Name" (query all content referencing a page)
-- searchTerm: "Search Term" (full text search)
-- currentPageContext: true (get current page content)
+=== Parameter Selection ===
+- Yesterday notes: {"date": "${this.getLocalDateString(-1)}"}
+- Last week: {"startDate": "start-date", "endDate": "end-date"}
+- Content search: {"searchTerm": "keyword"}
+- Page reference: {"referencedPage": "PageName"}
 
-=== Parameter Selection Examples ===
-- "yesterday's notes" → {"date": "2025-07-08"}
-- "last week's work" → {"startDate": "2025-06-30", "endDate": "2025-07-06"}
-- "notes about project" → {"referencedPage": "project"}
-- "look at [[Cao Da]]" → {"referencedPage": "Cao Da"}
-- "content containing Go language" → {"searchTerm": "Go language"}
+If NO tool calling needed, answer "not needed".
 
-If no tool calling is needed, answer "not needed".
-
-Please analyze and return the correct tool call parameters:`;
+Analyze and decide:`;
 
       const detectionResult = await this.handleOllamaRequest(config, [
         { role: "system", content: toolDetectionPrompt },
@@ -506,7 +679,137 @@ Please analyze and return the correct tool call parameters:`;
 
       console.log("🔧 Ollama tool detection result:", detectionResult.text);
 
-      // 2. Parse if there's a tool call
+      // 2. Check if simple time queries need getCurrentTime tool
+      const needsCurrentTimeCall = (
+        userMessage.includes("今天几号") || userMessage.includes("今天是几号") ||
+        userMessage.includes("现在几点") || userMessage.includes("几点了") ||
+        userMessage.includes("what time") || userMessage.includes("what date") ||
+        userMessage.includes("current time") || userMessage.includes("today's date")
+      );
+
+      if (needsCurrentTimeCall) {
+        console.log("🔧 Detected time query, calling getCurrentTime tool");
+        
+        const timeResult = await LLMUtil.getCurrentTimeTool.execute({ format: 'all' }, { 
+          toolCallId: 'manual-time-call', 
+          messages: [] 
+        });
+        console.log("🔧 getCurrentTime tool result:", timeResult);
+        
+        const enhancedPrompt = `You are a helpful AI assistant that has retrieved current time information.
+
+=== Current Time Information ===
+${timeResult}
+
+=== User Query ===
+${userMessage}
+
+Please provide a helpful response based on the current time information above. Answer in Chinese if the user asked in Chinese.`;
+
+        const finalResult = await this.handleOllamaRequest(config, [
+          { role: "system", content: enhancedPrompt },
+          { role: "user", content: userMessage },
+        ]);
+
+        return {
+          text: finalResult.text,
+          usage: finalResult.usage,
+          toolResults: [{ toolName: "getCurrentTime", args: { format: 'all' }, result: timeResult }],
+        };
+      }
+
+      // 3. Check for common patterns that need tool calls but might be missed
+      const needsToolCall = (
+        userMessage.includes("昨天") || userMessage.includes("yesterday") ||
+        userMessage.includes("上周") || userMessage.includes("last week") ||
+        userMessage.includes("笔记") || userMessage.includes("notes") ||
+        userMessage.includes("今天写了") || userMessage.includes("记了") ||
+        userMessage.includes("看下") || userMessage.includes("查看")
+      ) && !(
+        userMessage.includes("几号") || userMessage.includes("几点") ||
+        userMessage.includes("what time") || userMessage.includes("what date")
+      );
+
+      if (needsToolCall && !detectionResult.text.includes("TOOL_CALL:getRoamNotes")) {
+        console.log("🔧 Force tool call for note query that was missed by detection");
+        // Directly infer parameters for common queries
+        let forceParams;
+        if (userMessage.includes("昨天") || userMessage.includes("yesterday")) {
+          forceParams = {
+            date: this.getLocalDateString(-1),
+            limit: 10,
+            includeChildren: true,
+            includeReferences: false
+          };
+        } else if (userMessage.includes("今天写了") || userMessage.includes("今天记了")) {
+          forceParams = {
+            date: this.getLocalDateString(0),
+            limit: 10,
+            includeChildren: true,
+            includeReferences: false
+          };
+        } else {
+          forceParams = {
+            searchTerm: userMessage.replace(/[看下查看我记了哪些的]/g, '').trim(),
+            limit: 20,
+            includeChildren: true,
+            includeReferences: false
+          };
+        }
+        
+        console.log("🔧 Force tool parameters:", forceParams);
+        
+        // Add debug info for date calculation
+        if (forceParams.date) {
+          const roamDate = LLMUtil.convertToRoamDateFormat(forceParams.date);
+          console.log("🔧 Date debug info:", {
+            isoDate: forceParams.date,
+            roamDate: roamDate,
+            userQuery: userMessage
+          });
+        }
+        
+        const toolResult = await GetRoamNotesTool.execute(forceParams);
+        console.log("🔧 Tool execution result preview:", {
+          length: toolResult.length,
+          preview: toolResult.substring(0, 300),
+          success: toolResult.includes('"success":true')
+        });
+        
+        const formattedToolResult = this.formatToolResultForOllama(toolResult);
+        
+        // Extract the query date for clarity
+        const queryDate = forceParams.date ? LLMUtil.convertToRoamDateFormat(forceParams.date) : "specified date range";
+        
+        const enhancedPrompt = `You are a Roam Research AI assistant. Based on the user's query "${userMessage}", you have retrieved relevant note data.
+
+=== RETRIEVED DATA FOR: ${queryDate} ===
+${formattedToolResult}
+
+=== RESPONSE INSTRUCTIONS ===
+**CRITICAL**: Base your response ONLY on the data shown above. Do NOT use any other information.
+
+1. **Focus on queried date**: Your query was specifically for ${queryDate}
+2. **Use exact data**: Only reference note content, UIDs, and information from the results above
+3. **Be clear about date**: When discussing the notes, clearly state they are from ${queryDate}
+4. **No assumptions**: If no relevant notes found, state this clearly
+5. **Ignore all other context**: Disregard any current page information, daily notes, or other contexts
+
+**Format your response in Chinese and focus exclusively on the retrieved data above.**`;
+
+        const finalResult = await this.handleOllamaRequest(config, [
+          { role: "system", content: enhancedPrompt },
+          { role: "user", content: userMessage },
+        ]);
+
+        return {
+          text: finalResult.text,
+          usage: finalResult.usage,
+          toolResults: [{ toolName: "getRoamNotes", args: forceParams, result: toolResult }],
+        };
+      }
+
+      // 3. Parse if there's a tool call
       if (detectionResult.text.includes("TOOL_CALL:getRoamNotes")) {
         try {
           const paramMatch = detectionResult.text.match(
@@ -516,58 +819,111 @@ Please analyze and return the correct tool call parameters:`;
             let params = JSON.parse(paramMatch[1]);
             console.log("🔧 Parsed raw parameters:", params);
 
-            // Handle incorrect parameter format
+            // Smart parameter inference for better query handling
+            console.log("🔧 Processing tool parameters:", params);
+            
+            // If parameters don't have core fields, try to infer from user message
             if (
-              params.query &&
-              !params.startDate &&
               !params.date &&
+              !params.startDate &&
               !params.pageTitle &&
               !params.referencedPage &&
-              !params.searchTerm
+              !params.searchTerm &&
+              !params.currentPageContext
             ) {
-              console.log("🔧 Detected incorrect query parameter, converting to correct format");
+              console.log("🔧 Inferring parameters from user message:", userMessage);
+              
+              // Check for time-related keywords in user message
+              if (userMessage.includes("昨天") || userMessage.includes("yesterday")) {
+                params = {
+                  date: this.getLocalDateString(-1),
+                  limit: 10,
+                  includeChildren: true,
+                  includeReferences: false
+                };
+                console.log("🔧 Detected yesterday query, using date:", params.date);
+              } else if (userMessage.includes("上周") || userMessage.includes("last week")) {
+                const dateRange = this.getLocalDateRange('last_week');
+                params = {
+                  startDate: dateRange.startDate,
+                  endDate: dateRange.endDate,
+                  limit: 10,
+                  includeChildren: true,
+                  includeReferences: false
+                };
+                console.log("🔧 Detected last week query, using range:", params);
+              } else if (userMessage.includes("今天") || userMessage.includes("today")) {
+                params = {
+                  date: this.getLocalDateString(0),
+                  limit: 10,
+                  includeChildren: true,
+                  includeReferences: false
+                };
+                console.log("🔧 Detected today query, using date:", params.date);
+              } else if (userMessage.includes("笔记") || userMessage.includes("notes")) {
+                // Generic note search - use search term
+                params = {
+                  searchTerm: userMessage.replace(/[看下的我记了哪些]/g, '').trim(),
+                  limit: 20,
+                  includeChildren: true,
+                  includeReferences: false
+                };
+                console.log("🔧 Detected generic note query, using searchTerm:", params.searchTerm);
+              } else {
+                // Fallback: use the entire message as search term
+                params = {
+                  searchTerm: userMessage,
+                  limit: 10,
+                  includeChildren: true,
+                  includeReferences: false
+                };
+                console.log("🔧 Using fallback search term:", params.searchTerm);
+              }
+            }
+            
+            // Handle legacy query parameter format
+            if (params.query && !params.date && !params.searchTerm) {
+              console.log("🔧 Converting legacy query parameter:", params.query);
               const query = params.query;
-
-              // Infer correct parameters based on query content
-              if (query.includes("上周") || query.includes("last week")) {
-                // Calculate last week's date range
-                const today = new Date();
-                const lastWeekEnd = new Date(
-                  today.getTime() - (today.getDay() + 1) * 24 * 60 * 60 * 1000
-                );
-                const lastWeekStart = new Date(
-                  lastWeekEnd.getTime() - 6 * 24 * 60 * 60 * 1000
-                );
-
+              
+              if (query.includes("昨天") || query.includes("yesterday")) {
                 params = {
-                  startDate: lastWeekStart.toISOString().split("T")[0],
-                  endDate: lastWeekEnd.toISOString().split("T")[0],
+                  date: this.getLocalDateString(-1),
                   limit: 10,
+                  includeChildren: true,
+                  includeReferences: false
                 };
-              } else if (
-                query.includes("昨天") ||
-                query.includes("yesterday")
-              ) {
-                const yesterday = new Date();
-                yesterday.setDate(yesterday.getDate() - 1);
+              } else if (query.includes("上周") || query.includes("last week")) {
+                const dateRange = this.getLocalDateRange('last_week');
                 params = {
-                  date: yesterday.toISOString().split("T")[0],
+                  startDate: dateRange.startDate,
+                  endDate: dateRange.endDate,
                   limit: 10,
-                };
-              } else if (query.includes("工作") || query.includes("项目") || query.includes("work") || query.includes("project")) {
-                params = {
-                  searchTerm: query.includes("工作") ? "工作" : "work",
-                  limit: 10,
+                  includeChildren: true,
+                  includeReferences: false
                 };
               } else {
                 params = {
                   searchTerm: query,
                   limit: 10,
+                  includeChildren: true,
+                  includeReferences: false
                 };
               }
             }
 
             console.log("🔧 Final tool parameters:", params);
+            
+            // Add debug info for date queries
+            if (params.date) {
+              const roamDate = LLMUtil.convertToRoamDateFormat(params.date);
+              console.log("🔧 Date query debug info:", {
+                isoDate: params.date,
+                roamDate: roamDate,
+                userQuery: userMessage
+              });
+            }
+            
             const toolResult = await GetRoamNotesTool.execute(params);
             console.log("🔧 Tool execution result (raw JSON):", {
               length: toolResult.length,
@@ -591,29 +947,24 @@ Please analyze and return the correct tool call parameters:`;
             });
 
             // 4. Add tool result to context and regenerate
-            const enhancedPrompt = `You are a Roam Research AI assistant that has successfully retrieved the user's queried note data.
+            // Extract the query date from parameters for clarity
+            const queryDate = params.date ? LLMUtil.convertToRoamDateFormat(params.date) : "specified date range";
+            
+            const enhancedPrompt = `Based on the user's query "${userMessage}", you have retrieved data for ${queryDate}.
 
-=== Tool Call Results ===
+=== SEARCH RESULTS FOR: ${queryDate} ===
 ${formattedToolResult}
 
-=== Key Instructions ===
-The tool call results above contain the real note data from the user's query. Please strictly follow these requirements when answering:
+=== RESPONSE REQUIREMENTS ===
+**EXCLUSIVE DATA SOURCE**: Use ONLY the search results shown above.
 
-1. **Must answer based on tool results**: Only use the real data from the tool call results above
-2. **Summarize main content**: If relevant notes are found, please summarize key information and main content
-3. **Quote specific content**: You can quote specific note content and UIDs (like ((uid)))
-4. **Answer honestly**: If no relevant content is found, please clearly state so
-5. **Do not fabricate**: Never fabricate or speculate about non-existent information
+1. **Target date**: ${queryDate} - this is what the user asked about
+2. **Content source**: Only use note content, UIDs and information from the search results
+3. **Date precision**: Clearly state you're showing content from ${queryDate}
+4. **Honest reporting**: If no relevant content found, report this clearly
+5. **Context isolation**: Ignore any current page information or unrelated contexts
 
-=== Answer Format ===
-Please answer in the following format:
-- First state the query results (how many relevant notes were found)
-- Then summarize the main content
-- Finally quote specific note content if applicable
-
-User question: ${userMessage}
-
-Please answer based on the above tool call results:`;
+**Respond in Chinese based exclusively on the search results above.**`;
 
             console.log("🔧 Generated enhanced prompt:", {
               originalSystemMessageLength: systemMessage.length,
@@ -624,7 +975,7 @@ Please answer based on the above tool call results:`;
 
             const finalResponse = await this.handleOllamaRequest(config, [
               { role: "system", content: enhancedPrompt },
-              { role: "user", content: `Answer based on tool call results: ${userMessage}` },
+              { role: "user", content: userMessage },
             ]);
 
             console.log("🔧 Ollama final response analysis:", {

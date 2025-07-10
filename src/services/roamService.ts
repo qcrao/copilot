@@ -1,5 +1,6 @@
 // src/services/roamService.ts
 import { RoamBlock, RoamPage, PageContext, UniversalSearchResult, UniversalSearchResponse } from "../types";
+import { LLMUtil } from "../utils/llmUtil";
 
 export class RoamService {
   /**
@@ -484,15 +485,20 @@ export class RoamService {
 
       console.log("Looking for daily note:", dateString);
 
-      // Try different date formats that Roam might use
+      // Use standardized Roam date format and common alternatives
+      const todayISO = today.toISOString().split("T")[0];
+      const roamDateFormat = LLMUtil.convertToRoamDateFormat(todayISO);
+      
       const dateFormats = [
+        roamDateFormat, // Standard Roam format: "July 8th, 2025"
         dateString, // MM-dd-yyyy
         today.toLocaleDateString("en-US", {
           month: "long",
           day: "numeric",
           year: "numeric",
-        }), // Month dd, yyyy
-        // Add ordinal format like "June 25th, 2025"
+        }), // Month dd, yyyy (without ordinal)
+        todayISO, // yyyy-mm-dd
+        // Legacy formats for compatibility
         today
           .toLocaleDateString("en-US", {
             month: "long",
@@ -506,23 +512,8 @@ export class RoamService {
             else if (dayNum % 10 === 2 && dayNum !== 12) suffix = "nd";
             else if (dayNum % 10 === 3 && dayNum !== 13) suffix = "rd";
             return `${dayNum}${suffix},`;
-          }), // Month ddth, yyyy
-        today.toISOString().split("T")[0], // yyyy-mm-dd
-        // Also try common alternative formats
-        `${today.getDate()}${getOrdinalSuffix(
-          today.getDate()
-        )} ${today.toLocaleDateString("en-US", {
-          month: "long",
-        })}, ${today.getFullYear()}`, // ddth Month, yyyy
+          }), // Month ddth, yyyy (legacy)
       ];
-
-      // Helper function for ordinal suffix
-      function getOrdinalSuffix(day: number): string {
-        if (day % 10 === 1 && day !== 11) return "st";
-        if (day % 10 === 2 && day !== 12) return "nd";
-        if (day % 10 === 3 && day !== 13) return "rd";
-        return "th";
-      }
 
       for (const format of dateFormats) {
         console.log("Trying date format:", format);
@@ -542,7 +533,7 @@ export class RoamService {
           const blocks = await this.getPageBlocks(uid);
 
           return {
-            title: format,
+            title: roamDateFormat, // Always return in standard Roam format
             uid,
             blocks,
           };

@@ -1,5 +1,5 @@
 // src/components/MessageList.tsx
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Button, Icon } from "@blueprintjs/core";
 import { IconNames } from "@blueprintjs/icons";
 import { ChatMessage } from '../types';
@@ -353,13 +353,30 @@ export const MessageList: React.FC<MessageListProps> = ({
   currentModel,
   currentProvider
 }) => {
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  // Auto-scroll to bottom when new messages arrive
+  useEffect(() => {
+    if (messagesEndRef.current) {
+      messagesEndRef.current.scrollIntoView({ 
+        behavior: 'smooth',
+        block: 'end'
+      });
+    }
+  }, [messages, isLoading]);
+
   return (
-    <div className="rr-copilot-message-list" style={{
-      height: '100%',
-      overflowY: 'auto',
-      padding: '12px 14px',
-      scrollBehavior: 'smooth'
-    }}>
+    <div 
+      ref={containerRef}
+      className="rr-copilot-message-list" 
+      style={{
+        height: '100%',
+        overflowY: 'auto',
+        padding: '12px 14px',
+        scrollBehavior: 'smooth'
+      }}
+    >
       {/* Render Messages */}
       {messages.map((message, index) => (
         <MessageItem
@@ -375,6 +392,9 @@ export const MessageList: React.FC<MessageListProps> = ({
       {isLoading && (
         <LoadingIndicator currentModel={currentModel} currentProvider={currentProvider} />
       )}
+      
+      {/* Invisible div to scroll to */}
+      <div ref={messagesEndRef} />
     </div>
   );
 };
