@@ -267,7 +267,8 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
 
       const response = await AIService.sendMessageWithCurrentModel(
         finalUserMessage,
-        contextString
+        contextString,
+        state.messages
       );
 
       const finalProvider = provider?.provider?.id || 'ollama';

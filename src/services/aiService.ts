@@ -1,5 +1,5 @@
 // src/services/aiService.ts
-import { AISettings, AI_PROVIDERS } from "../types";
+import { AISettings, AI_PROVIDERS, ChatMessage } from "../types";
 import { multiProviderSettings } from "../settings";
 import { RoamService } from "./roamService";
 import { LLMUtil } from "../utils/llmUtil";
@@ -15,7 +15,8 @@ export class AIService {
   // New method that uses the currently selected model from multiProviderSettings
   static async sendMessageWithCurrentModel(
     userMessage: string,
-    context: string
+    context: string,
+    conversationHistory: ChatMessage[] = []
   ): Promise<string> {
     const model = multiProviderSettings.currentModel;
     if (!model) {
@@ -49,6 +50,12 @@ export class AIService {
 
     // Use LLMUtil with tool calling for all providers (including Ollama simulation)
     const systemMessage = this.getSystemMessage(context);
+    const messagesWithHistory = this.buildMessagesWithHistory(
+      systemMessage,
+      finalUserMessage,
+      conversationHistory,
+      model
+    );
 
     try {
       console.log("🔧 AI Service sending message:", {
@@ -68,10 +75,7 @@ export class AIService {
           temperature: multiProviderSettings.temperature || 0.7,
           maxTokens: multiProviderSettings.maxTokens || 4000,
         },
-        [
-          { role: "system", content: systemMessage },
-          { role: "user", content: finalUserMessage },
-        ]
+        messagesWithHistory
       );
 
       console.log("🔧 AI Service tool call results:", {
@@ -120,7 +124,8 @@ export class AIService {
   static async sendMessage(
     settings: AISettings,
     userMessage: string,
-    context: string
+    context: string,
+    conversationHistory: ChatMessage[] = []
   ): Promise<string> {
     // Ollama doesn't need API key validation
     if (settings.provider !== "ollama" && !settings.apiKey) {
@@ -130,6 +135,12 @@ export class AIService {
     }
 
     const systemMessage = this.getSystemMessage(context);
+    const messagesWithHistory = this.buildMessagesWithHistory(
+      systemMessage,
+      userMessage,
+      conversationHistory,
+      settings.model
+    );
 
     // Handle Ollama requests separately
     if (settings.provider === "ollama") {
@@ -141,10 +152,7 @@ export class AIService {
           temperature: settings.temperature || 0.7,
           maxTokens: settings.maxTokens || 4000,
         },
-        [
-          { role: "system", content: systemMessage },
-          { role: "user", content: userMessage },
-        ]
+        messagesWithHistory
       );
       return result.text;
     }
@@ -161,10 +169,7 @@ export class AIService {
           temperature: settings.temperature || 0.7,
           maxTokens: settings.maxTokens || 4000,
         },
-        [
-          { role: "system", content: systemMessage },
-          { role: "user", content: userMessage },
-        ]
+        messagesWithHistory
       );
 
       return result.text;
@@ -197,6 +202,111 @@ export class AIService {
 ${context ? `\n**Context:**${context}` : ""}
 
 Start tool calling immediately, don't over-explain intentions.`;
+  }
+
+  /**
+   * Build messages array with conversation history, respecting token limits
+   */
+  private static buildMessagesWithHistory(
+    systemMessage: string,
+    currentUserMessage: string,
+    conversationHistory: ChatMessage[],
+    modelName: string
+  ): Array<{ role: string; content: string }> {
+    const messages: Array<{ role: string; content: string }> = [];
+    
+    // Add system message
+    messages.push({ role: "system", content: systemMessage });
+    
+    // Get token limit for the model
+    const tokenLimit = this.getModelTokenLimit(modelName);
+    const reservedTokens = 1000; // Reserve tokens for response
+    const availableTokens = tokenLimit - reservedTokens;
+    
+    // Estimate tokens for system message and current user message
+    const systemTokens = this.estimateTokens(systemMessage);
+    const currentMessageTokens = this.estimateTokens(currentUserMessage);
+    let usedTokens = systemTokens + currentMessageTokens;
+    
+    // Add conversation history in reverse order (most recent first)
+    const relevantHistory: ChatMessage[] = [];
+    const recentHistory = conversationHistory.slice(-10); // Last 10 messages
+    
+    for (let i = recentHistory.length - 1; i >= 0; i--) {
+      const message = recentHistory[i];
+      const messageTokens = this.estimateTokens(message.content);
+      
+      if (usedTokens + messageTokens > availableTokens) {
+        break; // Stop if adding this message would exceed token limit
+      }
+      
+      relevantHistory.unshift(message);
+      usedTokens += messageTokens;
+    }
+    
+    // Add relevant history to messages
+    for (const message of relevantHistory) {
+      messages.push({
+        role: message.role,
+        content: message.content
+      });
+    }
+    
+    // Add current user message
+    messages.push({ role: "user", content: currentUserMessage });
+    
+    console.log("🔧 Context Management:", {
+      totalMessages: messages.length,
+      historyMessages: relevantHistory.length,
+      estimatedTokens: usedTokens,
+      tokenLimit: tokenLimit,
+      model: modelName
+    });
+    
+    return messages;
+  }
+  
+  /**
+   * Get token limit for a specific model
+   */
+  private static getModelTokenLimit(modelName: string): number {
+    const tokenLimits: { [key: string]: number } = {
+      // OpenAI models
+      "gpt-4o": 128000,
+      "gpt-4o-mini": 128000,
+      "gpt-4-turbo": 128000,
+      "gpt-4": 8000,
+      "gpt-3.5-turbo": 16000,
+      
+      // Anthropic models
+      "claude-3-5-sonnet-20241022": 200000,
+      "claude-3-5-sonnet-20240620": 200000,
+      "claude-3-5-haiku-20241022": 200000,
+      "claude-3-opus-20240229": 200000,
+      "claude-3-sonnet-20240229": 200000,
+      "claude-3-haiku-20240307": 200000,
+      
+      // xAI models
+      "grok-beta": 131072,
+      "grok-vision-beta": 131072,
+      
+      // Default for unknown models
+      "default": 4000
+    };
+    
+    return tokenLimits[modelName] || tokenLimits["default"];
+  }
+  
+  /**
+   * Estimate token count for a given text (rough approximation)
+   */
+  private static estimateTokens(text: string): number {
+    // Rough estimation: 1 token ≈ 4 characters for English
+    // For Chinese and other languages, it's closer to 1 token ≈ 1.5 characters
+    const chineseCharCount = (text.match(/[\u4e00-\u9fff]/g) || []).length;
+    const otherCharCount = text.length - chineseCharCount;
+    
+    return Math.ceil(chineseCharCount / 1.5 + otherCharCount / 4);
   }
 
   /**
