@@ -313,7 +313,8 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
         includeBlockRefs: true,
         includeParentBlocks: true,
         includeSiblingBlocks: true,
-        includeAncestorPath: true
+        includeAncestorPath: true,
+        includeBacklinkChildren: false,
       });
 
       // Always include current page as context, even if no references in message
@@ -340,7 +341,12 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
 
 ${contextForUser}
 
-请基于上述信息回答我的问题，特别关注反向链接中的相关内容。`;
+**回答要求：**
+1. 请基于上述信息回答我的问题，特别关注反向链接中的相关内容
+2. 回答时请引用具体的出处，使用提供的可点击链接格式 ((block-id))
+3. 请注意每条信息的创建时间 [Created: YYYY-MM-DD]，按时间顺序分析用户的学习和思考过程
+4. 如果有多个时间点的相关信息，请按时间线梳理，展现用户在该主题上的认知发展轨迹
+5. 引用信息时请保持原有的可点击链接，让用户能直接跳转到原始出处`;
 
         // 系统消息使用简化的上下文
         contextString = freshContext

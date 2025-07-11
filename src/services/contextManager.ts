@@ -12,6 +12,8 @@ export interface ContextItem {
   pageTitle?: string; // For block type, record the page it belongs to
   children?: ContextItem[];
   source: 'user_specified' | 'page_content' | 'backlink' | 'block_reference';
+  createdDate?: string; // Creation date of the block/page (YYYY-MM-DD format)
+  blockReference?: string; // Clickable block reference for direct navigation
 }
 
 export interface ContextBuilderOptions {
@@ -22,6 +24,7 @@ export interface ContextBuilderOptions {
   includeParentBlocks: boolean; // Whether to include parent blocks
   includeSiblingBlocks: boolean; // Whether to include sibling blocks
   includeAncestorPath: boolean; // Whether to include ancestor path
+  includeBacklinkChildren: boolean; // Whether to include children blocks in backlinks (can make content very long)
 }
 
 export class ContextManager {
@@ -38,6 +41,7 @@ export class ContextManager {
       includeParentBlocks: true,
       includeSiblingBlocks: true,
       includeAncestorPath: true,
+      includeBacklinkChildren: false,
       ...options
     };
   }
@@ -116,6 +120,7 @@ export class ContextManager {
 
       // Add page itself
       const pageContent = this.formatPageContent(page);
+      const createdDate = await this.getPageCreationDate(page.uid);
       const pageItem: ContextItem = {
         type: 'page',
         uid: page.uid,
@@ -123,7 +128,9 @@ export class ContextManager {
         content: pageContent,
         level: currentLevel,
         priority: this.calculatePriority(currentLevel, source),
-        source
+        source,
+        createdDate,
+        blockReference: this.generateBlockReference(page.uid)
       };
 
       contextItems.push(pageItem);
@@ -181,6 +188,7 @@ export class ContextManager {
 
       // Get page title of the block
       const pageTitle = await this.getBlockPageTitle(blockUid);
+      const createdDate = await this.getBlockCreationDate(blockUid);
 
       // Add block itself
       const blockItem: ContextItem = {
@@ -190,7 +198,9 @@ export class ContextManager {
         level: currentLevel,
         priority: this.calculatePriority(currentLevel, source),
         pageTitle,
-        source
+        source,
+        createdDate,
+        blockReference: this.generateBlockReference(block.uid)
       };
 
       contextItems.push(blockItem);
@@ -281,6 +291,7 @@ export class ContextManager {
         
         if (!this.visitedUids.has(parentUid)) {
           const pageTitle = await this.getBlockPageTitle(parentUid);
+          const createdDate = await this.getBlockCreationDate(parentUid);
           
           const parentItem: ContextItem = {
             type: 'block',
@@ -289,7 +300,9 @@ export class ContextManager {
             level: currentLevel,
             priority: this.calculatePriority(currentLevel, 'block_reference'),
             pageTitle,
-            source: 'block_reference'
+            source: 'block_reference',
+            createdDate,
+            blockReference: this.generateBlockReference(parentUid)
           };
 
           contextItems.push(parentItem);
@@ -331,6 +344,7 @@ export class ContextManager {
         for (const [siblingUid, siblingString, siblingOrder] of limitedResult) {
           if (!this.visitedUids.has(siblingUid)) {
             const pageTitle = await this.getBlockPageTitle(siblingUid);
+            const createdDate = await this.getBlockCreationDate(siblingUid);
             
             const siblingItem: ContextItem = {
               type: 'block',
@@ -339,7 +353,9 @@ export class ContextManager {
               level: currentLevel,
               priority: this.calculatePriority(currentLevel, 'block_reference'),
               pageTitle,
-              source: 'block_reference'
+              source: 'block_reference',
+              createdDate,
+              blockReference: this.generateBlockReference(siblingUid)
             };
 
             contextItems.push(siblingItem);
@@ -367,6 +383,7 @@ export class ContextManager {
       for (const ancestor of ancestors) {
         if (!this.visitedUids.has(ancestor.uid)) {
           const pageTitle = await this.getBlockPageTitle(ancestor.uid);
+          const createdDate = await this.getBlockCreationDate(ancestor.uid);
           
           const ancestorItem: ContextItem = {
             type: 'block',
@@ -375,7 +392,9 @@ export class ContextManager {
             level: currentLevel,
             priority: this.calculatePriority(currentLevel, 'block_reference'),
             pageTitle,
-            source: 'block_reference'
+            source: 'block_reference',
+            createdDate,
+            blockReference: this.generateBlockReference(ancestor.uid)
           };
 
           contextItems.push(ancestorItem);
@@ -446,15 +465,24 @@ export class ContextManager {
 
         if (!this.visitedUids.has(backlink.uid)) {
           const backlinkPageTitle = await this.getBlockPageTitle(backlink.uid);
+          const createdDate = await this.getBlockCreationDate(backlink.uid);
+          
+          // Format backlink content - include children if option is enabled
+          let backlinkContent = backlink.string;
+          if (this.options.includeBacklinkChildren && backlink.children && backlink.children.length > 0) {
+            backlinkContent += '\n' + RoamService.formatBlocksForAI(backlink.children, 1);
+          }
           
           const backlinkItem: ContextItem = {
             type: 'reference',
             uid: backlink.uid,
-            content: backlink.string,
+            content: backlinkContent,
             level: currentLevel,
             priority: this.calculatePriority(currentLevel, 'backlink'),
             pageTitle: backlinkPageTitle,
-            source: 'backlink'
+            source: 'backlink',
+            createdDate,
+            blockReference: this.generateBlockReference(backlink.uid)
           };
 
           contextItems.push(backlinkItem);
@@ -703,18 +731,20 @@ export class ContextManager {
       
       for (const item of levelItems) {
         let itemContent = '';
+        const dateInfo = item.createdDate ? ` [Created: ${item.createdDate}]` : '';
+        const blockRef = item.blockReference || '';
         
         switch (item.type) {
           case 'page':
-            itemContent = `**Page: ${item.title}**\n${item.content}`;
+            itemContent = `**Page: ${item.title}**${dateInfo} ${blockRef}\n${item.content}`;
             break;
           case 'block':
             const pageInfo = item.pageTitle ? ` (from page: ${item.pageTitle})` : '';
-            itemContent = `**Block Reference**${pageInfo}\n${item.content}`;
+            itemContent = `**Block Reference**${pageInfo}${dateInfo} ${blockRef}\n${item.content}`;
             break;
           case 'reference':
             const refPageInfo = item.pageTitle ? ` (from page: ${item.pageTitle})` : '';
-            itemContent = `**Backlink**${refPageInfo}\n${item.content}`;
+            itemContent = `**Backlink**${refPageInfo}${dateInfo} ${blockRef}\n${item.content}`;
             break;
         }
         
@@ -779,5 +809,79 @@ export class ContextManager {
       default:
         return `Level ${level} Related Content`;
     }
+  }
+
+  /**
+   * Get block creation date
+   */
+  private async getBlockCreationDate(blockUid: string): Promise<string | undefined> {
+    try {
+      const query = `
+        [:find ?time
+         :where
+         [?b :block/uid "${blockUid}"]
+         [?b :create/time ?time]]
+      `;
+
+      const result = window.roamAlphaAPI.q(query);
+      if (result && result.length > 0) {
+        const timestamp = result[0][0];
+        // Convert Roam timestamp to date string (YYYY-MM-DD)
+        const date = new Date(timestamp);
+        return date.toISOString().split('T')[0];
+      }
+      return undefined;
+    } catch (error) {
+      console.error(`❌ Error getting creation date for block ${blockUid}:`, error);
+      return undefined;
+    }
+  }
+
+  /**
+   * Get page creation date
+   */
+  private async getPageCreationDate(pageUid: string): Promise<string | undefined> {
+    try {
+      const query = `
+        [:find ?time
+         :where
+         [?p :block/uid "${pageUid}"]
+         [?p :create/time ?time]]
+      `;
+
+      const result = window.roamAlphaAPI.q(query);
+      if (result && result.length > 0) {
+        const timestamp = result[0][0];
+        // Convert Roam timestamp to date string (YYYY-MM-DD)
+        const date = new Date(timestamp);
+        return date.toISOString().split('T')[0];
+      }
+      return undefined;
+    } catch (error) {
+      console.error(`❌ Error getting creation date for page ${pageUid}:`, error);
+      return undefined;
+    }
+  }
+
+  /**
+   * Generate clickable block reference
+   */
+  private generateBlockReference(blockUid: string): string {
+    const graphName = RoamService.getCurrentGraphName();
+    const isDesktop = RoamService.isDesktopApp();
+    
+    if (graphName) {
+      const blockUrls = RoamService.generateBlockUrl(blockUid, graphName);
+      if (blockUrls) {
+        if (isDesktop) {
+          return `[((${blockUid}))](${blockUrls.desktopUrl})`;
+        } else {
+          return `[((${blockUid}))](${blockUrls.webUrl})`;
+        }
+      }
+    }
+    
+    // Fallback to simple block reference
+    return `((${blockUid}))`;
   }
 }
