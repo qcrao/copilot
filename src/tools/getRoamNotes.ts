@@ -3,7 +3,7 @@ import { z } from "zod";
 import { RoamService } from "../services/roamService";
 import { RoamNoteContent, RoamQueryResult } from "../types";
 
-// Input parameter schema for getRoamNotes tool
+// Input parameter schema for getRoamNotes queries
 export const RoamQuerySchema = z.object({
   // Core query parameters
   pageTitle: z.string().optional().describe("精确匹配 Roam Research 中的页面标题。例如：'项目A会议纪要'"),
@@ -28,90 +28,79 @@ export const RoamQuerySchema = z.object({
 export type RoamQueryInput = z.infer<typeof RoamQuerySchema>;
 
 /**
- * getRoamNotes tool implementation
- * This is the core tool that allows AI to intelligently retrieve Roam Research notes
+ * RoamNotes query utility class
+ * Provides methods to retrieve Roam Research notes without AI tool calling
  */
-export class GetRoamNotesTool {
+export class RoamNotesService {
   
   /**
-   * Get tool description for LLM
+   * Execute query with given parameters
    */
-  static getDescription(): string {
-    return `检索 Roam Research 中的笔记内容。这是一个强大的工具，可以根据多种条件获取用户的笔记数据。
-
-使用指南：
-- **获取特定日期笔记**：使用 date 参数 (YYYY-MM-DD)
-- **获取日期范围笔记**：使用 startDate 和 endDate 参数
-- **获取特定页面**：使用 pageTitle 参数
-- **获取当前查看内容**：使用 currentPageContext: true
-- **查找引用内容**：使用 referencedPage 参数
-- **获取特定块**：使用 blockUid 参数
-- **搜索内容**：使用 searchTerm 参数
-
-最佳实践：
-- 当用户提到时间（"昨天"、"本周"、"上个月"）时，自动转换为对应的日期参数
-- 当用户说"当前笔记"、"这个页面"时，使用 currentPageContext
-- 当用户询问某个概念或项目时，使用 referencedPage 查找相关内容
-- 总是使用 limit 参数来控制返回数量，避免数据过载`;
-  }
-
-  /**
-   * Execute the tool with given parameters
-   */
-  static async execute(params: RoamQueryInput): Promise<string> {
+  static async executeQuery(params: RoamQueryInput): Promise<RoamQueryResult> {
     try {
-      console.log("🔧 Executing getRoamNotes tool with params:", params);
+      console.log("🔧 Executing RoamNotes query with params:", params);
       const startTime = performance.now();
       
       // Validate parameters
       const validatedParams = RoamQuerySchema.parse(params);
       
       // Execute the query
-      const result = await this.executeQuery(validatedParams);
+      const result = await this.processQuery(validatedParams);
       
       const executionTime = performance.now() - startTime;
-      console.log(`🔧 getRoamNotes execution completed in ${executionTime.toFixed(2)}ms, found ${result.data.length} results`);
+      console.log(`🔧 RoamNotes query completed in ${executionTime.toFixed(2)}ms, found ${result.data.length} results`);
       
-      // Format result for AI consumption
-      const formattedResult = {
-        success: result.success,
-        summary: `Found ${result.totalFound} results (${result.metadata.queryType} query)`,
-        queryInfo: result.metadata,
-        notes: result.data.map(note => ({
-          type: note.type,
-          title: note.title,
-          content: note.content.length > 500 
-            ? note.content.slice(0, 500) + "..." 
-            : note.content,
-          uid: note.uid,
-          path: note.path,
-          wordCount: note.wordCount,
-          hasMore: note.content.length > 500,
-          hasChildren: note.hasChildren,
-          referenceCount: note.referenceCount
-        })),
-        warnings: result.warnings,
-        executionTime: `${executionTime.toFixed(2)}ms`
+      return {
+        ...result,
+        executionTime
       };
-
-      return JSON.stringify(formattedResult, null, 2);
     } catch (error: any) {
-      console.error("❌ getRoamNotes tool execution error:", error);
-      const errorResult = {
+      console.error("❌ RoamNotes query execution error:", error);
+      return {
         success: false,
-        error: error.message,
-        summary: "Tool execution failed",
-        notes: [],
-        executionTime: "0ms"
+        data: [],
+        totalFound: 0,
+        executionTime: 0,
+        warnings: [`Query failed: ${error.message}`],
+        metadata: { queryType: "failed" }
       };
-      return JSON.stringify(errorResult, null, 2);
     }
   }
 
   /**
-   * Execute query based on parameters
+   * Get formatted result for AI consumption
    */
-  private static async executeQuery(params: RoamQueryInput): Promise<RoamQueryResult> {
+  static async getFormattedResult(params: RoamQueryInput): Promise<string> {
+    const result = await this.executeQuery(params);
+    
+    const formattedResult = {
+      success: result.success,
+      summary: `Found ${result.totalFound} results (${result.metadata.queryType} query)`,
+      queryInfo: result.metadata,
+      notes: result.data.map(note => ({
+        type: note.type,
+        title: note.title,
+        content: note.content.length > 500 
+          ? note.content.slice(0, 500) + "..." 
+          : note.content,
+        uid: note.uid,
+        path: note.path,
+        wordCount: note.wordCount,
+        hasMore: note.content.length > 500,
+        hasChildren: note.hasChildren,
+        referenceCount: note.referenceCount
+      })),
+      warnings: result.warnings,
+      executionTime: `${result.executionTime.toFixed(2)}ms`
+    };
+
+    return JSON.stringify(formattedResult, null, 2);
+  }
+
+  /**
+   * Process query based on parameters
+   */
+  private static async processQuery(params: RoamQueryInput): Promise<RoamQueryResult> {
     const startTime = performance.now();
     const warnings: string[] = [];
     let notes: RoamNoteContent[] = [];
@@ -132,7 +121,7 @@ export class GetRoamNotesTool {
       // 2. Specific block query
       else if (params.blockUid) {
         queryType = "block-uid";
-        const block = await this.getBlockByUid(params.blockUid, params.includeChildren);
+        const block = await RoamNotesService.getBlockByUid(params.blockUid, params.includeChildren);
         if (block) {
           notes = [block];
         } else {
@@ -143,9 +132,9 @@ export class GetRoamNotesTool {
       // 3. Page title query
       else if (params.pageTitle) {
         queryType = "page-title";
-        const page = await this.getPageByTitle(params.pageTitle);
+        const page = await RoamNotesService.getPageByTitle(params.pageTitle);
         if (page) {
-          notes = [await this.convertPageToNoteContent(page)];
+          notes = [await RoamNotesService.convertPageToNoteContent(page)];
         } else {
           warnings.push(`Page with title "${params.pageTitle}" not found`);
         }
@@ -156,7 +145,7 @@ export class GetRoamNotesTool {
         queryType = "single-date";
         const dailyNote = await RoamService.getNotesFromDate(params.date);
         if (dailyNote) {
-          notes = [await this.convertPageToNoteContent(dailyNote)];
+          notes = [await RoamNotesService.convertPageToNoteContent(dailyNote)];
         } else {
           warnings.push(`Daily note for ${params.date} not found`);
         }
@@ -166,7 +155,7 @@ export class GetRoamNotesTool {
       else if (params.startDate && params.endDate) {
         queryType = "date-range";
         const rangeNotes = await RoamService.getNotesFromDateRange(params.startDate, params.endDate);
-        notes = await Promise.all(rangeNotes.map(page => this.convertPageToNoteContent(page)));
+        notes = await Promise.all(rangeNotes.map(page => RoamNotesService.convertPageToNoteContent(page)));
         if (notes.length === 0) {
           warnings.push(`No notes found between ${params.startDate} and ${params.endDate}`);
         }
@@ -175,8 +164,8 @@ export class GetRoamNotesTool {
       // 6. Referenced page query
       else if (params.referencedPage) {
         queryType = "referenced-page";
-        const referencedBlocks = await this.getBlocksReferencingPage(params.referencedPage);
-        notes = referencedBlocks.map(block => this.convertBlockToNoteContent(block));
+        const referencedBlocks = await RoamNotesService.getBlocksReferencingPage(params.referencedPage);
+        notes = referencedBlocks.map(block => RoamNotesService.convertBlockToNoteContent(block));
         if (notes.length === 0) {
           warnings.push(`No blocks found referencing "${params.referencedPage}"`);
         }
@@ -185,14 +174,14 @@ export class GetRoamNotesTool {
       // 7. Full text search
       else if (params.searchTerm) {
         queryType = "full-text-search";
-        notes = await this.searchNotesFullText(params.searchTerm);
+        notes = await RoamNotesService.searchNotesFullText(params.searchTerm);
         if (notes.length === 0) {
           warnings.push(`No content found containing "${params.searchTerm}"`);
         }
       }
 
       // 8. Post-process results: sort, limit, filter
-      notes = this.postProcessResults(notes, params, warnings);
+      notes = RoamNotesService.postProcessResults(notes, params, warnings);
 
       const executionTime = performance.now() - startTime;
 
@@ -274,7 +263,7 @@ export class GetRoamNotesTool {
 
         if (includeChildren) {
           const children = await RoamService.getBlockChildren(uid);
-          noteContent.children = children.map(child => this.convertBlockToNoteContent(child));
+          noteContent.children = children.map(child => RoamNotesService.convertBlockToNoteContent(child));
           noteContent.hasChildren = children.length > 0;
         }
 
@@ -385,7 +374,7 @@ export class GetRoamNotesTool {
       uid: page.uid,
       content,
       hasChildren: page.blocks.length > 0,
-      children: page.blocks.map((block: any) => this.convertBlockToNoteContent(block)),
+      children: page.blocks.map((block: any) => RoamNotesService.convertBlockToNoteContent(block)),
       wordCount: content.split(/\s+/).length,
       referenceCount: 0 // Could be calculated if needed
     };
@@ -400,7 +389,7 @@ export class GetRoamNotesTool {
       uid: block.uid,
       content: block.string,
       hasChildren: (block.children?.length || 0) > 0,
-      children: block.children?.map((child: any) => this.convertBlockToNoteContent(child)),
+      children: block.children?.map((child: any) => RoamNotesService.convertBlockToNoteContent(child)),
       wordCount: block.string.split(/\s+/).length
     };
   }

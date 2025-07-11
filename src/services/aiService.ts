@@ -48,7 +48,7 @@ export class AIService {
         userMessage + `\n\nIMPORTANT: Please respond in ${responseLanguage}.`;
     }
 
-    // Use LLMUtil with tool calling for all providers (including Ollama simulation)
+    // Use LLMUtil without tool calling for better compatibility
     const systemMessage = this.getSystemMessage(context);
     const messagesWithHistory = this.buildMessagesWithHistory(
       systemMessage,
@@ -66,7 +66,7 @@ export class AIService {
         systemMessageLength: systemMessage.length,
       });
 
-      const result = await LLMUtil.generateResponseWithTools(
+      const result = await LLMUtil.generateResponse(
         {
           provider: providerInfo.provider.id,
           model: model,
@@ -78,9 +78,7 @@ export class AIService {
         messagesWithHistory
       );
 
-      console.log("🔧 AI Service tool call results:", {
-        hasToolResults: !!result.toolResults,
-        toolCallCount: result.toolResults?.length || 0,
+      console.log("🔧 AI Service response:", {
         responseLength: result.text.length,
         usage: result.usage,
       });
@@ -188,53 +186,35 @@ export class AIService {
       timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone
     });
     
-    return `You are a Roam Research AI assistant with access to two tools: getCurrentTime for basic time information and getRoamNotes for retrieving note data.
+    return `You are a Roam Research AI assistant that helps users understand and work with their notes.
 
 **Current Date and Time Context:**
 - Today's date: ${currentDate}
 - User's timezone: ${Intl.DateTimeFormat().resolvedOptions().timeZone}
 
-**Tool Usage Guidelines:**
+**Your Role:**
+- Analyze and summarize the provided context from the user's notes
+- Help discover connections and insights from the user's knowledge base
+- Answer questions based on the available context
+- Provide thoughtful analysis and suggestions for further exploration
 
-**Use getCurrentTime tool for:**
-- Basic time/date information: "What time is it?", "What's today's date?", "今天是几号?"
-- Current day information: "What day is it?", "今天星期几?"
-- Simple time queries that don't require searching notes
-
-**Use getRoamNotes tool for:**
-- Finding notes from specific dates: "yesterday's notes", "last week's work"
-- Searching note content: "notes about X", "content containing Y"
-- Page-specific queries: "this page", "[[SomePage]]"
-- Reference queries: "notes referencing X"
-
-**Tool Call Rules:**
-- Time info queries: getCurrentTime tool with appropriate format
-- Note search queries: getRoamNotes tool with appropriate parameters
-- Time-based note queries: "yesterday"→{date:"YYYY-MM-DD"}, "last week"→{startDate:"YYYY-MM-DD",endDate:"YYYY-MM-DD"}
-- Page reference queries: "[[PageName]]" or "about PageName"→{pageTitle:"PageName"}
-- Current page queries: "this page" or "current page"→{currentPageContext:true}
-- Reference queries: "notes referencing X"→{referencedPage:"X"}
-- Search queries: "content containing X"→{searchTerm:"X"}
-
-**Important**: When user mentions [[PageName]] in their query, ALWAYS use {pageTitle:"PageName"} to get that specific page's content, NOT currentPageContext.
-
-**Response Flow:**
-1. Determine if query needs time info or note data
-2. Call appropriate tool immediately (no explanation needed)
-3. Analyze and summarize based on tool results
-4. Respond in Chinese for Chinese queries, English for English queries
-
-**Core Principles:**
-- Always base responses on real tool data, don't fabricate content
-- Reference format: ((uid)) and [[page name]]
-- Honestly state when no relevant notes are found
-- When user asks about [[PageName]] but the page has no content or doesn't exist, say so directly
-- Do NOT query unrelated content when the requested page is empty
+**Response Guidelines:**
+- Always base responses on the provided context, don't fabricate content
+- Use proper Roam reference format: ((uid)) and [[page name]]
+- Honestly state when relevant information is not found in the context
 - Encourage user writing and reflection
+- Respond in Chinese for Chinese queries, English for English queries
+- Focus on helping users discover insights and connections in their notes
 
-${context ? `\n**Context:**${context}` : ""}
+**Important Notes:**
+- The context provided contains information specifically retrieved based on user's request
+- Focus on what IS in the context rather than what might be missing
+- Help users understand relationships between different notes and concepts
+- Suggest areas for further exploration based on the context
 
-Start tool calling immediately, don't over-explain intentions.`;
+${context ? `\n**Available Context:**\n${context}` : "\n**No specific context provided.**"}
+
+Please provide helpful analysis and insights based on the available information.`;
   }
 
   /**

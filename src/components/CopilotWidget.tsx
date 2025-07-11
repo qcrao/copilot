@@ -7,6 +7,7 @@ import { ChatMessage, CopilotState, PageContext, ConversationListState } from ".
 import { AIService } from "../services/aiService";
 import { RoamService } from "../services/roamService";
 import { ConversationService } from "../services/conversationService";
+import { ContextManager } from "../services/contextManager";
 import { aiSettings, multiProviderSettings } from "../settings";
 import { AI_PROVIDERS } from "../types";
 import { ChatInput } from "./ChatInput";
@@ -185,6 +186,31 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
     });
   };
 
+  // Helper methods for extracting references
+  const extractPageReferences = (text: string): string[] => {
+    const pageRefPattern = /\[\[([^\]]+)\]\]/g;
+    const matches = [];
+    let match;
+    
+    while ((match = pageRefPattern.exec(text)) !== null) {
+      matches.push(match[1]);
+    }
+    
+    return [...new Set(matches)]; // Remove duplicates
+  };
+
+  const extractBlockReferences = (text: string): string[] => {
+    const blockRefPattern = /\(\(([^)]+)\)\)/g;
+    const matches = [];
+    let match;
+    
+    while ((match = blockRefPattern.exec(text)) !== null) {
+      matches.push(match[1]);
+    }
+    
+    return [...new Set(matches)]; // Remove duplicates
+  };
+
   const handleSendMessage = async (messageInput: string | any) => {
     if (state.isLoading) return;
 
@@ -261,28 +287,56 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
     setState((prev) => ({ ...prev, isLoading: true }));
 
     try {
+      // Extract page references and block references from the message
+      const pageReferences = extractPageReferences(finalUserMessage);
+      const blockReferences = extractBlockReferences(finalUserMessage);
+
       // Get fresh context before sending to AI
       const freshContext = await RoamService.getPageContext();
       setPageContext(freshContext);
 
-      // Get model-specific token limit for context
-      const currentModel = multiProviderSettings.currentModel;
-      const provider = await AIService.getProviderForModel(currentModel);
-      const maxContextTokens = RoamService.getModelTokenLimit(
-        provider?.provider?.id || 'openai', 
-        currentModel
-      );
+      // Build enhanced context using ContextManager
+      let contextString = "";
+      if (pageReferences.length > 0 || blockReferences.length > 0) {
+        console.log("🔍 Building enhanced context for:", {
+          pageReferences,
+          blockReferences
+        });
 
-      const contextString = freshContext
-        ? RoamService.formatContextForAI(freshContext, maxContextTokens)
-        : "No context available";
+        const contextManager = new ContextManager({
+          maxDepth: 3,
+          maxItems: 50,
+          includeBacklinks: true,
+          includeBlockRefs: true
+        });
+
+        const contextItems = await contextManager.buildContext(
+          pageReferences,
+          blockReferences
+        );
+
+        contextString = contextManager.formatContextForAI(contextItems);
+      } else {
+        // Fallback to traditional context
+        const currentModel = multiProviderSettings.currentModel;
+        const provider = await AIService.getProviderForModel(currentModel);
+        const maxContextTokens = RoamService.getModelTokenLimit(
+          provider?.provider?.id || 'openai', 
+          currentModel
+        );
+
+        contextString = freshContext
+          ? RoamService.formatContextForAI(freshContext, maxContextTokens)
+          : "No context available";
+      }
 
       console.log("Sending message with context:", {
         currentPage: freshContext?.currentPage?.title,
         blocksCount: freshContext?.currentPage?.blocks?.length || 0,
-        model: currentModel,
+        model: multiProviderSettings.currentModel,
         dateNotesIncluded: dateMatches ? dateMatches.length : 0,
         messageLength: finalUserMessage.length,
+        enhancedContext: pageReferences.length > 0 || blockReferences.length > 0
       });
 
       const response = await AIService.sendMessageWithCurrentModel(
@@ -291,6 +345,8 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
         state.messages
       );
 
+      const currentModel = multiProviderSettings.currentModel;
+      const provider = await AIService.getProviderForModel(currentModel);
       const finalProvider = provider?.provider?.id || 'ollama';
       console.log(`DEBUG: Saving message with provider: "${finalProvider}" for model: "${currentModel}"`);
       

@@ -1,11 +1,9 @@
 // src/utils/llmUtil.ts
 import { createOpenAI } from "@ai-sdk/openai";
 import { createAnthropic } from "@ai-sdk/anthropic";
-import { CoreMessage, generateText, LanguageModel, tool } from "ai";
-import { z } from "zod";
+import { CoreMessage, generateText, LanguageModel } from "ai";
 import { multiProviderSettings } from "../settings";
 import { AI_PROVIDERS } from "../types";
-import { GetRoamNotesTool, RoamQuerySchema } from "../tools/getRoamNotes";
 
 interface LLMConfig {
   provider: string;
@@ -23,7 +21,6 @@ interface LLMResult {
     completionTokens: number;
     totalTokens: number;
   };
-  toolResults?: any[];
 }
 
 export class LLMUtil {
@@ -136,99 +133,6 @@ export class LLMUtil {
 
 
 
-  /**
-   * Define getCurrentTime tool for basic time information queries
-   */
-  static getCurrentTimeTool = tool({
-    description: `Get current time and date information. Use this tool when users ask for current time, date, or basic time information like:
-    - "What time is it?"
-    - "What's today's date?"
-    - "What day is it?"
-    - "今天是几号?"
-    - "现在几点了?"
-    
-    This tool provides basic time information without searching notes.`,
-    
-    parameters: z.object({
-      format: z.enum(['date', 'time', 'datetime', 'day', 'all']).default('all').describe('The format of time information requested')
-    }),
-    
-    execute: async () => {
-      try {
-        const now = new Date();
-        const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-        
-        const result = {
-          timestamp: now.toISOString(),
-          timezone: timezone,
-          date: now.toLocaleDateString('en-US', {
-            weekday: 'long',
-            year: 'numeric',
-            month: 'long',
-            day: 'numeric'
-          }),
-          time: now.toLocaleTimeString('en-US', {
-            hour: '2-digit',
-            minute: '2-digit',
-            second: '2-digit',
-            hour12: false
-          }),
-          roamDate: LLMUtil.convertToRoamDateFormat(now.toISOString().split('T')[0]),
-          dayOfWeek: now.toLocaleDateString('en-US', { weekday: 'long' }),
-          dayOfMonth: now.getDate(),
-          month: now.toLocaleDateString('en-US', { month: 'long' }),
-          year: now.getFullYear()
-        };
-        
-        return JSON.stringify(result);
-      } catch (error: any) {
-        console.error('❌ getCurrentTime tool execution error:', error);
-        return JSON.stringify({
-          error: error.message,
-          summary: 'Failed to get current time information'
-        });
-      }
-    }
-  });
-
-  /**
-   * Define getRoamNotes tool for AI SDK
-   */
-  static getRoamNotesTool = tool({
-    description: `Retrieve note content from Roam Research. This is a powerful tool that can fetch user's note data based on various conditions.
-
-Usage Guide:
-- **Get notes from specific date**: Use date parameter (YYYY-MM-DD)
-- **Get notes from date range**: Use startDate and endDate parameters
-- **Get specific page**: Use pageTitle parameter
-- **Get current viewing content**: Use currentPageContext: true
-- **Find referenced content**: Use referencedPage parameter
-- **Get specific block**: Use blockUid parameter
-- **Search content**: Use searchTerm parameter
-
-Best Practices:
-- When user mentions time ("yesterday", "this week", "last month"), automatically convert to corresponding date parameters
-- When user says "current notes", "this page", use currentPageContext
-- When user asks about a concept or project, use referencedPage to find related content
-- Always use limit parameter to control return count and avoid data overload`,
-
-    parameters: RoamQuerySchema,
-
-    execute: async (params) => {
-      try {
-        console.log("🔧 Executing getRoamNotes tool with params:", params);
-        const result = await GetRoamNotesTool.execute(params);
-        return result;
-      } catch (error: any) {
-        console.error("❌ getRoamNotes tool execution error:", error);
-        return JSON.stringify({
-          success: false,
-          error: error.message,
-          summary: "Tool execution failed",
-        });
-      }
-    },
-  });
 
   private static getProviderClient(config: LLMConfig): LanguageModel {
     const { provider, model, apiKey, baseUrl } = config;
@@ -374,191 +278,10 @@ Best Practices:
       { role: "user", content: userMessage },
     ];
 
-    // Use tool-enabled generation
-    return this.generateResponseWithTools(config, messages);
+    // Use regular generation without tools
+    return this.generateResponse(config, messages);
   }
 
-  /**
-   * Generate response with AI SDK tool calling support
-   */
-  static async generateResponseWithTools(
-    config: LLMConfig,
-    messages: any[]
-  ): Promise<LLMResult> {
-    const { temperature = 0.7, maxTokens = 8000 } = config;
-
-    console.log("🔧 Starting tool call generation - config:", {
-      provider: config.provider,
-      model: config.model,
-      temperature,
-      maxTokens,
-      messageCount: messages.length,
-    });
-
-    // Check if model supports tools
-    const supportsTools = this.modelSupportsTools(
-      config.provider,
-      config.model
-    );
-    console.log(
-      `🔧 Model tool support check: ${config.provider}/${config.model} -> ${
-        supportsTools ? "✅ Supported" : "❌ Not supported"
-      }`
-    );
-
-    try {
-      // For non-tool-supporting models, fall back to regular generation
-      if (!supportsTools) {
-        console.warn(`⚠️ Model ${config.model} does not support tool calling, falling back to regular generation`);
-        return this.generateResponse(config, messages);
-      }
-
-      const model = this.getProviderClient(config);
-      const systemMessage = messages.find((m) => m.role === "system");
-      const conversationMessages = messages.filter((m) => m.role !== "system");
-
-      console.log("🔧 Using AI SDK tool call response generation", {
-        systemMessageLength: systemMessage?.content?.length || 0,
-        conversationMessageCount: conversationMessages.length,
-        hasTools: true,
-      });
-
-      const result = await generateText({
-        model,
-        system: systemMessage?.content,
-        messages: this.convertToAISDKMessages(conversationMessages),
-        tools: {
-          getCurrentTime: this.getCurrentTimeTool,
-          getRoamNotes: this.getRoamNotesTool,
-        },
-        temperature,
-        maxTokens,
-        maxSteps: 3, // Allow multiple rounds of tool calling
-      });
-
-      console.log("🔧 AI SDK tool call results:", {
-        hasToolResults: !!result.toolResults,
-        toolCallCount: result.toolResults?.length || 0,
-        textLength: result.text.length,
-        responseText: result.text.substring(0, 200) + "...",
-        usage: result.usage
-          ? {
-              promptTokens: result.usage.promptTokens,
-              completionTokens: result.usage.completionTokens,
-              totalTokens: result.usage.totalTokens,
-            }
-          : "N/A",
-      });
-
-      // Log tool results details if any
-      if (result.toolResults && result.toolResults.length > 0) {
-        result.toolResults.forEach((toolResult, index) => {
-          console.log(`🔧 Tool result ${index + 1}:`, {
-            toolName: toolResult.toolName,
-            args: toolResult.args,
-            resultLength: JSON.stringify(toolResult.result).length,
-          });
-        });
-      }
-
-      // Special handling for Ollama: if tools were called but results seem empty
-      if (config.provider === "ollama" && result.toolResults && result.toolResults.length > 0) {
-        console.log("🔧 Ollama tool calling detected, checking if results are properly integrated...");
-        
-        // If tool results exist but the response seems generic, try to integrate manually
-        const hasGetRoamNotesCall = result.toolResults.some(tr => tr.toolName === "getRoamNotes");
-        const responseContainsRealData = result.text.includes("claude-code") || 
-                                       result.text.includes("ccusage") ||
-                                       result.text.includes("视频");
-        
-        if (hasGetRoamNotesCall && !responseContainsRealData) {
-          console.warn("🔧 Ollama tool results may not be properly integrated, attempting manual integration...");
-          
-          // Get the tool result data
-          const getRoamNotesResult = result.toolResults.find(tr => tr.toolName === "getRoamNotes");
-          if (getRoamNotesResult) {
-            const toolData = typeof getRoamNotesResult.result === 'string' 
-              ? JSON.parse(getRoamNotesResult.result) 
-              : getRoamNotesResult.result;
-            
-            if (toolData.success && toolData.notes && toolData.notes.length > 0) {
-              // Create a summary of the actual data
-              const summary = `根据查询结果，昨天（${toolData.queryInfo?.sourcePage || 'July 10th, 2025'}）的笔记内容包括：\n\n`;
-              const notesSummary = toolData.notes.map((note: any, index: number) => {
-                return `${index + 1}. ${note.content.substring(0, 100)}${note.content.length > 100 ? '...' : ''}`;
-              }).join('\n');
-              
-              return {
-                text: summary + notesSummary,
-                usage: result.usage && {
-                  promptTokens: result.usage.promptTokens,
-                  completionTokens: result.usage.completionTokens,
-                  totalTokens: result.usage.totalTokens,
-                },
-                toolResults: result.toolResults,
-              };
-            }
-          }
-        }
-      }
-
-      return {
-        text: result.text,
-        usage: result.usage && {
-          promptTokens: result.usage.promptTokens,
-          completionTokens: result.usage.completionTokens,
-          totalTokens: result.usage.totalTokens,
-        },
-        toolResults: result.toolResults,
-      };
-    } catch (error: any) {
-      console.error("❌ AI SDK tool call generation failed:", {
-        provider: config.provider,
-        model: config.model,
-        error: error.message,
-        stack: error.stack,
-      });
-
-      // Check if it's a network connection issue
-      if (
-        error.message.includes("Failed to fetch") ||
-        error.message.includes("ERR_EMPTY_RESPONSE")
-      ) {
-        if (config.provider === "xai") {
-          throw new Error(`xAI (Grok) service connection failed. Possible reasons:
-1. xAI API service temporarily unavailable
-2. Network connection issue
-3. API Key configuration error
-
-Suggestions:
-- Check network connection
-- Verify API Key validity
-- Try other models (like OpenAI or Anthropic)
-- Retry later
-
-Original error: ${error.message}`);
-        }
-      }
-
-      // Check if it's a tool-related error and fallback
-      if (
-        error.message.includes("tool") ||
-        error.message.includes("function")
-      ) {
-        console.warn(`⚠️ Tool call failed, attempting fallback to regular generation: ${error.message}`);
-        try {
-          return this.generateResponse(config, messages);
-        } catch (fallbackError: any) {
-          console.error("❌ Fallback generation also failed:", fallbackError.message);
-          throw new Error(
-            `Both tool call and fallback generation failed: ${error.message} | Fallback error: ${fallbackError.message}`
-          );
-        }
-      }
-
-      throw new Error(`LLM tool call generation failed: ${error.message}`);
-    }
-  }
 
 
 
@@ -716,80 +439,4 @@ Original error: ${error.message}`);
     }
   }
 
-  
-  /**
-   * Check if a model supports tool calling
-   */
-  static modelSupportsTools(provider: string, model: string): boolean {
-    // Tool-enabled models by provider
-    const toolSupportedModels: { [provider: string]: string[] } = {
-      openai: [
-        "gpt-4o",
-        "gpt-4o-mini",
-        "gpt-4-turbo",
-        "gpt-4",
-        "gpt-3.5-turbo",
-      ],
-      anthropic: [
-        "claude-3-5-sonnet-20241022",
-        "claude-3-5-haiku-20241022",
-        "claude-3-opus-20240229",
-        "claude-3-sonnet-20240229",
-        "claude-3-haiku-20240307",
-      ],
-      groq: [
-        "llama-3.3-70b-versatile",
-        "llama-3.1-70b-versatile",
-        "llama-3.1-8b-instant",
-        "llama3-groq-70b-8192-tool-use-preview",
-        "llama3-groq-8b-8192-tool-use-preview",
-      ],
-      xai: ["grok-3", "grok-3-beta", "grok-2-vision-1212", "grok-2"],
-      // Ollama models that support native tool calling
-      ollama: [
-        "llama3.1:8b",
-        "llama3.1:70b", 
-        "llama3.1:latest",
-        "llama3.2:latest",
-        "qwen2.5:latest",
-        "qwen2.5:7b",
-        "qwen2.5:14b",
-        "qwen2.5:32b",
-        "qwen3:8b",
-        "qwen3:latest",
-        "deepseek-r1:1.5b",
-        "deepseek-r1:7b",
-        "deepseek-r1:8b",
-        "deepseek-r1:14b",
-        "deepseek-r1:32b",
-        "deepseek-r1:latest",
-        "mistral:7b",
-        "mistral:latest",
-        "phi3:3.8b",
-        "phi3:latest",
-      ],
-    };
-
-    const supportedModels = toolSupportedModels[provider];
-    if (!supportedModels) {
-      console.warn(`🔧 Unknown provider for tool support check: ${provider}`);
-      return false;
-    }
-
-    // For Ollama, check if the specific model supports tools
-    if (provider === "ollama") {
-      const isSupported = supportedModels.includes(model);
-      if (!isSupported) {
-        console.warn(`⚠️ Ollama model ${model} may not support native tool calling. Supported models: ${supportedModels.join(", ")}`);
-        return false;
-      }
-      return true;
-    }
-
-    const isSupported = supportedModels.includes(model);
-    console.log(
-      `🔧 Tool support check - Provider: ${provider}, Model: ${model}, Supported: ${isSupported}`
-    );
-    return isSupported;
-  }
 }
