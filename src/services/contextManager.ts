@@ -19,6 +19,9 @@ export interface ContextBuilderOptions {
   maxItems: number; // 最大条目数
   includeBacklinks: boolean; // 是否包含反向链接
   includeBlockRefs: boolean; // 是否包含块引用
+  includeParentBlocks: boolean; // 是否包含父级块
+  includeSiblingBlocks: boolean; // 是否包含兄弟块
+  includeAncestorPath: boolean; // 是否包含祖先路径
 }
 
 export class ContextManager {
@@ -32,6 +35,9 @@ export class ContextManager {
       maxItems: 50,
       includeBacklinks: true,
       includeBlockRefs: true,
+      includeParentBlocks: true,
+      includeSiblingBlocks: true,
+      includeAncestorPath: true,
       ...options
     };
   }
@@ -146,7 +152,7 @@ export class ContextManager {
   }
 
   /**
-   * 处理块，递归获取相关内容
+   * 处理块，递归获取相关内容，包含增强的上下文
    */
   private async processBlock(
     blockUid: string, 
@@ -191,6 +197,10 @@ export class ContextManager {
 
       // 如果还没到最大深度，获取相关内容
       if (currentLevel < this.options.maxDepth) {
+        // 获取增强的上下文（父块、兄弟块、祖先路径）
+        const enhancedContextItems = await this.getEnhancedBlockContext(blockUid, currentLevel);
+        contextItems.push(...enhancedContextItems);
+
         // 获取块中提到的页面引用
         const pageRefs = this.extractPageReferences(block.string);
         for (const refPageTitle of pageRefs) {
@@ -214,6 +224,209 @@ export class ContextManager {
       console.error(`❌ Error processing block ${blockUid}:`, error);
       return [];
     }
+  }
+
+  /**
+   * 获取增强的块上下文（父块、兄弟块、祖先路径）
+   */
+  private async getEnhancedBlockContext(blockUid: string, currentLevel: number): Promise<ContextItem[]> {
+    const contextItems: ContextItem[] = [];
+
+    try {
+      // 获取父块
+      if (this.options.includeParentBlocks) {
+        const parentItems = await this.getParentBlockContext(blockUid, currentLevel + 1);
+        contextItems.push(...parentItems);
+      }
+
+      // 获取兄弟块
+      if (this.options.includeSiblingBlocks) {
+        const siblingItems = await this.getSiblingBlockContext(blockUid, currentLevel + 1);
+        contextItems.push(...siblingItems);
+      }
+
+      // 获取祖先路径
+      if (this.options.includeAncestorPath) {
+        const ancestorItems = await this.getAncestorPathContext(blockUid, currentLevel + 1);
+        contextItems.push(...ancestorItems);
+      }
+
+      return contextItems;
+    } catch (error) {
+      console.error(`❌ Error getting enhanced block context for ${blockUid}:`, error);
+      return [];
+    }
+  }
+
+  /**
+   * 获取父块上下文
+   */
+  private async getParentBlockContext(blockUid: string, currentLevel: number): Promise<ContextItem[]> {
+    const contextItems: ContextItem[] = [];
+
+    try {
+      // 使用 RoamQuery 获取父块
+      const parentQuery = `
+        [:find ?parentUid ?parentString
+         :where
+         [?block :block/uid "${blockUid}"]
+         [?parent :block/children ?block]
+         [?parent :block/uid ?parentUid]
+         [?parent :block/string ?parentString]]
+      `;
+
+      const result = window.roamAlphaAPI.q(parentQuery);
+      if (result && result.length > 0) {
+        const [parentUid, parentString] = result[0];
+        
+        if (!this.visitedUids.has(parentUid)) {
+          const pageTitle = await this.getBlockPageTitle(parentUid);
+          
+          const parentItem: ContextItem = {
+            type: 'block',
+            uid: parentUid,
+            content: parentString,
+            level: currentLevel,
+            priority: this.calculatePriority(currentLevel, 'block_reference'),
+            pageTitle,
+            source: 'block_reference'
+          };
+
+          contextItems.push(parentItem);
+          this.visitedUids.add(parentUid);
+        }
+      }
+    } catch (error) {
+      console.error(`❌ Error getting parent block context for ${blockUid}:`, error);
+    }
+
+    return contextItems;
+  }
+
+  /**
+   * 获取兄弟块上下文
+   */
+  private async getSiblingBlockContext(blockUid: string, currentLevel: number): Promise<ContextItem[]> {
+    const contextItems: ContextItem[] = [];
+
+    try {
+      // 使用 RoamQuery 获取兄弟块
+      const siblingsQuery = `
+        [:find ?siblingUid ?siblingString ?siblingOrder
+         :where
+         [?block :block/uid "${blockUid}"]
+         [?parent :block/children ?block]
+         [?parent :block/children ?sibling]
+         [?sibling :block/uid ?siblingUid]
+         [?sibling :block/string ?siblingString]
+         [?sibling :block/order ?siblingOrder]
+         [(not= ?siblingUid "${blockUid}")]]
+      `;
+
+      const result = window.roamAlphaAPI.q(siblingsQuery);
+      if (result && result.length > 0) {
+        // 只取前3个兄弟块以避免过多内容
+        const limitedResult = result.slice(0, 3);
+        
+        for (const [siblingUid, siblingString, siblingOrder] of limitedResult) {
+          if (!this.visitedUids.has(siblingUid)) {
+            const pageTitle = await this.getBlockPageTitle(siblingUid);
+            
+            const siblingItem: ContextItem = {
+              type: 'block',
+              uid: siblingUid,
+              content: siblingString,
+              level: currentLevel,
+              priority: this.calculatePriority(currentLevel, 'block_reference'),
+              pageTitle,
+              source: 'block_reference'
+            };
+
+            contextItems.push(siblingItem);
+            this.visitedUids.add(siblingUid);
+          }
+        }
+      }
+    } catch (error) {
+      console.error(`❌ Error getting sibling block context for ${blockUid}:`, error);
+    }
+
+    return contextItems;
+  }
+
+  /**
+   * 获取祖先路径上下文
+   */
+  private async getAncestorPathContext(blockUid: string, currentLevel: number): Promise<ContextItem[]> {
+    const contextItems: ContextItem[] = [];
+
+    try {
+      // 递归获取祖先路径，但限制深度以避免过多内容
+      const ancestors = await this.getAncestorPath(blockUid, 3); // 最多3层祖先
+      
+      for (const ancestor of ancestors) {
+        if (!this.visitedUids.has(ancestor.uid)) {
+          const pageTitle = await this.getBlockPageTitle(ancestor.uid);
+          
+          const ancestorItem: ContextItem = {
+            type: 'block',
+            uid: ancestor.uid,
+            content: ancestor.string,
+            level: currentLevel,
+            priority: this.calculatePriority(currentLevel, 'block_reference'),
+            pageTitle,
+            source: 'block_reference'
+          };
+
+          contextItems.push(ancestorItem);
+          this.visitedUids.add(ancestor.uid);
+        }
+      }
+    } catch (error) {
+      console.error(`❌ Error getting ancestor path context for ${blockUid}:`, error);
+    }
+
+    return contextItems;
+  }
+
+  /**
+   * 递归获取祖先路径
+   */
+  private async getAncestorPath(blockUid: string, maxDepth: number): Promise<RoamBlock[]> {
+    const ancestors: RoamBlock[] = [];
+    
+    if (maxDepth <= 0) return ancestors;
+    
+    try {
+      const parentQuery = `
+        [:find ?parentUid ?parentString
+         :where
+         [?block :block/uid "${blockUid}"]
+         [?parent :block/children ?block]
+         [?parent :block/uid ?parentUid]
+         [?parent :block/string ?parentString]]
+      `;
+
+      const result = window.roamAlphaAPI.q(parentQuery);
+      if (result && result.length > 0) {
+        const [parentUid, parentString] = result[0];
+        
+        const parent: RoamBlock = {
+          uid: parentUid,
+          string: parentString
+        };
+        
+        ancestors.push(parent);
+        
+        // 递归获取更高层的祖先
+        const higherAncestors = await this.getAncestorPath(parentUid, maxDepth - 1);
+        ancestors.push(...higherAncestors);
+      }
+    } catch (error) {
+      console.error(`❌ Error getting ancestor path for ${blockUid}:`, error);
+    }
+
+    return ancestors;
   }
 
   /**

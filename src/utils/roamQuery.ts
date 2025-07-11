@@ -4,11 +4,15 @@ import { BLOCK_PREVIEW_LENGTH } from "../constants";
 
 export interface BlockWithReferences extends RoamBlock {
   references?: RoamPage[];
+  parent?: RoamBlock;
+  siblings?: RoamBlock[];
+  ancestorPath?: RoamBlock[];
 }
 
 export class RoamQuery {
   /**
    * Get a block and its content recursively (2 levels deep)
+   * Enhanced with parent, siblings, and ancestor path
    */
   static async getBlock(uid: string): Promise<BlockWithReferences | null> {
     try {
@@ -65,13 +69,25 @@ export class RoamQuery {
       // Get children recursively (2 levels deep)
       const children = await this.getBlockChildren(uid, 2);
       
+      // Get parent block
+      const parent = await this.getBlockParent(uid);
+      
+      // Get sibling blocks
+      const siblings = await this.getBlockSiblings(uid);
+      
+      // Get ancestor path
+      const ancestorPath = await this.getBlockAncestorPath(uid);
+      
       // Parse page references from block string
       const references = await this.resolvePageReferences(blockString);
 
-      console.log("Retrieved block:", {
+      console.log("Retrieved block with enhanced context:", {
         uid,
         string: blockString,
         children: children.length,
+        parent: parent ? parent.uid : null,
+        siblings: siblings.length,
+        ancestorPath: ancestorPath.length,
         references: references.length
       });
 
@@ -79,6 +95,9 @@ export class RoamQuery {
         uid,
         string: blockString,
         children,
+        parent: parent || undefined,
+        siblings,
+        ancestorPath,
         references
       };
     } catch (error) {
@@ -275,6 +294,123 @@ export class RoamQuery {
       return null;
     } catch (error) {
       console.error("Error extracting UID from drag data:", error);
+      return null;
+    }
+  }
+
+  /**
+   * Get parent block of a block
+   */
+  static async getBlockParent(blockUid: string): Promise<RoamBlock | null> {
+    try {
+      const parentQuery = `
+        [:find ?parentUid ?parentString ?parentOrder
+         :where
+         [?block :block/uid "${blockUid}"]
+         [?parent :block/children ?block]
+         [?parent :block/uid ?parentUid]
+         [?parent :block/string ?parentString]
+         [?parent :block/order ?parentOrder]]
+      `;
+
+      const result = window.roamAlphaAPI.q(parentQuery);
+      if (!result || result.length === 0) {
+        return null;
+      }
+
+      const [parentUid, parentString, parentOrder] = result[0];
+      return {
+        uid: parentUid,
+        string: parentString,
+        order: parentOrder
+      };
+    } catch (error) {
+      console.error("Error getting block parent:", error);
+      return null;
+    }
+  }
+
+  /**
+   * Get sibling blocks of a block (same parent)
+   */
+  static async getBlockSiblings(blockUid: string): Promise<RoamBlock[]> {
+    try {
+      const siblingsQuery = `
+        [:find ?siblingUid ?siblingString ?siblingOrder
+         :where
+         [?block :block/uid "${blockUid}"]
+         [?parent :block/children ?block]
+         [?parent :block/children ?sibling]
+         [?sibling :block/uid ?siblingUid]
+         [?sibling :block/string ?siblingString]
+         [?sibling :block/order ?siblingOrder]
+         [(not= ?siblingUid "${blockUid}")]]
+      `;
+
+      const result = window.roamAlphaAPI.q(siblingsQuery);
+      if (!result) return [];
+
+      const siblings: RoamBlock[] = result.map(
+        ([uid, string, order]: [string, string, number]) => ({
+          uid,
+          string,
+          order
+        })
+      );
+
+      siblings.sort((a, b) => (a.order || 0) - (b.order || 0));
+      return siblings;
+    } catch (error) {
+      console.error("Error getting block siblings:", error);
+      return [];
+    }
+  }
+
+  /**
+   * Get ancestor path of a block (from root to current block)
+   */
+  static async getBlockAncestorPath(blockUid: string): Promise<RoamBlock[]> {
+    try {
+      const ancestors: RoamBlock[] = [];
+      let currentBlockUid = blockUid;
+      
+      // Traverse up the hierarchy until we reach the root (page level)
+      while (currentBlockUid) {
+        const parent = await this.getBlockParent(currentBlockUid);
+        if (!parent) break;
+        
+        ancestors.unshift(parent); // Add to beginning to maintain order
+        currentBlockUid = parent.uid;
+      }
+      
+      return ancestors;
+    } catch (error) {
+      console.error("Error getting block ancestor path:", error);
+      return [];
+    }
+  }
+
+  /**
+   * Get enhanced block context including parent, siblings, and related blocks
+   */
+  static async getBlockWithEnhancedContext(blockUid: string): Promise<BlockWithReferences | null> {
+    try {
+      const block = await this.getBlock(blockUid);
+      if (!block) return null;
+
+      // Get additional context for parent and siblings
+      if (block.parent) {
+        block.parent.children = await this.getBlockChildren(block.parent.uid, 1);
+      }
+
+      // Get children of siblings for better context
+      for (const sibling of block.siblings || []) {
+        sibling.children = await this.getBlockChildren(sibling.uid, 1);
+      }
+
+      return block;
+    } catch (error) {
+      console.error("Error getting block with enhanced context:", error);
       return null;
     }
   }
