@@ -314,7 +314,8 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
         includeParentBlocks: true,
         includeSiblingBlocks: true,
         includeAncestorPath: true,
-        includeBacklinkChildren: false,
+        includeBacklinkChildren: false, // Don't include all children by default to avoid too much content
+        autoIncludeMinimalBacklinkChildren: true, // But auto-include children for backlinks that only contain page references
       });
 
       // Always include current page as context, even if no references in message

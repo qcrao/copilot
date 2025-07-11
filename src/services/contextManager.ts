@@ -25,6 +25,7 @@ export interface ContextBuilderOptions {
   includeSiblingBlocks: boolean; // Whether to include sibling blocks
   includeAncestorPath: boolean; // Whether to include ancestor path
   includeBacklinkChildren: boolean; // Whether to include children blocks in backlinks (can make content very long)
+  autoIncludeMinimalBacklinkChildren: boolean; // Whether to automatically include children for backlinks that only contain page references
 }
 
 export class ContextManager {
@@ -42,6 +43,7 @@ export class ContextManager {
       includeSiblingBlocks: true,
       includeAncestorPath: true,
       includeBacklinkChildren: false,
+      autoIncludeMinimalBacklinkChildren: true,
       ...options
     };
   }
@@ -175,56 +177,81 @@ export class ContextManager {
       return [];
     }
 
-    this.visitedUids.add(blockUid);
-
     try {
-      const block = await RoamService.getBlockByUid(blockUid);
-      if (!block) {
-        console.log(`❌ Block not found: ${blockUid}`);
-        return [];
-      }
-
       const contextItems: ContextItem[] = [];
 
-      // Get page title of the block
-      const pageTitle = await this.getBlockPageTitle(blockUid);
-      const createdDate = await this.getBlockCreationDate(blockUid);
+      if (source === 'user_specified') {
+        // For user-specified blocks, use the enhanced recursive resolver
+        console.log(`🔧 Using enhanced recursive resolver for user-specified block: ${blockUid}`);
+        
+        const resolved = await this.resolveContentRecursively(blockUid, 'block', currentLevel);
+        if (resolved) {
+          this.visitedUids.add(resolved.metadata.uid);
+          
+          const blockItem: ContextItem = {
+            type: 'block',
+            uid: resolved.metadata.uid,
+            content: resolved.content,
+            level: currentLevel,
+            priority: this.calculatePriority(currentLevel, source),
+            pageTitle: resolved.metadata.pageTitle,
+            source,
+            createdDate: resolved.metadata.createdDate,
+            blockReference: resolved.metadata.blockReference
+          };
 
-      // Add block itself
-      const blockItem: ContextItem = {
-        type: 'block',
-        uid: block.uid,
-        content: block.string,
-        level: currentLevel,
-        priority: this.calculatePriority(currentLevel, source),
-        pageTitle,
-        source,
-        createdDate,
-        blockReference: this.generateBlockReference(block.uid)
-      };
-
-      contextItems.push(blockItem);
-
-      // If not at max depth, get related content
-      if (currentLevel < this.options.maxDepth) {
-        // Get enhanced block context (parent, sibling, ancestor)
-        const enhancedContextItems = await this.getEnhancedBlockContext(blockUid, currentLevel);
-        contextItems.push(...enhancedContextItems);
-
-        // Get page references mentioned in the block
-        const pageRefs = this.extractPageReferences(block.string);
-        for (const refPageTitle of pageRefs) {
-          if (!this.visitedPageTitles.has(refPageTitle)) {
-            const refItems = await this.processPage(refPageTitle, currentLevel + 1, 'block_reference');
-            contextItems.push(...refItems);
-          }
+          contextItems.push(blockItem);
+          
+          console.log(`✅ Resolved user-specified block with ${resolved.metadata.expandedReferences.length} page references`);
+        }
+      } else {
+        // For non-user-specified blocks, use the simpler approach
+        const block = await RoamService.getBlockByUid(blockUid);
+        if (!block) {
+          console.log(`❌ Block not found: ${blockUid}`);
+          return [];
         }
 
-        // Get child blocks
-        if (block.children && block.children.length > 0) {
-          for (const child of block.children) {
-            const childItems = await this.processBlock(child.uid, currentLevel + 1, 'block_reference');
-            contextItems.push(...childItems);
+        this.visitedUids.add(blockUid);
+
+        const pageTitle = await this.getBlockPageTitle(blockUid);
+        const createdDate = await this.getBlockCreationDate(blockUid);
+
+        const blockItem: ContextItem = {
+          type: 'block',
+          uid: block.uid,
+          content: block.string,
+          level: currentLevel,
+          priority: this.calculatePriority(currentLevel, source),
+          pageTitle,
+          source,
+          createdDate,
+          blockReference: this.generateBlockReference(block.uid)
+        };
+
+        contextItems.push(blockItem);
+
+        // If not at max depth, get related content
+        if (currentLevel < this.options.maxDepth) {
+          // Get enhanced block context (parent, sibling, ancestor)
+          const enhancedContextItems = await this.getEnhancedBlockContext(blockUid, currentLevel);
+          contextItems.push(...enhancedContextItems);
+
+          // Get page references mentioned in the block
+          const pageRefs = this.extractPageReferences(block.string);
+          for (const refPageTitle of pageRefs) {
+            if (!this.visitedPageTitles.has(refPageTitle)) {
+              const refItems = await this.processPage(refPageTitle, currentLevel + 1, 'block_reference');
+              contextItems.push(...refItems);
+            }
+          }
+
+          // Process children if they exist
+          if (block.children && block.children.length > 0) {
+            for (const child of block.children) {
+              const childItems = await this.processBlock(child.uid, currentLevel + 1, 'block_reference');
+              contextItems.push(...childItems);
+            }
           }
         }
       }
@@ -457,36 +484,55 @@ export class ContextManager {
       const contextItems: ContextItem[] = [];
 
       for (const backlink of backlinks) {
-        // Check for circular references
-        if (this.containsCircularReference(backlink.string, pageTitle)) {
-          console.log(`🔄 Skipping circular reference in backlink: ${backlink.string}`);
+        // Get complete block hierarchy for this backlink to include children
+        const completeBacklink = await this.getBlockWithCompleteHierarchy(backlink.uid);
+        if (!completeBacklink) {
+          console.log(`❌ Could not get complete hierarchy for backlink: ${backlink.uid}`);
           continue;
         }
 
-        if (!this.visitedUids.has(backlink.uid)) {
-          const backlinkPageTitle = await this.getBlockPageTitle(backlink.uid);
-          const createdDate = await this.getBlockCreationDate(backlink.uid);
+        // Check for circular references using the complete block
+        if (await this.containsCircularReference(completeBacklink, pageTitle)) {
+          console.log(`🔄 Skipping circular reference in backlink: ${completeBacklink.string}`);
+          continue;
+        }
+
+        if (!this.visitedUids.has(completeBacklink.uid)) {
+          const backlinkPageTitle = await this.getBlockPageTitle(completeBacklink.uid);
+          const createdDate = await this.getBlockCreationDate(completeBacklink.uid);
           
-          // Format backlink content - include children if option is enabled
-          let backlinkContent = backlink.string;
-          if (this.options.includeBacklinkChildren && backlink.children && backlink.children.length > 0) {
-            backlinkContent += '\n' + RoamService.formatBlocksForAI(backlink.children, 1);
+          // Format backlink content - include children if option is enabled or if children provide meaningful context
+          let backlinkContent = completeBacklink.string;
+          
+          if (completeBacklink.children && completeBacklink.children.length > 0) {
+            if (this.options.includeBacklinkChildren) {
+              // User explicitly wants children included
+              backlinkContent += '\n' + RoamService.formatBlocksForAI(completeBacklink.children, 1);
+            } else {
+              // Even if user doesn't want children, include them if main content is just page reference and auto-include is enabled
+              const contentWithoutRefs = completeBacklink.string.replace(/\[\[[^\]]+\]\]/g, '').trim();
+              if (contentWithoutRefs.length < 10 && this.options.autoIncludeMinimalBacklinkChildren) {
+                // Main content is minimal, include children for context
+                backlinkContent += '\n' + RoamService.formatBlocksForAI(completeBacklink.children, 1);
+                console.log(`📋 Auto-including children for minimal backlink: "${completeBacklink.string}"`);
+              }
+            }
           }
           
           const backlinkItem: ContextItem = {
             type: 'reference',
-            uid: backlink.uid,
+            uid: completeBacklink.uid,
             content: backlinkContent,
             level: currentLevel,
             priority: this.calculatePriority(currentLevel, 'backlink'),
             pageTitle: backlinkPageTitle,
             source: 'backlink',
             createdDate,
-            blockReference: this.generateBlockReference(backlink.uid)
+            blockReference: this.generateBlockReference(completeBacklink.uid)
           };
 
           contextItems.push(backlinkItem);
-          this.visitedUids.add(backlink.uid);
+          this.visitedUids.add(completeBacklink.uid);
         }
       }
 
@@ -522,30 +568,46 @@ export class ContextManager {
 
   /**
    * Check for circular references
-   * Improved: only consider it circular if content only contains references to target page
+   * Improved: consider child blocks - if a block has meaningful children, it's not circular even if main content is just page reference
    */
-  private containsCircularReference(content: string, pageTitle: string): boolean {
+  private async containsCircularReference(backlink: RoamBlock, pageTitle: string): Promise<boolean> {
     // Check if content contains reference to same page
     const pageRefPattern = new RegExp(`\\[\\[${pageTitle}\\]\\]`, 'gi');
-    const hasPageRef = pageRefPattern.test(content);
+    const hasPageRef = pageRefPattern.test(backlink.string);
     
     if (!hasPageRef) {
       return false;
     }
     
     // Calculate content length after removing references
-    const contentWithoutRefs = content.replace(/\[\[[^\]]+\]\]/g, '').trim();
+    const contentWithoutRefs = backlink.string.replace(/\[\[[^\]]+\]\]/g, '').trim();
     
-    // If content is very short after removing references (less than 10 characters), consider it circular
-    const isCircular = contentWithoutRefs.length < 10;
+    // If content is very short after removing references (less than 10 characters)
+    const isMainContentShort = contentWithoutRefs.length < 10;
     
-    if (isCircular) {
-      console.log(`🔄 Detected circular reference: content mostly contains [[${pageTitle}]]: "${content}"`);
-    } else {
-      console.log(`✅ Valid backlink with meaningful content: "${content}"`);
+    if (!isMainContentShort) {
+      // Main content has substance, not circular
+      console.log(`✅ Valid backlink with meaningful content: "${backlink.string}"`);
+      return false;
     }
     
-    return isCircular;
+    // Main content is short, but check if there are meaningful child blocks
+    if (backlink.children && backlink.children.length > 0) {
+      // Check if children have meaningful content
+      const childContent = backlink.children
+        .map(child => child.string)
+        .join(' ')
+        .trim();
+      
+      if (childContent.length > 20) { // If children have substantial content
+        console.log(`✅ Valid backlink with meaningful child content: "${backlink.string}" + ${backlink.children.length} children`);
+        return false;
+      }
+    }
+    
+    // Both main content and children are minimal
+    console.log(`🔄 Detected circular reference: content mostly contains [[${pageTitle}]]: "${backlink.string}"`);
+    return true;
   }
 
   /**
@@ -883,5 +945,353 @@ export class ContextManager {
     
     // Fallback to simple block reference
     return `((${blockUid}))`;
+  }
+
+  /**
+   * Enhanced content resolver that recursively expands blocks and page references
+   * This is the core method for getting complete, interconnected content
+   */
+  private async resolveContentRecursively(
+    contentId: string,
+    contentType: 'page' | 'block',
+    currentDepth: number = 0,
+    visitedInThisPath: Set<string> = new Set()
+  ): Promise<{
+    content: string;
+    metadata: {
+      uid: string;
+      type: 'page' | 'block';
+      title?: string;
+      pageTitle?: string;
+      createdDate?: string;
+      blockReference?: string;
+      expandedReferences: string[];
+    };
+  } | null> {
+    
+    // Prevent infinite recursion
+    if (currentDepth > this.options.maxDepth || visitedInThisPath.has(contentId)) {
+      return null;
+    }
+
+    // Mark as visited in this resolution path
+    const pathVisited = new Set(visitedInThisPath);
+    pathVisited.add(contentId);
+
+    try {
+      if (contentType === 'page') {
+        return await this.resolvePageContent(contentId, currentDepth, pathVisited);
+      } else {
+        return await this.resolveBlockContent(contentId, currentDepth, pathVisited);
+      }
+    } catch (error) {
+      console.error(`❌ Error resolving ${contentType} content for ${contentId}:`, error);
+      return null;
+    }
+  }
+
+  /**
+   * Resolve page content with all its blocks and their references
+   */
+  private async resolvePageContent(
+    pageTitle: string,
+    currentDepth: number,
+    pathVisited: Set<string>
+  ): Promise<{
+    content: string;
+    metadata: {
+      uid: string;
+      type: 'page';
+      title: string;
+      createdDate?: string;
+      blockReference?: string;
+      expandedReferences: string[];
+    };
+  } | null> {
+
+    const page = await RoamService.getPageByTitle(pageTitle);
+    if (!page) return null;
+
+    const expandedReferences: string[] = [];
+    let expandedContent = this.formatPageContent(page);
+
+    // Recursively resolve references in page blocks
+    if (page.blocks && page.blocks.length > 0) {
+      const resolvedBlocks = await this.resolveBlocksRecursively(
+        page.blocks, 
+        currentDepth + 1, 
+        pathVisited,
+        expandedReferences
+      );
+      
+      if (resolvedBlocks.length > 0) {
+        expandedContent = `${page.title}\n${resolvedBlocks.join('\n')}`;
+      }
+    }
+
+    const createdDate = await this.getPageCreationDate(page.uid);
+
+    return {
+      content: expandedContent,
+      metadata: {
+        uid: page.uid,
+        type: 'page',
+        title: page.title,
+        createdDate,
+        blockReference: this.generateBlockReference(page.uid),
+        expandedReferences
+      }
+    };
+  }
+
+  /**
+   * Resolve block content with its complete hierarchy and references
+   */
+  private async resolveBlockContent(
+    blockUid: string,
+    currentDepth: number,
+    pathVisited: Set<string>
+  ): Promise<{
+    content: string;
+    metadata: {
+      uid: string;
+      type: 'block';
+      pageTitle?: string;
+      createdDate?: string;
+      blockReference?: string;
+      expandedReferences: string[];
+    };
+  } | null> {
+
+    // First, find the top-level parent if this is a user-specified block
+    const topLevelUid = await this.findTopLevelParent(blockUid);
+    const actualBlockUid = topLevelUid || blockUid;
+
+    // Get the complete block with all children
+    const completeBlock = await this.getBlockWithCompleteHierarchy(actualBlockUid);
+    if (!completeBlock) return null;
+
+    const expandedReferences: string[] = [];
+    
+    // Start with the main block content
+    let expandedContent = completeBlock.string;
+
+    // Recursively resolve child blocks
+    if (completeBlock.children && completeBlock.children.length > 0) {
+      const resolvedChildren = await this.resolveBlocksRecursively(
+        completeBlock.children,
+        currentDepth + 1,
+        pathVisited,
+        expandedReferences
+      );
+      
+      if (resolvedChildren.length > 0) {
+        expandedContent += '\n' + resolvedChildren.map(child => `  ${child}`).join('\n');
+      }
+    }
+
+    // Find and resolve page references in the content
+    const pageRefs = this.extractPageReferences(expandedContent);
+    for (const pageRef of pageRefs) {
+      if (!pathVisited.has(pageRef) && currentDepth < this.options.maxDepth) {
+        const resolvedPage = await this.resolveContentRecursively(
+          pageRef,
+          'page',
+          currentDepth + 1,
+          pathVisited
+        );
+        
+        if (resolvedPage) {
+          expandedReferences.push(pageRef);
+          expandedContent += `\n\n**Referenced Page: ${pageRef}**\n${resolvedPage.content}`;
+        }
+      }
+    }
+
+    const pageTitle = await this.getBlockPageTitle(actualBlockUid);
+    const createdDate = await this.getBlockCreationDate(actualBlockUid);
+
+    return {
+      content: expandedContent,
+      metadata: {
+        uid: actualBlockUid,
+        type: 'block',
+        pageTitle,
+        createdDate,
+        blockReference: this.generateBlockReference(actualBlockUid),
+        expandedReferences
+      }
+    };
+  }
+
+  /**
+   * Recursively resolve a list of blocks with their references
+   */
+  private async resolveBlocksRecursively(
+    blocks: RoamBlock[],
+    currentDepth: number,
+    pathVisited: Set<string>,
+    expandedReferences: string[]
+  ): Promise<string[]> {
+    const resolvedBlocks: string[] = [];
+
+    for (const block of blocks) {
+      if (pathVisited.has(block.uid)) continue;
+
+      let blockContent = block.string;
+
+      // Resolve child blocks recursively
+      if (block.children && block.children.length > 0) {
+        const resolvedChildren = await this.resolveBlocksRecursively(
+          block.children,
+          currentDepth + 1,
+          pathVisited,
+          expandedReferences
+        );
+        
+        if (resolvedChildren.length > 0) {
+          blockContent += '\n' + resolvedChildren.map(child => `  ${child}`).join('\n');
+        }
+      }
+
+      // Find and resolve page references
+      const pageRefs = this.extractPageReferences(blockContent);
+      for (const pageRef of pageRefs) {
+        if (!pathVisited.has(pageRef) && !expandedReferences.includes(pageRef) && currentDepth < this.options.maxDepth) {
+          const resolvedPage = await this.resolveContentRecursively(
+            pageRef,
+            'page',
+            currentDepth + 1,
+            pathVisited
+          );
+          
+          if (resolvedPage) {
+            expandedReferences.push(pageRef);
+            blockContent += `\n**→ ${pageRef}:** ${resolvedPage.content}`;
+          }
+        }
+      }
+
+      resolvedBlocks.push(blockContent);
+    }
+
+    return resolvedBlocks;
+  }
+
+  /**
+   * Find the top-level parent of a block (simplified and more robust)
+   */
+  private async findTopLevelParent(blockUid: string): Promise<string | null> {
+    let currentUid = blockUid;
+    let maxLevels = 10; // Prevent infinite loops
+    
+    while (maxLevels-- > 0) {
+      const parentQuery = `
+        [:find ?parentUid
+         :where
+         [?block :block/uid "${currentUid}"]
+         [?parent :block/children ?block]
+         [?parent :block/uid ?parentUid]]
+      `;
+
+      const result = window.roamAlphaAPI.q(parentQuery);
+      if (!result || result.length === 0) {
+        // No parent found, current is top level
+        return currentUid === blockUid ? null : currentUid;
+      }
+
+      currentUid = result[0][0];
+    }
+
+    console.warn(`⚠️ Max parent traversal reached for block ${blockUid}`);
+    return currentUid;
+  }
+
+  /**
+   * Get block with complete hierarchy (optimized and cleaner)
+   */
+  private async getBlockWithCompleteHierarchy(blockUid: string): Promise<RoamBlock | null> {
+    try {
+      const baseBlock = await RoamService.getBlockByUid(blockUid);
+      if (!baseBlock) return null;
+
+      return await this.enrichWithAllChildren(baseBlock);
+    } catch (error) {
+      console.error(`❌ Error getting complete hierarchy for ${blockUid}:`, error);
+      return null;
+    }
+  }
+
+  /**
+   * Efficiently enrich block with all children using a single query
+   */
+  private async enrichWithAllChildren(block: RoamBlock): Promise<RoamBlock> {
+    try {
+      // Get all descendants in one query for efficiency
+      const descendantsQuery = `
+        [:find ?uid ?string ?parentUid ?order
+         :where
+         [?ancestor :block/uid "${block.uid}"]
+         [?ancestor :block/children+ ?descendant]
+         [?descendant :block/uid ?uid]
+         [?descendant :block/string ?string]
+         [?parent :block/children ?descendant]
+         [?parent :block/uid ?parentUid]
+         [?descendant :block/order ?order]]
+      `;
+
+      const result = window.roamAlphaAPI.q(descendantsQuery);
+      
+      if (!result || result.length === 0) {
+        return block;
+      }
+
+      // Build hierarchy map
+      const blockMap = new Map<string, RoamBlock>();
+      blockMap.set(block.uid, { ...block, children: [] });
+
+      // Add all descendants to map
+      for (const [uid, string, parentUid, order] of result) {
+        if (!blockMap.has(uid)) {
+          blockMap.set(uid, {
+            uid,
+            string,
+            children: []
+          });
+        }
+      }
+
+      // Build parent-child relationships
+      for (const [uid, string, parentUid, order] of result) {
+        const parent = blockMap.get(parentUid);
+        const child = blockMap.get(uid);
+        
+        if (parent && child) {
+          if (!parent.children) parent.children = [];
+          parent.children.push(child);
+        }
+      }
+
+      // Sort children by order
+      const sortChildren = (block: RoamBlock) => {
+        if (block.children) {
+          block.children.sort((a, b) => {
+            const aOrder = result.find(r => r[0] === a.uid)?.[3] || 0;
+            const bOrder = result.find(r => r[0] === b.uid)?.[3] || 0;
+            return aOrder - bOrder;
+          });
+          
+          block.children.forEach(sortChildren);
+        }
+      };
+
+      const enrichedBlock = blockMap.get(block.uid)!;
+      sortChildren(enrichedBlock);
+      
+      return enrichedBlock;
+    } catch (error) {
+      console.error(`❌ Error enriching block ${block.uid}:`, error);
+      return block;
+    }
   }
 }
