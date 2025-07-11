@@ -268,10 +268,24 @@ export const AI_PROVIDERS: AIProvider[] = [
     models: [
       "llama3.2:latest", // Best balance
       "qwen2.5:latest", // Good alternative
+      "qwen2.5:7b", // Qwen2.5 7B
+      "qwen2.5:14b", // Qwen2.5 14B
+      "qwen3:8b", // Qwen3 8B
+      "qwen3:latest", // Qwen3 latest
+      "llama3.1:8b", // Llama 3.1 8B
+      "llama3.1:70b", // Llama 3.1 70B
+      "deepseek-r1:1.5b", // DeepSeek R1 1.5B
+      "deepseek-r1:7b", // DeepSeek R1 7B
+      "deepseek-r1:8b", // DeepSeek R1 8B
+      "deepseek-r1:14b", // DeepSeek R1 14B
+      "deepseek-r1:32b", // DeepSeek R1 32B
+      "deepseek-r1:latest", // DeepSeek R1 latest
+      "mistral:7b", // Mistral 7B
+      "phi3:3.8b", // Phi-3 3.8B
     ],
     isLocal: true,
     requiresApiKey: false,
     supportsDynamicModels: true,
-    supportsTools: false, // Uses simulation instead
+    supportsTools: true, // Native tool calling support
   },
 ];
