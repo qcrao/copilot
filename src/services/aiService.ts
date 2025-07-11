@@ -211,9 +211,12 @@ export class AIService {
 - Time info queries: getCurrentTime tool with appropriate format
 - Note search queries: getRoamNotes tool with appropriate parameters
 - Time-based note queries: "yesterday"→{date:"YYYY-MM-DD"}, "last week"→{startDate:"YYYY-MM-DD",endDate:"YYYY-MM-DD"}
-- Page queries: "this page"→{currentPageContext:true}, "some page"→{pageTitle:"page name"}
-- Reference queries: "notes about X"→{referencedPage:"X"}
+- Page reference queries: "[[PageName]]" or "about PageName"→{pageTitle:"PageName"}
+- Current page queries: "this page" or "current page"→{currentPageContext:true}
+- Reference queries: "notes referencing X"→{referencedPage:"X"}
 - Search queries: "content containing X"→{searchTerm:"X"}
+
+**Important**: When user mentions [[PageName]] in their query, ALWAYS use {pageTitle:"PageName"} to get that specific page's content, NOT currentPageContext.
 
 **Response Flow:**
 1. Determine if query needs time info or note data
@@ -225,6 +228,8 @@ export class AIService {
 - Always base responses on real tool data, don't fabricate content
 - Reference format: ((uid)) and [[page name]]
 - Honestly state when no relevant notes are found
+- When user asks about [[PageName]] but the page has no content or doesn't exist, say so directly
+- Do NOT query unrelated content when the requested page is empty
 - Encourage user writing and reflection
 
 ${context ? `\n**Context:**${context}` : ""}
@@ -329,6 +334,10 @@ Start tool calling immediately, don't over-explain intentions.`;
    * Estimate token count for a given text (rough approximation)
    */
   private static estimateTokens(text: string): number {
+    if (!text || typeof text !== 'string') {
+      return 0;
+    }
+    
     // Rough estimation: 1 token ≈ 4 characters for English
     // For Chinese and other languages, it's closer to 1 token ≈ 1.5 characters
     const chineseCharCount = (text.match(/[\u4e00-\u9fff]/g) || []).length;

@@ -14,6 +14,8 @@ import { ConversationList } from "./ConversationList";
 import { PromptTemplatesGrid } from "./PromptTemplatesGrid";
 import { MessageList } from "./MessageList";
 import { PromptBuilder } from "../utils/promptBuilder";
+import { useMemoryManager } from "../utils/memoryManager";
+import { PerformanceMonitor } from "../utils/performance";
 
 interface CopilotWidgetProps {
   isOpen: boolean;
@@ -26,6 +28,8 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
   onToggle,
   onClose,
 }) => {
+  const { registerCleanup, createManagedTimeout } = useMemoryManager();
+  
   const [state, setState] = useState<CopilotState>({
     isOpen,
     isMinimized: !isOpen,
@@ -53,8 +57,11 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
   const [isDragging, setIsDragging] = useState(false);
   const [dragStartPos, setDragStartPos] = useState<{x: number, y: number}>({x: 0, y: 0});
   const [dragStartWindowPos, setDragStartWindowPos] = useState<{top: number, left: number}>({top: 0, left: 0});
+  const [isUnmounting, setIsUnmounting] = useState(false);
 
   useEffect(() => {
+    if (isUnmounting) return;
+    
     setState((prev) => ({
       ...prev,
       isOpen,
@@ -65,7 +72,7 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
     if (isOpen && !windowPosition) {
       setWindowPosition(calculateCenterPosition());
     }
-  }, [isOpen, windowPosition, windowSize]);
+  }, [isOpen, windowPosition, windowSize, isUnmounting]);
 
   useEffect(() => {
     if (isOpen) {
@@ -103,6 +110,8 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
 
     // Use MutationObserver to detect DOM changes that indicate page changes
     const observer = new MutationObserver((mutations) => {
+      if (isUnmounting) return;
+      
       mutations.forEach((mutation) => {
         if (mutation.type === "childList") {
           // Check if the main content area changed
@@ -116,7 +125,11 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
 
           if (hasPageContent) {
             console.log("Page content change detected, updating context...");
-            setTimeout(updatePageContext, 200); // Delay to ensure content is rendered
+            setTimeout(() => {
+              if (!isUnmounting) {
+                updatePageContext();
+              }
+            }, 200); // Delay to ensure content is rendered
           }
         }
       });
@@ -136,14 +149,21 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
     };
   }, [isOpen]);
 
-  const updatePageContext = async () => {
+  const updatePageContext = useCallback(async () => {
+    if (isUnmounting) return;
+    
     try {
-      const context = await RoamService.getPageContext();
-      setPageContext(context);
+      const context = await PerformanceMonitor.measure("updatePageContext", async () => {
+        return await RoamService.getPageContext();
+      });
+      
+      if (!isUnmounting) {
+        setPageContext(context);
+      }
     } catch (error) {
       console.error("Failed to get page context:", error);
     }
-  };
+  }, [isUnmounting]);
 
   const addMessage = (message: Omit<ChatMessage, "id" | "timestamp">) => {
     const newMessage: ChatMessage = {
@@ -323,17 +343,22 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
   };
 
   // Auto-save function to be called when new messages are added
-  const saveTimeoutRef = useRef<any>(null);
+  const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   
   const saveConversationDebounced = useCallback(
     (messages: ChatMessage[]) => {
+      if (isUnmounting) return;
+      
       // Clear existing timeout
       if (saveTimeoutRef.current) {
         clearTimeout(saveTimeoutRef.current);
+        saveTimeoutRef.current = null;
       }
       
       // Set new timeout
       saveTimeoutRef.current = setTimeout(async () => {
+        if (isUnmounting) return;
+        
         try {
           if (currentConversationId) {
             // Update existing conversation
@@ -341,7 +366,9 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
           } else {
             // Save new conversation
             const newConversationId = await ConversationService.saveConversation(messages);
-            setCurrentConversationId(newConversationId);
+            if (!isUnmounting) {
+              setCurrentConversationId(newConversationId);
+            }
           }
           console.log("Conversation auto-saved");
         } catch (error) {
@@ -349,7 +376,7 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
         }
       }, 2000);
     },
-    [currentConversationId]
+    [currentConversationId, isUnmounting]
   );
 
   const handleConversationSelect = async (conversationId: string) => {
@@ -647,12 +674,21 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
   // Cleanup resize state on unmount
   useEffect(() => {
     return () => {
+      setIsUnmounting(true);
+      
+      // Clear any pending timeouts
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current);
+        saveTimeoutRef.current = null;
+      }
+      
+      // Cleanup resize state
       if (isResizing) {
         document.body.style.cursor = '';
         document.body.style.userSelect = '';
       }
     };
-  }, []);
+  }, [isResizing]);
 
   if (state.isMinimized) {
     return (

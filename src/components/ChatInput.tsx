@@ -78,7 +78,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
 
   // Performance optimization: Simple cache for search results
   const searchCache = useRef<Map<string, UniversalSearchResult[]>>(new Map());
-  const debounceTimeoutRef = useRef<number | null>(null);
+  const debounceTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // TipTap editor
   const editor = useEditor({
@@ -482,7 +482,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
     setUniversalSearchLoading(true);
     
     // Set new timeout
-    debounceTimeoutRef.current = window.setTimeout(() => {
+    debounceTimeoutRef.current = setTimeout(() => {
       searchUniversal(searchTerm);
     }, 300); // 300ms debounce delay
   }, []);

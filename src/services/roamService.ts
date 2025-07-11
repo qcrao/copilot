@@ -3,10 +3,20 @@ import { RoamBlock, RoamPage, PageContext, UniversalSearchResult, UniversalSearc
 import { LLMUtil } from "../utils/llmUtil";
 
 export class RoamService {
+  // Cache for frequently accessed data
+  private static graphNameCache: { value: string | null; timestamp: number } | null = null;
+  private static readonly CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+  
   /**
    * Get the current graph name
    */
   static getCurrentGraphName(): string | null {
+    // Check cache first
+    if (this.graphNameCache && 
+        Date.now() - this.graphNameCache.timestamp < this.CACHE_DURATION) {
+      return this.graphNameCache.value;
+    }
+    
     try {
       console.log("Getting graph name from URL:", window.location.href);
       console.log("Pathname:", window.location.pathname);
@@ -16,7 +26,10 @@ export class RoamService {
       const urlMatch = window.location.href.match(/\/app\/([^\/\?#]+)/);
       if (urlMatch) {
         console.log("Graph name from href:", urlMatch[1]);
-        return decodeURIComponent(urlMatch[1]);
+        const graphName = decodeURIComponent(urlMatch[1]);
+        // Cache the result
+        this.graphNameCache = { value: graphName, timestamp: Date.now() };
+        return graphName;
       }
 
       // Try to get from hash (Roam often uses hash routing)
@@ -89,9 +102,13 @@ export class RoamService {
         "Could not determine graph name from URL:",
         window.location.href
       );
+      
+      // Cache the null result to avoid repeated expensive operations
+      this.graphNameCache = { value: null, timestamp: Date.now() };
       return null;
     } catch (error) {
       console.error("Error getting graph name:", error);
+      this.graphNameCache = { value: null, timestamp: Date.now() };
       return null;
     }
   }
@@ -420,35 +437,45 @@ export class RoamService {
     const visibleBlocks: RoamBlock[] = [];
 
     try {
-      // Get all visible block elements
+      // Get all visible block elements with performance optimization
       const blockElements = document.querySelectorAll(
         ".roam-block[data-block-uid]"
       );
+      
+      // Early return if no blocks found
+      if (blockElements.length === 0) {
+        return visibleBlocks;
+      }
 
-      blockElements.forEach((element) => {
-        const uid = element.getAttribute("data-block-uid");
-        const textElement = element.querySelector(".rm-block-text");
+      // Use requestAnimationFrame for better performance
+      const processBlocks = () => {
+        blockElements.forEach((element) => {
+          const uid = element.getAttribute("data-block-uid");
+          const textElement = element.querySelector(".rm-block-text");
 
-        if (uid && textElement) {
-          const string = textElement.textContent || "";
+          if (uid && textElement) {
+            const string = textElement.textContent || "";
 
-          // Only include blocks that are actually visible (more lenient)
-          const rect = element.getBoundingClientRect();
-          // Include blocks that are at least partially visible
-          if (
-            rect.bottom > 0 && // Bottom is below the top of viewport
-            rect.top < window.innerHeight && // Top is above the bottom of viewport
-            rect.right > 0 && // Right edge is to the right of left edge of viewport
-            rect.left < window.innerWidth // Left edge is to the left of right edge of viewport
-          ) {
-            visibleBlocks.push({
-              uid,
-              string,
-              children: [], // We'll focus on the main visible content for now
-            });
+            // Only include blocks that are actually visible (more lenient)
+            const rect = element.getBoundingClientRect();
+            // Include blocks that are at least partially visible
+            if (
+              rect.bottom > 0 && // Bottom is below the top of viewport
+              rect.top < window.innerHeight && // Top is above the bottom of viewport
+              rect.right > 0 && // Right edge is to the right of left edge of viewport
+              rect.left < window.innerWidth // Left edge is to the left of right edge of viewport
+            ) {
+              visibleBlocks.push({
+                uid,
+                string,
+                children: [], // We'll focus on the main visible content for now
+              });
+            }
           }
-        }
-      });
+        });
+      };
+      
+      processBlocks();
     } catch (error) {
       console.error("Error getting visible blocks:", error);
     }
@@ -462,7 +489,13 @@ export class RoamService {
   static getSelectedText(): string {
     try {
       const selection = window.getSelection();
-      return selection ? selection.toString().trim() : "";
+      if (!selection || selection.rangeCount === 0) {
+        return "";
+      }
+      
+      const selectedText = selection.toString().trim();
+      // Limit selection length to prevent memory issues
+      return selectedText.length > 5000 ? selectedText.substring(0, 5000) + "..." : selectedText;
     } catch (error) {
       console.error("Error getting selected text:", error);
       return "";

@@ -2,6 +2,7 @@
 import React from "react";
 import { createRoot } from "react-dom/client";
 import { CopilotWidget } from "./components/CopilotWidget";
+import { ErrorBoundary } from "./components/ErrorBoundary";
 import { loadInitialSettings, initPanelConfig } from "./settings";
 import { loadRoamExtensionCommands } from "./commands";
 import "./styles.css";
@@ -39,11 +40,13 @@ const renderCopilot = () => {
   }
 
   copilotState.root.render(
-    <CopilotWidget
-      isOpen={copilotState.isOpen}
-      onToggle={toggleCopilot}
-      onClose={closeCopilot}
-    />
+    <ErrorBoundary>
+      <CopilotWidget
+        isOpen={copilotState.isOpen}
+        onToggle={toggleCopilot}
+        onClose={closeCopilot}
+      />
+    </ErrorBoundary>
   );
 };
 
