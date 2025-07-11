@@ -723,6 +723,27 @@ export class RoamService {
   static getOllamaTokenLimit(model: string): number {
     const modelName = model.toLowerCase();
 
+    // Special cases - check model families first before parameter size
+    if (modelName.includes("qwen")) {
+      return 24000; // Qwen models typically have 32k context, using 24k for safety
+    }
+
+    if (modelName.includes("deepseek")) {
+      return 48000; // DeepSeek models have 64k context, using 48k for safety
+    }
+
+    if (modelName.includes("code") || modelName.includes("coder")) {
+      return 16000; // Code models usually have larger context
+    }
+
+    if (modelName.includes("mistral")) {
+      return 16000; // Mistral models, updated to be more generous
+    }
+
+    if (modelName.includes("llama")) {
+      return 16000; // Llama models, updated to be more generous
+    }
+
     // Large models (70B+)
     if (modelName.includes("70b") || modelName.includes("72b")) {
       return 24000; // 128k context
@@ -754,23 +775,6 @@ export class RoamService {
     // Very small models (1B-2B)
     if (modelName.includes("1b") || modelName.includes("2b")) {
       return 4000; // 4k context
-    }
-
-    // Special cases
-    if (modelName.includes("code") || modelName.includes("deepseek")) {
-      return 16000; // Code models usually have larger context
-    }
-
-    if (modelName.includes("qwen")) {
-      return 16000; // Qwen models typically have 32k context
-    }
-
-    if (modelName.includes("mistral")) {
-      return 8000; // Mistral models, conservative
-    }
-
-    if (modelName.includes("llama")) {
-      return 12000; // Llama models, conservative default
     }
 
     // Default for unknown Ollama models

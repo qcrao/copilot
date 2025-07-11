@@ -7,21 +7,21 @@ export interface ContextItem {
   uid: string;
   title?: string;
   content: string;
-  level: number; // 递归层级，0为用户直接指定的内容
-  priority: number; // 优先级，数字越小优先级越高
-  pageTitle?: string; // 对于block类型，记录所属页面
+  level: number; // Recursion level, 0 for user-specified content
+  priority: number; // Priority, lower number = higher priority
+  pageTitle?: string; // For block type, record the page it belongs to
   children?: ContextItem[];
   source: 'user_specified' | 'page_content' | 'backlink' | 'block_reference';
 }
 
 export interface ContextBuilderOptions {
-  maxDepth: number; // 最大递归深度
-  maxItems: number; // 最大条目数
-  includeBacklinks: boolean; // 是否包含反向链接
-  includeBlockRefs: boolean; // 是否包含块引用
-  includeParentBlocks: boolean; // 是否包含父级块
-  includeSiblingBlocks: boolean; // 是否包含兄弟块
-  includeAncestorPath: boolean; // 是否包含祖先路径
+  maxDepth: number; // Maximum recursion depth
+  maxItems: number; // Maximum number of items
+  includeBacklinks: boolean; // Whether to include backlinks
+  includeBlockRefs: boolean; // Whether to include block references
+  includeParentBlocks: boolean; // Whether to include parent blocks
+  includeSiblingBlocks: boolean; // Whether to include sibling blocks
+  includeAncestorPath: boolean; // Whether to include ancestor path
 }
 
 export class ContextManager {
@@ -43,7 +43,7 @@ export class ContextManager {
   }
 
   /**
-   * 构建上下文，从用户指定的页面和块开始
+   * Build context starting from user-specified pages and blocks
    */
   async buildContext(
     userSpecifiedPages: string[] = [], 
@@ -55,25 +55,25 @@ export class ContextManager {
       options: this.options
     });
 
-    // 重置访问记录
+    // Reset visited records
     this.visitedUids.clear();
     this.visitedPageTitles.clear();
 
     const contextItems: ContextItem[] = [];
 
-    // 处理用户指定的页面
+    // Process user-specified pages
     for (const pageTitle of userSpecifiedPages) {
       const pageItems = await this.processPage(pageTitle, 0, 'user_specified');
       contextItems.push(...pageItems);
     }
 
-    // 处理用户指定的块
+    // Process user-specified blocks
     for (const blockUid of userSpecifiedBlocks) {
       const blockItems = await this.processBlock(blockUid, 0, 'user_specified');
       contextItems.push(...blockItems);
     }
 
-    // 排序并限制数量
+    // Sort and limit quantity
     const sortedItems = this.sortByPriority(contextItems);
     const limitedItems = sortedItems.slice(0, this.options.maxItems);
 
@@ -87,7 +87,7 @@ export class ContextManager {
   }
 
   /**
-   * 处理页面，递归获取相关内容
+   * Process page and recursively get related content
    */
   private async processPage(
     pageTitle: string, 
@@ -114,7 +114,7 @@ export class ContextManager {
 
       const contextItems: ContextItem[] = [];
 
-      // 添加页面本身
+      // Add page itself
       const pageContent = this.formatPageContent(page);
       const pageItem: ContextItem = {
         type: 'page',
@@ -129,15 +129,15 @@ export class ContextManager {
       contextItems.push(pageItem);
       this.visitedUids.add(page.uid);
 
-      // 如果还没到最大深度，获取相关内容
+      // If not at max depth, get related content
       if (currentLevel < this.options.maxDepth) {
-        // 获取反向链接
+        // Get backlinks
         if (this.options.includeBacklinks) {
           const backlinks = await this.getBacklinks(pageTitle, currentLevel + 1);
           contextItems.push(...backlinks);
         }
 
-        // 获取页面中的块引用
+        // Get block references in the page
         if (this.options.includeBlockRefs) {
           const blockRefs = await this.getBlockReferences(page, currentLevel + 1);
           contextItems.push(...blockRefs);
@@ -152,7 +152,7 @@ export class ContextManager {
   }
 
   /**
-   * 处理块，递归获取相关内容，包含增强的上下文
+   * Process block and recursively get related content with enhanced context
    */
   private async processBlock(
     blockUid: string, 
@@ -179,10 +179,10 @@ export class ContextManager {
 
       const contextItems: ContextItem[] = [];
 
-      // 获取块所属的页面标题
+      // Get page title of the block
       const pageTitle = await this.getBlockPageTitle(blockUid);
 
-      // 添加块本身
+      // Add block itself
       const blockItem: ContextItem = {
         type: 'block',
         uid: block.uid,
@@ -195,13 +195,13 @@ export class ContextManager {
 
       contextItems.push(blockItem);
 
-      // 如果还没到最大深度，获取相关内容
+      // If not at max depth, get related content
       if (currentLevel < this.options.maxDepth) {
-        // 获取增强的上下文（父块、兄弟块、祖先路径）
+        // Get enhanced block context (parent, sibling, ancestor)
         const enhancedContextItems = await this.getEnhancedBlockContext(blockUid, currentLevel);
         contextItems.push(...enhancedContextItems);
 
-        // 获取块中提到的页面引用
+        // Get page references mentioned in the block
         const pageRefs = this.extractPageReferences(block.string);
         for (const refPageTitle of pageRefs) {
           if (!this.visitedPageTitles.has(refPageTitle)) {
@@ -210,7 +210,7 @@ export class ContextManager {
           }
         }
 
-        // 获取块的子块
+        // Get child blocks
         if (block.children && block.children.length > 0) {
           for (const child of block.children) {
             const childItems = await this.processBlock(child.uid, currentLevel + 1, 'block_reference');
@@ -227,25 +227,25 @@ export class ContextManager {
   }
 
   /**
-   * 获取增强的块上下文（父块、兄弟块、祖先路径）
+   * Get enhanced block context (parent, sibling, ancestor)
    */
   private async getEnhancedBlockContext(blockUid: string, currentLevel: number): Promise<ContextItem[]> {
     const contextItems: ContextItem[] = [];
 
     try {
-      // 获取父块
+      // Get parent blocks
       if (this.options.includeParentBlocks) {
         const parentItems = await this.getParentBlockContext(blockUid, currentLevel + 1);
         contextItems.push(...parentItems);
       }
 
-      // 获取兄弟块
+      // Get sibling blocks
       if (this.options.includeSiblingBlocks) {
         const siblingItems = await this.getSiblingBlockContext(blockUid, currentLevel + 1);
         contextItems.push(...siblingItems);
       }
 
-      // 获取祖先路径
+      // Get ancestor path
       if (this.options.includeAncestorPath) {
         const ancestorItems = await this.getAncestorPathContext(blockUid, currentLevel + 1);
         contextItems.push(...ancestorItems);
@@ -259,13 +259,13 @@ export class ContextManager {
   }
 
   /**
-   * 获取父块上下文
+   * Get parent block context
    */
   private async getParentBlockContext(blockUid: string, currentLevel: number): Promise<ContextItem[]> {
     const contextItems: ContextItem[] = [];
 
     try {
-      // 使用 RoamQuery 获取父块
+      // Use RoamQuery to get parent block
       const parentQuery = `
         [:find ?parentUid ?parentString
          :where
@@ -304,13 +304,13 @@ export class ContextManager {
   }
 
   /**
-   * 获取兄弟块上下文
+   * Get sibling block context
    */
   private async getSiblingBlockContext(blockUid: string, currentLevel: number): Promise<ContextItem[]> {
     const contextItems: ContextItem[] = [];
 
     try {
-      // 使用 RoamQuery 获取兄弟块
+      // Use RoamQuery to get sibling blocks
       const siblingsQuery = `
         [:find ?siblingUid ?siblingString ?siblingOrder
          :where
@@ -325,7 +325,7 @@ export class ContextManager {
 
       const result = window.roamAlphaAPI.q(siblingsQuery);
       if (result && result.length > 0) {
-        // 只取前3个兄弟块以避免过多内容
+        // Only take first 3 sibling blocks to avoid too much content
         const limitedResult = result.slice(0, 3);
         
         for (const [siblingUid, siblingString, siblingOrder] of limitedResult) {
@@ -355,14 +355,14 @@ export class ContextManager {
   }
 
   /**
-   * 获取祖先路径上下文
+   * Get ancestor path context
    */
   private async getAncestorPathContext(blockUid: string, currentLevel: number): Promise<ContextItem[]> {
     const contextItems: ContextItem[] = [];
 
     try {
-      // 递归获取祖先路径，但限制深度以避免过多内容
-      const ancestors = await this.getAncestorPath(blockUid, 3); // 最多3层祖先
+      // Recursively get ancestor path, but limit depth to avoid too much content
+      const ancestors = await this.getAncestorPath(blockUid, 3); // Max 3 levels of ancestors
       
       for (const ancestor of ancestors) {
         if (!this.visitedUids.has(ancestor.uid)) {
@@ -390,7 +390,7 @@ export class ContextManager {
   }
 
   /**
-   * 递归获取祖先路径
+   * Recursively get ancestor path
    */
   private async getAncestorPath(blockUid: string, maxDepth: number): Promise<RoamBlock[]> {
     const ancestors: RoamBlock[] = [];
@@ -418,7 +418,7 @@ export class ContextManager {
         
         ancestors.push(parent);
         
-        // 递归获取更高层的祖先
+        // Recursively get higher level ancestors
         const higherAncestors = await this.getAncestorPath(parentUid, maxDepth - 1);
         ancestors.push(...higherAncestors);
       }
@@ -430,7 +430,7 @@ export class ContextManager {
   }
 
   /**
-   * 获取页面的反向链接
+   * Get backlinks for a page
    */
   private async getBacklinks(pageTitle: string, currentLevel: number): Promise<ContextItem[]> {
     try {
@@ -438,7 +438,7 @@ export class ContextManager {
       const contextItems: ContextItem[] = [];
 
       for (const backlink of backlinks) {
-        // 检查是否包含循环引用
+        // Check for circular references
         if (this.containsCircularReference(backlink.string, pageTitle)) {
           console.log(`🔄 Skipping circular reference in backlink: ${backlink.string}`);
           continue;
@@ -470,12 +470,12 @@ export class ContextManager {
   }
 
   /**
-   * 获取页面中的块引用
+   * Get block references in a page
    */
   private async getBlockReferences(page: RoamPage, currentLevel: number): Promise<ContextItem[]> {
     const contextItems: ContextItem[] = [];
 
-    // 遍历页面中的所有块，寻找块引用
+    // Traverse all blocks in the page, looking for block references
     const allBlocks = this.getAllBlocksFromPage(page);
     
     for (const block of allBlocks) {
@@ -493,11 +493,11 @@ export class ContextManager {
   }
 
   /**
-   * 检查是否包含循环引用
-   * 改进：只有当内容只包含对目标页面的引用时才认为是循环引用
+   * Check for circular references
+   * Improved: only consider it circular if content only contains references to target page
    */
   private containsCircularReference(content: string, pageTitle: string): boolean {
-    // 检查内容中是否包含指向同一页面的引用
+    // Check if content contains reference to same page
     const pageRefPattern = new RegExp(`\\[\\[${pageTitle}\\]\\]`, 'gi');
     const hasPageRef = pageRefPattern.test(content);
     
@@ -505,10 +505,10 @@ export class ContextManager {
       return false;
     }
     
-    // 计算引用的内容长度
+    // Calculate content length after removing references
     const contentWithoutRefs = content.replace(/\[\[[^\]]+\]\]/g, '').trim();
     
-    // 如果去掉引用后内容很少（少于10个字符），则认为是循环引用
+    // If content is very short after removing references (less than 10 characters), consider it circular
     const isCircular = contentWithoutRefs.length < 10;
     
     if (isCircular) {
@@ -521,7 +521,7 @@ export class ContextManager {
   }
 
   /**
-   * 从文本中提取页面引用
+   * Extract page references from text
    */
   private extractPageReferences(text: string): string[] {
     const pageRefPattern = /\[\[([^\]]+)\]\]/g;
@@ -532,11 +532,11 @@ export class ContextManager {
       matches.push(match[1]);
     }
     
-    return [...new Set(matches)]; // 去重
+    return [...new Set(matches)]; // Remove duplicates
   }
 
   /**
-   * 从文本中提取块引用
+   * Extract block references from text
    */
   private extractBlockReferences(text: string): string[] {
     const blockRefPattern = /\(\(([^)]+)\)\)/g;
@@ -547,11 +547,11 @@ export class ContextManager {
       matches.push(match[1]);
     }
     
-    return [...new Set(matches)]; // 去重
+    return [...new Set(matches)]; // Remove duplicates
   }
 
   /**
-   * 获取页面中的所有块（递归）
+   * Get all blocks from a page recursively
    */
   private getAllBlocksFromPage(page: RoamPage): RoamBlock[] {
     const allBlocks: RoamBlock[] = [];
@@ -570,11 +570,11 @@ export class ContextManager {
   }
 
   /**
-   * 获取块所属的页面标题
+   * Get page title for a block
    */
   private async getBlockPageTitle(blockUid: string): Promise<string | undefined> {
     try {
-      // 查询块所属的页面
+      // Query for the page containing the block
       const pageQuery = `
         [:find ?title
          :where
@@ -589,7 +589,7 @@ export class ContextManager {
         return result[0][0] as string;
       }
 
-      // 如果直接查询失败，尝试通过父级关系查找
+      // If direct query fails, try through parent hierarchy
       const hierarchyQuery = `
         [:find ?title
          :where
@@ -613,18 +613,18 @@ export class ContextManager {
   }
 
   /**
-   * 格式化页面内容
+   * Format page content
    */
   private formatPageContent(page: RoamPage): string {
     if (!page.blocks || page.blocks.length === 0) {
-      return `页面 "${page.title}" 暂无内容`;
+      return `Page "${page.title}" has no content`;
     }
 
     return RoamService.formatBlocksForAI(page.blocks, 0);
   }
 
   /**
-   * 计算优先级
+   * Calculate priority
    */
   private calculatePriority(level: number, source: ContextItem['source']): number {
     const baseScore = {
@@ -638,27 +638,27 @@ export class ContextManager {
   }
 
   /**
-   * 按优先级排序
+   * Sort by priority
    */
   private sortByPriority(items: ContextItem[]): ContextItem[] {
     return items.sort((a, b) => {
-      // 优先级数字越小越优先
+      // Lower priority number = higher priority
       if (a.priority !== b.priority) {
         return a.priority - b.priority;
       }
       
-      // 优先级相同时，按层级排序
+      // Same priority, sort by level
       if (a.level !== b.level) {
         return a.level - b.level;
       }
       
-      // 层级相同时，按内容长度排序（更长的内容优先）
+      // Same level, sort by content length (longer content first)
       return (b.content?.length || 0) - (a.content?.length || 0);
     });
   }
 
   /**
-   * 获取层级分布统计
+   * Get level distribution statistics
    */
   private getLevelDistribution(items: ContextItem[]): Record<number, number> {
     const distribution: Record<number, number> = {};
@@ -671,7 +671,7 @@ export class ContextManager {
   }
 
   /**
-   * 获取来源分布统计
+   * Get source distribution statistics
    */
   private getSourceDistribution(items: ContextItem[]): Record<string, number> {
     const distribution: Record<string, number> = {};
@@ -684,17 +684,17 @@ export class ContextManager {
   }
 
   /**
-   * 格式化上下文为 AI 可读的字符串
+   * Format context for AI readable string
    */
   formatContextForAI(items: ContextItem[]): string {
     if (items.length === 0) {
-      return "未找到相关上下文内容。";
+      return "No relevant context content found.";
     }
 
     const sections: string[] = [];
     const itemsByLevel = this.groupByLevel(items);
 
-    // 按级别组织内容
+    // Organize content by level
     for (const level of Object.keys(itemsByLevel).sort((a, b) => Number(a) - Number(b))) {
       const levelItems = itemsByLevel[Number(level)];
       const levelTitle = this.getLevelTitle(Number(level));
@@ -706,15 +706,15 @@ export class ContextManager {
         
         switch (item.type) {
           case 'page':
-            itemContent = `**页面: ${item.title}**\n${item.content}`;
+            itemContent = `**Page: ${item.title}**\n${item.content}`;
             break;
           case 'block':
-            const pageInfo = item.pageTitle ? ` (来自页面: ${item.pageTitle})` : '';
-            itemContent = `**块引用**${pageInfo}\n${item.content}`;
+            const pageInfo = item.pageTitle ? ` (from page: ${item.pageTitle})` : '';
+            itemContent = `**Block Reference**${pageInfo}\n${item.content}`;
             break;
           case 'reference':
-            const refPageInfo = item.pageTitle ? ` (来自页面: ${item.pageTitle})` : '';
-            itemContent = `**反向链接**${refPageInfo}\n${item.content}`;
+            const refPageInfo = item.pageTitle ? ` (from page: ${item.pageTitle})` : '';
+            itemContent = `**Backlink**${refPageInfo}\n${item.content}`;
             break;
         }
         
@@ -722,11 +722,33 @@ export class ContextManager {
       }
     }
 
-    return sections.join('\n\n');
+    const formattedContext = sections.join('\n\n');
+    
+    // Add detailed debugging logs
+    console.log("📋 Context formatting detailed breakdown:", {
+      totalItems: items.length,
+      itemsByType: {
+        page: items.filter(i => i.type === 'page').length,
+        block: items.filter(i => i.type === 'block').length,
+        reference: items.filter(i => i.type === 'reference').length
+      },
+      itemsBySource: {
+        user_specified: items.filter(i => i.source === 'user_specified').length,
+        page_content: items.filter(i => i.source === 'page_content').length,
+        backlink: items.filter(i => i.source === 'backlink').length,
+        block_reference: items.filter(i => i.source === 'block_reference').length
+      },
+      totalSections: sections.length,
+      formattedContextLength: formattedContext.length,
+      averageContentLength: Math.round(items.reduce((sum, item) => sum + (item.content?.length || 0), 0) / items.length),
+      contextPreview: formattedContext.substring(0, 500) + "..."
+    });
+
+    return formattedContext;
   }
 
   /**
-   * 按级别分组
+   * Group by level
    */
   private groupByLevel(items: ContextItem[]): Record<number, ContextItem[]> {
     const grouped: Record<number, ContextItem[]> = {};
@@ -742,20 +764,20 @@ export class ContextManager {
   }
 
   /**
-   * 获取级别标题
+   * Get level title
    */
   private getLevelTitle(level: number): string {
     switch (level) {
       case 0:
-        return "用户指定内容";
+        return "Page Content";
       case 1:
-        return "直接相关内容";
+        return "Directly Related Content";
       case 2:
-        return "扩展相关内容";
+        return "Extended Related Content";
       case 3:
-        return "背景信息";
+        return "Background Information";
       default:
-        return `第 ${level} 层相关内容`;
+        return `Level ${level} Related Content`;
     }
   }
 }

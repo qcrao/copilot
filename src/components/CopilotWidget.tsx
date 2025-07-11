@@ -297,27 +297,60 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
 
       // Build enhanced context using ContextManager
       let contextString = "";
-      if (pageReferences.length > 0 || blockReferences.length > 0) {
-        console.log("🔍 Building enhanced context for:", {
-          pageReferences,
-          blockReferences
-        });
+      let contextItems = [];
+      
+      // Always try to use enhanced context first to get backlinks
+      console.log("🔍 Building enhanced context for:", {
+        pageReferences,
+        blockReferences,
+        currentPage: freshContext?.currentPage?.title
+      });
 
-        const contextManager = new ContextManager({
-          maxDepth: 3,
-          maxItems: 50,
-          includeBacklinks: true,
-          includeBlockRefs: true
-        });
+      const contextManager = new ContextManager({
+        maxDepth: 3,
+        maxItems: 50,
+        includeBacklinks: true,
+        includeBlockRefs: true,
+        includeParentBlocks: true,
+        includeSiblingBlocks: true,
+        includeAncestorPath: true
+      });
 
-        const contextItems = await contextManager.buildContext(
-          pageReferences,
-          blockReferences
-        );
+      // Always include current page as context, even if no references in message
+      const currentPageTitle = freshContext?.currentPage?.title;
+      const pagesToInclude = pageReferences.length > 0 
+        ? pageReferences 
+        : (currentPageTitle ? [currentPageTitle] : []);
 
-        contextString = contextManager.formatContextForAI(contextItems);
+      contextItems = await contextManager.buildContext(
+        pagesToInclude,
+        blockReferences
+      );
+
+      let enhancedUserMessage = finalUserMessage;
+      
+      if (contextItems.length > 0) {
+        // 将关键的上下文信息直接添加到用户消息中
+        const contextForUser = contextManager.formatContextForAI(contextItems);
+        
+        // 构建增强的用户消息，将上下文信息直接嵌入
+        enhancedUserMessage = `${finalUserMessage}
+
+**基于以下相关信息回答：**
+
+${contextForUser}
+
+请基于上述信息回答我的问题，特别关注反向链接中的相关内容。`;
+
+        // 系统消息使用简化的上下文
+        contextString = freshContext
+          ? RoamService.formatContextForAI(freshContext, 8000) // 减少系统消息的上下文
+          : "No additional context available";
+          
+        console.log("✅ Using enhanced context with", contextItems.length, "items in USER MESSAGE");
       } else {
-        // Fallback to traditional context
+        // Fallback to traditional context only if enhanced context fails
+        console.log("⚠️ Enhanced context failed, falling back to traditional context");
         const currentModel = multiProviderSettings.currentModel;
         const provider = await AIService.getProviderForModel(currentModel);
         const maxContextTokens = RoamService.getModelTokenLimit(
@@ -332,15 +365,19 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
 
       console.log("Sending message with context:", {
         currentPage: freshContext?.currentPage?.title,
-        blocksCount: freshContext?.currentPage?.blocks?.length || 0,
+        traditionalBlocksCount: freshContext?.currentPage?.blocks?.length || 0,
+        enhancedContextItems: contextItems.length,
         model: multiProviderSettings.currentModel,
         dateNotesIncluded: dateMatches ? dateMatches.length : 0,
-        messageLength: finalUserMessage.length,
-        enhancedContext: pageReferences.length > 0 || blockReferences.length > 0
+        originalMessageLength: finalUserMessage.length,
+        enhancedMessageLength: enhancedUserMessage.length,
+        usingEnhancedContext: contextItems.length > 0,
+        contextStringLength: contextString.length,
+        contextPreview: contextString.substring(0, 300) + "..."
       });
 
       const response = await AIService.sendMessageWithCurrentModel(
-        finalUserMessage,
+        enhancedUserMessage, // 使用增强的用户消息
         contextString,
         state.messages
       );

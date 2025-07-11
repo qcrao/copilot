@@ -58,13 +58,30 @@ export class AIService {
     );
 
     try {
-      // console.log("🔧 AI Service sending message:", {
-      //   provider: providerInfo.provider.id,
-      //   model: model,
-      //   hasApiKey: !!providerInfo.apiKey,
-      //   userMessageLength: finalUserMessage.length,
-      //   systemMessageLength: systemMessage.length,
-      // });
+      console.log("🔧 AI Service sending message:", {
+        provider: providerInfo.provider.id,
+        model: model,
+        hasApiKey: !!providerInfo.apiKey,
+        userMessageLength: finalUserMessage.length,
+        systemMessageLength: systemMessage.length,
+        systemMessagePreview: systemMessage.substring(0, 200) + "...",
+        hasBacklinks: systemMessage.includes("反向链接"),
+        contextInSystemMessage: {
+          hasAvailableContext: systemMessage.includes("**Available Context:**"),
+          contextStartIndex: systemMessage.indexOf("**Available Context:**"),
+          contextLength: context.length,
+          contextPreview: context.substring(0, 500) + "...",
+          hasBacklinksInContext: context.includes("反向链接"),
+          backlinksCount: (context.match(/\*\*反向链接\*\*/g) || []).length,
+          referenceCount: (context.match(/\*\*块引用\*\*/g) || []).length,
+          pageCount: (context.match(/\*\*页面:/g) || []).length
+        }
+      });
+
+      // 添加完整的系统消息和用户消息日志
+      console.log("📤 FULL SYSTEM MESSAGE:", systemMessage);
+      console.log("📤 FULL USER MESSAGE:", finalUserMessage);
+      console.log("📤 FULL CONTEXT:", context);
 
       const result = await LLMUtil.generateResponse(
         {
@@ -78,10 +95,10 @@ export class AIService {
         messagesWithHistory
       );
 
-      // console.log("🔧 AI Service response:", {
-      //   responseLength: result.text.length,
-      //   usage: result.usage,
-      // });
+      console.log("🔧 AI Service response:", {
+        responseLength: result.text.length,
+        usage: result.usage,
+      });
 
       return result.text;
     } catch (error: any) {
@@ -197,6 +214,7 @@ export class AIService {
 - Help discover connections and insights from the user's knowledge base
 - Answer questions based on the available context
 - Provide thoughtful analysis and suggestions for further exploration
+- **IMPORTANT**: Always pay attention to and utilize backlink information (反向链接) in the context
 
 **Response Guidelines:**
 - Always base responses on the provided context, don't fabricate content
@@ -205,12 +223,15 @@ export class AIService {
 - Encourage user writing and reflection
 - Respond in Chinese for Chinese queries, English for English queries
 - Focus on helping users discover insights and connections in their notes
+- **CRITICAL**: When backlinks (反向链接) are provided, actively reference and discuss them in your response
 
-**Important Notes:**
+**Context Processing Instructions:**
 - The context provided contains information specifically retrieved based on user's request
 - Focus on what IS in the context rather than what might be missing
 - Help users understand relationships between different notes and concepts
 - Suggest areas for further exploration based on the context
+- **BACKLINKS**: When you see "反向链接" sections, these are OTHER pages that reference the current page - use these to provide broader context and insights
+- **CONNECTIONS**: Look for patterns and connections across all provided context items, not just the main page content
 
 ${context ? `\n**Available Context:**\n${context}` : "\n**No specific context provided.**"}
 
@@ -302,6 +323,55 @@ Please provide helpful analysis and insights based on the available information.
       // xAI models
       "grok-beta": 131072,
       "grok-vision-beta": 131072,
+      
+      // Qwen models (Alibaba Cloud)
+      "qwen3:8b": 32000,
+      "qwen2.5:latest": 32000,
+      "qwen2.5:7b": 32000,
+      "qwen2.5:14b": 32000,
+      "qwen2.5:32b": 32000,
+      "qwen2.5:72b": 32000,
+      "qwen2:7b": 32000,
+      "qwen2:72b": 32000,
+      "qwen:7b": 32000,
+      "qwen:14b": 32000,
+      "qwen:72b": 32000,
+      
+      // DeepSeek models
+      "deepseek-r1:latest": 64000,
+      "deepseek-r1:8b": 64000,
+      "deepseek-r1:14b": 64000,
+      "deepseek-r1:32b": 64000,
+      "deepseek-r1:70b": 64000,
+      "deepseek-coder:latest": 64000,
+      "deepseek-coder:6.7b": 64000,
+      "deepseek-coder:33b": 64000,
+      
+      // Other common Ollama models
+      "llama3.2:latest": 128000,
+      "llama3.2:3b": 128000,
+      "llama3.2:1b": 128000,
+      "llama3.1:latest": 128000,
+      "llama3.1:8b": 128000,
+      "llama3.1:70b": 128000,
+      "llama3.1:405b": 128000,
+      "llama3:latest": 32000,
+      "llama3:8b": 32000,
+      "llama3:70b": 32000,
+      "codellama:latest": 32000,
+      "codellama:7b": 32000,
+      "codellama:13b": 32000,
+      "codellama:34b": 32000,
+      "mistral:latest": 32000,
+      "mistral:7b": 32000,
+      "mixtral:latest": 32000,
+      "mixtral:8x7b": 32000,
+      "phi3:latest": 32000,
+      "phi3:mini": 32000,
+      "phi3:medium": 32000,
+      "gemma:latest": 32000,
+      "gemma:2b": 32000,
+      "gemma:7b": 32000,
       
       // Default for unknown models
       "default": 4000
