@@ -215,7 +215,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
                 extensionAPI.settings.set("copilot-current-model", validModel);
               }
             } catch (error) {
-              console.log("Could not save model setting:", error);
+              // Could not save model setting
             }
           }
         }
@@ -226,8 +226,6 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   // Handle block drop
   const handleBlockDrop = async (uid: string, event: DragEvent) => {
     try {
-      console.log("Handling block drop:", uid);
-
       // Get block content
       const blockData = await RoamQuery.getBlock(uid);
       if (!blockData) {
@@ -433,12 +431,9 @@ export const ChatInput: React.FC<ChatInputProps> = ({
 
   const searchUniversal = async (searchTerm: string) => {
     try {
-      console.log(`🔍 ChatInput searchUniversal called with: "${searchTerm}"`);
-      
       // Check cache first
       const cacheKey = searchTerm.toLowerCase().trim();
       if (searchCache.current.has(cacheKey)) {
-        console.log(`🔍 Using cached results for: "${searchTerm}"`);
         const cachedResults = searchCache.current.get(cacheKey)!;
         setUniversalSearchResults(cachedResults);
         setSelectedUniversalIndex(0);
@@ -448,7 +443,6 @@ export const ChatInput: React.FC<ChatInputProps> = ({
       
       setUniversalSearchLoading(true);
       const response = await RoamService.universalSearch(searchTerm, 10);
-      console.log(`🔍 ChatInput got ${response.results.length} results:`, response.results.map(r => r.preview));
       
       // Cache the results (limit cache size to prevent memory issues)
       if (searchCache.current.size > 50) {
@@ -462,7 +456,6 @@ export const ChatInput: React.FC<ChatInputProps> = ({
       
       setUniversalSearchResults(response.results);
       setSelectedUniversalIndex(0);
-      console.log(`🔍 ChatInput universalSearchResults state updated, showUniversalSearch=${showUniversalSearch}`);
     } catch (error) {
       console.error("Error in universal search:", error);
       setUniversalSearchResults([]);
@@ -513,17 +506,11 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   };
 
   const insertUniversalSearchResult = (result: UniversalSearchResult) => {
-    console.log('🔍 insertUniversalSearchResult called with:', result);
-    console.log('🔍 editor available:', !!editor);
-    console.log('🔍 atSymbolContext:', atSymbolContext);
-    
     if (!editor) {
-      console.warn('🔍 No editor available');
       return;
     }
     
     if (!atSymbolContext.isInAtContext) {
-      console.warn('🔍 Not in @ context');
       return;
     }
 
@@ -531,12 +518,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
     const text = editor.getText();
     const startPos = atSymbolContext.startPos;
     
-    console.log('🔍 Current state:', { from, startPos, text: text.replace(/\n/g, '\\n') });
-    
     if (startPos !== -1) {
-      console.log('🔍 Inserting reference chip for:', result.type, result.title || result.preview);
-      console.log('🔍 Selection range:', { from: startPos, to: from });
-      
       try {
         // Close the search first to prevent interference
         closeUniversalSearch();
@@ -559,8 +541,6 @@ export const ChatInput: React.FC<ChatInputProps> = ({
           insertReferenceChip(editor, result.uid, result.preview, 'block');
         }
         
-        console.log('🔍 Reference chip insertion successful');
-        
         // Ensure the editor remains focused and cursor is visible
         setTimeout(() => {
           if (editor && editor.view && editor.view.dom) {
@@ -576,10 +556,9 @@ export const ChatInput: React.FC<ChatInputProps> = ({
         }, 50);
         
       } catch (error) {
-        console.error('🔍 Error inserting reference chip:', error);
+        console.error('Error inserting reference chip:', error);
       }
     } else {
-      console.warn('🔍 Invalid start position:', startPos);
       closeUniversalSearch();
     }
   };
@@ -590,8 +569,6 @@ export const ChatInput: React.FC<ChatInputProps> = ({
 
   // Check for @ symbol context in text
   const updateAtSymbolContext = (text: string, cursorPos: number) => {
-    console.log(`🔍 @ symbol context check: text="${text}", cursor=${cursorPos}`);
-    
     // Look backwards to find @ symbol
     let atSymbolPos = -1;
     
@@ -600,7 +577,6 @@ export const ChatInput: React.FC<ChatInputProps> = ({
         // Check if this @ symbol is at word boundary (start of line or after space)
         if (i === 0 || text[i - 1] === ' ' || text[i - 1] === '\n') {
           atSymbolPos = i;
-          console.log(`Found @ symbol at position ${i}`);
           break;
         }
       }
@@ -613,8 +589,6 @@ export const ChatInput: React.FC<ChatInputProps> = ({
     // Check if we're in a valid @ context
     const isInAtContext = atSymbolPos !== -1;
     
-    console.log(`Is in @ context: ${isInAtContext}, atPos: ${atSymbolPos}`);
-    
     if (isInAtContext) {
       // Extract the current search term (everything after @ excluding newlines)
       const searchStart = atSymbolPos + 1;
@@ -624,8 +598,6 @@ export const ChatInput: React.FC<ChatInputProps> = ({
       currentSearchTerm = currentSearchTerm.replace(/\n/g, '');
       const trimmedSearchTerm = currentSearchTerm.trim();
       
-      console.log(`Current @ search term: "${currentSearchTerm}" (trimmed: "${trimmedSearchTerm}")`);
-      
       setAtSymbolContext({
         isInAtContext: true,
         startPos: atSymbolPos,
@@ -634,7 +606,6 @@ export const ChatInput: React.FC<ChatInputProps> = ({
       // Use trimmed version for comparison but keep original for context
       if (trimmedSearchTerm !== universalSearchTerm) {
         setUniversalSearchTerm(trimmedSearchTerm);
-        console.log(`Starting universal search for: "${trimmedSearchTerm}"`);
         
         if (trimmedSearchTerm.length > 0) {
           debouncedSearchUniversal(trimmedSearchTerm);
@@ -647,11 +618,9 @@ export const ChatInput: React.FC<ChatInputProps> = ({
         if (!showUniversalSearch) {
           setShowUniversalSearch(true);
           setUniversalSearchPosition(calculateUniversalSearchPosition());
-          console.log("Showing universal search dropdown");
         }
       }
     } else {
-      console.log("Not in @ context, closing universal search if open");
       if (showUniversalSearch) {
         closeUniversalSearch();
       }
@@ -713,32 +682,24 @@ export const ChatInput: React.FC<ChatInputProps> = ({
 
       // Handle universal search navigation
       if (showUniversalSearch && universalSearchResults.length > 0) {
-        console.log('🔍 Universal search active, handling key:', event.key);
         switch (event.key) {
           case "ArrowDown":
             event.preventDefault();
             setSelectedUniversalIndex((prev) =>
               prev < universalSearchResults.length - 1 ? prev + 1 : 0
             );
-            console.log('🔍 Arrow down, new index:', selectedUniversalIndex);
             return;
           case "ArrowUp":
             event.preventDefault();
             setSelectedUniversalIndex((prev) =>
               prev > 0 ? prev - 1 : universalSearchResults.length - 1
             );
-            console.log('🔍 Arrow up, new index:', selectedUniversalIndex);
             return;
           case "Enter":
             event.preventDefault();
             event.stopPropagation(); // Prevent any other handlers from running
-            console.log('🔍 Enter pressed, selectedIndex:', selectedUniversalIndex);
-            console.log('🔍 Available results:', universalSearchResults.length);
-            console.log('🔍 Selected result:', universalSearchResults[selectedUniversalIndex]);
             if (universalSearchResults[selectedUniversalIndex]) {
               insertUniversalSearchResult(universalSearchResults[selectedUniversalIndex]);
-            } else {
-              console.warn('🔍 No result at selected index');
             }
             return;
           case "Escape":
@@ -860,7 +821,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
           extensionAPI.settings.set("copilot-current-model", newModel);
         }
       } catch (error) {
-        console.log("Could not save model setting:", error);
+        // Could not save model setting
       }
     }
 
