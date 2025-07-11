@@ -18,16 +18,16 @@ export class PromptBuilder {
    */
   static async buildPrompt(editorJSON: any, maxTokens: number = 6000): Promise<PromptBuildResult> {
     try {
-      console.log('PROMPT_BUILDER_DEBUG: Starting buildPrompt with editor JSON:', JSON.stringify(editorJSON, null, 2));
+      // console.log('PROMPT_BUILDER_DEBUG: Starting buildPrompt with editor JSON:', JSON.stringify(editorJSON, null, 2));
       
       const result = await this.processNode(editorJSON);
       
-      console.log('PROMPT_BUILDER_DEBUG: Processing complete:', {
-        originalLength: editorJSON ? JSON.stringify(editorJSON).length : 0,
-        expandedTextLength: result.text.length,
-        referencesExpanded: result.referencesExpanded,
-        expandedText: result.text.substring(0, 200) + '...'
-      });
+      // console.log('PROMPT_BUILDER_DEBUG: Processing complete:', {
+      //   originalLength: editorJSON ? JSON.stringify(editorJSON).length : 0,
+      //   expandedTextLength: result.text.length,
+      //   referencesExpanded: result.referencesExpanded,
+      //   expandedText: result.text.substring(0, 200) + '...'
+      // });
       
       const metadata = {
         referencesExpanded: result.referencesExpanded,
@@ -40,13 +40,13 @@ export class PromptBuilder {
       if (metadata.totalTokensEstimate > maxTokens) {
         finalText = this.truncatePrompt(result.text, maxTokens);
         metadata.truncated = true;
-        console.log('PROMPT_BUILDER_DEBUG: Prompt truncated due to token limit');
+        // console.log('PROMPT_BUILDER_DEBUG: Prompt truncated due to token limit');
       }
 
-      console.log('PROMPT_BUILDER_DEBUG: Final result:', {
-        finalTextLength: finalText.length,
-        metadata
-      });
+      // console.log('PROMPT_BUILDER_DEBUG: Final result:', {
+      //   finalTextLength: finalText.length,
+      //   metadata
+      // });
 
       return {
         text: finalText,
@@ -74,19 +74,19 @@ export class PromptBuilder {
     let text = '';
     let referencesExpanded = 0;
 
-    console.log('PROMPT_BUILDER_DEBUG: Processing node:', { type: node.type, attrs: node.attrs });
+    // console.log('PROMPT_BUILDER_DEBUG: Processing node:', { type: node.type, attrs: node.attrs });
 
     // Handle text nodes
     if (node.type === 'text') {
-      console.log('PROMPT_BUILDER_DEBUG: Text node:', node.text);
+      // console.log('PROMPT_BUILDER_DEBUG: Text node:', node.text);
       return { text: node.text || '', referencesExpanded: 0 };
     }
 
     // Handle reference chips - expand to full content
     if (node.type === 'referenceChip') {
-      console.log('PROMPT_BUILDER_DEBUG: Found reference chip, expanding:', node.attrs);
+      // console.log('PROMPT_BUILDER_DEBUG: Found reference chip, expanding:', node.attrs);
       const expanded = await this.expandReferenceChip(node);
-      console.log('PROMPT_BUILDER_DEBUG: Reference chip expanded to:', expanded.substring(0, 100) + '...');
+      // console.log('PROMPT_BUILDER_DEBUG: Reference chip expanded to:', expanded.substring(0, 100) + '...');
       return {
         text: expanded,
         referencesExpanded: 1
@@ -148,53 +148,53 @@ export class PromptBuilder {
     const uid = chipNode.attrs?.uid;
     const type = chipNode.attrs?.type || 'block';
     const preview = chipNode.attrs?.preview;
-    console.log('EXPAND_CHIP_DEBUG: Starting expansion for UID:', uid, 'Type:', type);
+    // console.log('EXPAND_CHIP_DEBUG: Starting expansion for UID:', uid, 'Type:', type);
     
     if (!uid) {
-      console.warn('EXPAND_CHIP_DEBUG: No UID found in chip node:', chipNode);
+      // console.warn('EXPAND_CHIP_DEBUG: No UID found in chip node:', chipNode);
       return `((${uid || 'unknown'}))`;
     }
 
     try {
       // Handle page references differently from block references
       if (type === 'page') {
-        console.log('EXPAND_CHIP_DEBUG: Expanding page reference:', preview);
+        // console.log('EXPAND_CHIP_DEBUG: Expanding page reference:', preview);
         const pageData = await RoamQuery.getPageByTitle(preview);
         
         if (!pageData) {
-          console.warn('EXPAND_CHIP_DEBUG: Page not found:', preview);
+          // console.warn('EXPAND_CHIP_DEBUG: Page not found:', preview);
           return `[[${preview}]]`;
         }
 
-        console.log('EXPAND_CHIP_DEBUG: Page data retrieved:', {
-          title: pageData.title,
-          uid: pageData.uid,
-          blocksCount: pageData.blocks?.length || 0
-        });
+        // console.log('EXPAND_CHIP_DEBUG: Page data retrieved:', {
+        //   title: pageData.title,
+        //   uid: pageData.uid,
+        //   blocksCount: pageData.blocks?.length || 0
+        // });
 
         let expandedContent = `\n### Referenced Page [[${pageData.title}]]\n`;
         
         // Add page blocks if any
         if (pageData.blocks && pageData.blocks.length > 0) {
-          console.log('EXPAND_CHIP_DEBUG: Adding page blocks');
+          // console.log('EXPAND_CHIP_DEBUG: Adding page blocks');
           expandedContent += this.formatBlocksForExpansion(pageData.blocks, 1);
         }
         
         expandedContent += '\n';
         
-        console.log('EXPAND_CHIP_DEBUG: Final expanded page content:', {
-          length: expandedContent.length,
-          preview: expandedContent.substring(0, 200) + '...'
-        });
+        // console.log('EXPAND_CHIP_DEBUG: Final expanded page content:', {
+        //   length: expandedContent.length,
+        //   preview: expandedContent.substring(0, 200) + '...'
+        // });
         
         return expandedContent;
       } else {
         // Handle block references
-        console.log('EXPAND_CHIP_DEBUG: Querying block data for UID:', uid);
+        // console.log('EXPAND_CHIP_DEBUG: Querying block data for UID:', uid);
         const blockData = await RoamQuery.getBlock(uid);
         
         if (!blockData) {
-          console.warn('EXPAND_CHIP_DEBUG: Block not found for UID:', uid);
+          // console.warn('EXPAND_CHIP_DEBUG: Block not found for UID:', uid);
           // Return the original reference format without error text to avoid confusing the AI
           return `((${uid}))`;
         }

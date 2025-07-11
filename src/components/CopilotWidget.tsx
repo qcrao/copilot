@@ -232,7 +232,7 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
         // Get model-specific token limit
         const currentModel = multiProviderSettings.currentModel;
         const provider = await AIService.getProviderForModel(currentModel);
-        console.log(`DEBUG: Model "${currentModel}" detected provider:`, provider?.provider?.id || 'null');
+        // console.log(`DEBUG: Model "${currentModel}" detected provider:`, provider?.provider?.id || 'null');
         const maxTokens = RoamService.getModelTokenLimit(
           provider?.provider?.id || 'openai', 
           currentModel
@@ -348,7 +348,7 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
       const currentModel = multiProviderSettings.currentModel;
       const provider = await AIService.getProviderForModel(currentModel);
       const finalProvider = provider?.provider?.id || 'ollama';
-      console.log(`DEBUG: Saving message with provider: "${finalProvider}" for model: "${currentModel}"`);
+      // console.log(`DEBUG: Saving message with provider: "${finalProvider}" for model: "${currentModel}"`);
       
       addMessage({
         role: "assistant",

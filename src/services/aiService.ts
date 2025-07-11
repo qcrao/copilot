@@ -58,13 +58,13 @@ export class AIService {
     );
 
     try {
-      console.log("🔧 AI Service sending message:", {
-        provider: providerInfo.provider.id,
-        model: model,
-        hasApiKey: !!providerInfo.apiKey,
-        userMessageLength: finalUserMessage.length,
-        systemMessageLength: systemMessage.length,
-      });
+      // console.log("🔧 AI Service sending message:", {
+      //   provider: providerInfo.provider.id,
+      //   model: model,
+      //   hasApiKey: !!providerInfo.apiKey,
+      //   userMessageLength: finalUserMessage.length,
+      //   systemMessageLength: systemMessage.length,
+      // });
 
       const result = await LLMUtil.generateResponse(
         {
@@ -78,10 +78,10 @@ export class AIService {
         messagesWithHistory
       );
 
-      console.log("🔧 AI Service response:", {
-        responseLength: result.text.length,
-        usage: result.usage,
-      });
+      // console.log("🔧 AI Service response:", {
+      //   responseLength: result.text.length,
+      //   usage: result.usage,
+      // });
 
       return result.text;
     } catch (error: any) {
@@ -268,13 +268,13 @@ Please provide helpful analysis and insights based on the available information.
     // Add current user message
     messages.push({ role: "user", content: currentUserMessage });
     
-    console.log("🔧 Context Management:", {
-      totalMessages: messages.length,
-      historyMessages: relevantHistory.length,
-      estimatedTokens: usedTokens,
-      tokenLimit: tokenLimit,
-      model: modelName
-    });
+    // console.log("🔧 Context Management:", {
+    //   totalMessages: messages.length,
+    //   historyMessages: relevantHistory.length,
+    //   estimatedTokens: usedTokens,
+    //   tokenLimit: tokenLimit,
+    //   model: modelName
+    // });
     
     return messages;
   }

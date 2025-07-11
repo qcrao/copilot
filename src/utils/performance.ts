@@ -30,12 +30,13 @@ export class PerformanceMonitor {
     const endTime = performance.now();
     const duration = endTime - startTime;
     
-    // Log slow operations
-    if (duration > 100) {
+    // Log slow operations (提高阈值，减少冗余日志)
+    if (duration > 1000) {
+      console.warn(`⚠️ Very slow operation detected: ${operation} took ${duration.toFixed(2)}ms`);
+    } else if (duration > 500) {
       console.warn(`⚠️ Slow operation detected: ${operation} took ${duration.toFixed(2)}ms`);
-    } else if (duration > 50) {
-      console.log(`🔍 Operation: ${operation} took ${duration.toFixed(2)}ms`);
     }
+    // 移除50ms以上的常规日志，只保留真正慢的操作
 
     this.measurements.delete(operation);
     return duration;
