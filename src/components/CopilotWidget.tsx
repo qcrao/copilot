@@ -331,26 +331,26 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
       let enhancedUserMessage = finalUserMessage;
       
       if (contextItems.length > 0) {
-        // 将关键的上下文信息直接添加到用户消息中
+        // Add key context information directly to user message
         const contextForUser = contextManager.formatContextForAI(contextItems);
         
-        // 构建增强的用户消息，将上下文信息直接嵌入
+        // Build enhanced user message with context information embedded
         enhancedUserMessage = `${finalUserMessage}
 
-**基于以下相关信息回答：**
+**Please answer based on the following relevant information:**
 
 ${contextForUser}
 
-**回答要求：**
-1. 请基于上述信息回答我的问题，特别关注反向链接中的相关内容
-2. 回答时请引用具体的出处，使用提供的可点击链接格式 ((block-id))
-3. 请注意每条信息的创建时间 [Created: YYYY-MM-DD]，按时间顺序分析用户的学习和思考过程
-4. 如果有多个时间点的相关信息，请按时间线梳理，展现用户在该主题上的认知发展轨迹
-5. 引用信息时请保持原有的可点击链接，让用户能直接跳转到原始出处`;
+**Response Requirements:**
+1. Please answer my question based on the above information, with particular attention to the relevant content in backlinks
+2. When answering, please cite specific sources using the provided clickable link format ((block-id))
+3. Please pay attention to the creation time of each piece of information [Created: YYYY-MM-DD], and analyze the user's learning and thinking process in chronological order
+4. If there is relevant information from multiple time points, please organize it chronologically to show the user's cognitive development trajectory on this topic
+5. When citing information, please maintain the original clickable links so users can jump directly to the original source`;
 
-        // 系统消息使用简化的上下文
+        // Use simplified context for system message
         contextString = freshContext
-          ? RoamService.formatContextForAI(freshContext, 8000) // 减少系统消息的上下文
+          ? RoamService.formatContextForAI(freshContext, 8000) // Reduce system message context
           : "No additional context available";
           
         console.log("✅ Using enhanced context with", contextItems.length, "items in USER MESSAGE");
