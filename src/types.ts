@@ -263,6 +263,20 @@ export const AI_PROVIDERS: AIProvider[] = [
     supportsTools: true,
   },
   {
+    id: "github",
+    name: "GitHub Models",
+    baseUrl: "https://models.inference.ai.azure.com",
+    models: [
+      "gpt-4o", // GPT-4o (OpenAI's flagship model)
+      "Phi-3.5-mini-instruct", // Phi-3.5 Mini (Microsoft's efficient SLM)
+      "Meta-Llama-3.1-8B-Instruct", // Llama 3.1 8B (Meta's popular open model)
+    ],
+    apiKeyUrl: "https://github.com/settings/tokens",
+    billingUrl: "https://github.com/settings/billing",
+    requiresApiKey: true,
+    supportsTools: false,
+  },
+  {
     id: "ollama",
     name: "Ollama (Local)",
     models: [

@@ -7,6 +7,7 @@ const ICON_URLS = {
   anthropic: 'https://unpkg.com/@lobehub/icons-static-svg@latest/icons/anthropic.svg',
   groq: 'https://unpkg.com/@lobehub/icons-static-svg@latest/icons/groq.svg',
   grok: 'https://unpkg.com/@lobehub/icons-static-svg@latest/icons/grok.svg',
+  github: 'https://unpkg.com/@lobehub/icons-static-svg@latest/icons/github.svg',
   ollama: 'https://unpkg.com/@lobehub/icons-static-svg@latest/icons/ollama.svg',
   deepseek: 'https://unpkg.com/@lobehub/icons-static-svg@latest/icons/deepseek.svg',
   gemma: 'https://unpkg.com/@lobehub/icons-static-svg@latest/icons/gemma.svg',
@@ -49,6 +50,11 @@ export const getIconUrl = (provider: string, model?: string): string | null => {
     return ICON_URLS.grok;
   }
   
+  // GitHub models
+  if (provider === 'github') {
+    return ICON_URLS.github;
+  }
+  
   // Default Ollama (local models)
   if (provider === 'ollama') {
     return ICON_URLS.ollama;
@@ -80,6 +86,8 @@ const cleanModelName = (modelName: string): string => {
     .replace(/grok-3-beta/i, 'Grok 3 Beta')
     .replace(/grok-3/i, 'Grok 3')
     .replace(/grok-2/i, 'Grok 2')
+    .replace(/Meta-Llama-3\.1-8B-Instruct/i, 'Llama 3.1 8B')
+    .replace(/Phi-3\.5-mini-instruct/i, 'Phi-3.5 Mini')
     .replace(/qwen2\.5:latest/i, 'Qwen 2.5')
     .replace(/llama3\.2:latest/i, 'Llama 3.2')
     .replace(/:latest/i, '');
@@ -102,6 +110,18 @@ export const getModelDisplayInfo = (model?: string, provider?: string) => {
   
   // Normalize model name for comparison
   const normalizedModel = model.toLowerCase();
+  
+  // Check if it's a GitHub model
+  if (provider === 'github') {
+    return { 
+      iconUrl: ICON_URLS.github,
+      fallbackIcon: '🐙', 
+      name: `${cleanedName} (github)`, 
+      color: '#24292e',
+      isLocal: false,
+      blueprintIcon: null
+    };
+  }
   
   // Check if it's a local model (Ollama) - this is the key fix
   const isLocal = provider === 'ollama';
