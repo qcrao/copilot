@@ -126,6 +126,9 @@ export const getModelDisplayInfo = (model?: string, provider?: string) => {
   // Check if it's a local model (Ollama) - this is the key fix
   const isLocal = provider === 'ollama';
   
+  // For local models, use original name to preserve tags like :latest, :70b
+  const displayName = isLocal ? model : cleanedName;
+  
   // For ANY local model (provider === 'ollama'), determine the specific icon
   if (isLocal) {
     // Specific local model icons
@@ -133,7 +136,7 @@ export const getModelDisplayInfo = (model?: string, provider?: string) => {
       return { 
         iconUrl: ICON_URLS.deepseek,
         fallbackIcon: '🔍', 
-        name: 'DeepSeek', 
+        name: displayName, 
         color: '#1A233A',
         isLocal: true,
         blueprintIcon: null
@@ -144,7 +147,7 @@ export const getModelDisplayInfo = (model?: string, provider?: string) => {
       return { 
         iconUrl: ICON_URLS.gemma,
         fallbackIcon: '💎', 
-        name: 'Gemma', 
+        name: displayName, 
         color: '#4285F4',
         isLocal: true,
         blueprintIcon: null
@@ -155,7 +158,7 @@ export const getModelDisplayInfo = (model?: string, provider?: string) => {
       return { 
         iconUrl: ICON_URLS.groq,
         fallbackIcon: '⚡', 
-        name: cleanedName,
+        name: displayName,
         color: '#FF6B6B',
         isLocal: true,
         blueprintIcon: null
@@ -166,7 +169,7 @@ export const getModelDisplayInfo = (model?: string, provider?: string) => {
       return { 
         iconUrl: ICON_URLS.qwen,
         fallbackIcon: '🧠', 
-        name: cleanedName,
+        name: displayName,
         color: '#6366F1',
         isLocal: true,
         blueprintIcon: null
