@@ -10,14 +10,18 @@ export interface BlockWithReferences extends RoamBlock {
 }
 
 export class RoamQuery {
+  private static DEBUG_MODE = false; // 控制调试日志
+  
   /**
    * Get a block and its content recursively (2 levels deep)
    * Enhanced with parent, siblings, and ancestor path
    */
   static async getBlock(uid: string): Promise<BlockWithReferences | null> {
     try {
-      console.log("ROAM_QUERY_DEBUG: Getting block:", uid);
-      console.log("ROAM_QUERY_DEBUG: UID sanitized:", JSON.stringify(uid));
+      if (this.DEBUG_MODE) {
+        console.log("ROAM_QUERY_DEBUG: Getting block:", uid);
+        console.log("ROAM_QUERY_DEBUG: UID sanitized:", JSON.stringify(uid));
+      }
 
       // Query for the block itself
       const blockQuery = `
@@ -27,15 +31,60 @@ export class RoamQuery {
          [?block :block/string ?string]]
       `;
 
-      console.log("ROAM_QUERY_DEBUG: Executing query:", blockQuery);
+      if (this.DEBUG_MODE) {
+        console.log("ROAM_QUERY_DEBUG: Executing query:", blockQuery);
+      }
       const blockResult = window.roamAlphaAPI.q(blockQuery);
-      console.log("ROAM_QUERY_DEBUG: Query result:", blockResult);
+      if (this.DEBUG_MODE) {
+        console.log("ROAM_QUERY_DEBUG: Query result:", blockResult);
+      }
       
       if (!blockResult || blockResult.length === 0) {
-        console.log("ROAM_QUERY_DEBUG: Block not found:", uid);
+        if (this.DEBUG_MODE) {
+          console.log("ROAM_QUERY_DEBUG: Block not found:", uid);
+        }
         
-        // Additional debugging: check if any partial matches exist (only in debug mode)
-        if (uid.length >= 6) {
+        // Try alternative queries for robustness
+        try {
+          // Try with different case sensitivity
+          const caseInsensitiveQuery = `
+            [:find ?uid ?string
+             :where
+             [?block :block/uid ?uid]
+             [?block :block/string ?string]
+             [(clojure.string/upper-case ?uid) "${uid.toUpperCase()}"]]
+          `;
+          
+          const caseResult = window.roamAlphaAPI.q(caseInsensitiveQuery);
+          if (caseResult && caseResult.length > 0) {
+            if (this.DEBUG_MODE) {
+              console.log("ROAM_QUERY_DEBUG: Found block with case-insensitive match");
+            }
+                         const blockString = caseResult[0][1];
+             const children = (await this.getBlockChildren(uid, 2)) || [];
+             const parent = (await this.getBlockParent(uid)) || undefined;
+             const siblings = (await this.getBlockSiblings(uid)) || [];
+             const ancestorPath = (await this.getBlockAncestorPath(uid)) || [];
+             const references = await this.resolvePageReferences(blockString);
+            
+            return {
+              uid,
+              string: blockString,
+              children,
+              parent,
+              siblings,
+              ancestorPath,
+              references
+            };
+          }
+        } catch (altError) {
+          if (this.DEBUG_MODE) {
+            console.log("ROAM_QUERY_DEBUG: Alternative query failed:", altError);
+          }
+        }
+        
+        // Additional debugging: check if any partial matches exist (only for troubleshooting)
+        if (this.DEBUG_MODE && uid.length >= 6) {
           try {
             const partialQuery = `
               [:find ?uid ?string

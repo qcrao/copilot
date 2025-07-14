@@ -125,8 +125,10 @@ export class LLMUtil {
     
     const result = `${year}-${month}-${day}`;
     
-    // Add debug logging for date calculations
-    console.log(`🗓️ Date calculation: today=${now.toDateString()}, offset=${daysOffset}, result=${result}`);
+    // Add debug logging for date calculations (only in debug mode)
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`🗓️ Date calculation: today=${now.toDateString()}, offset=${daysOffset}, result=${result}`);
+    }
     
     return result;
   }

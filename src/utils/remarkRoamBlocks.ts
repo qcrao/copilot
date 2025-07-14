@@ -30,7 +30,8 @@ const remarkRoamBlocks: Plugin<[], Root> = () => {
       if (!parent || index === undefined) return;
 
       const value = node.value;
-      const blockRefRegex = /\(\(([^)]+)\)\)/g;
+      // Handle both normal ((uid)) and incorrectly formatted (((uid))) patterns
+      const blockRefRegex = /\({2,3}([^)]+)\){2,3}/g;
       
       let match;
       const newNodes: any[] = [];

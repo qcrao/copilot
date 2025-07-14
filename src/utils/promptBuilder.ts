@@ -12,6 +12,8 @@ export interface PromptBuildResult {
 }
 
 export class PromptBuilder {
+  private static DEBUG_MODE = false; // 控制调试日志
+  
   /**
    * Build AI prompt from TipTap editor JSON
    * Expands reference chips to full block content
@@ -199,12 +201,14 @@ export class PromptBuilder {
           return `((${uid}))`;
         }
 
-        console.log('EXPAND_CHIP_DEBUG: Block data retrieved:', {
-          uid: blockData.uid,
-          stringLength: blockData.string?.length || 0,
-          childrenCount: blockData.children?.length || 0,
-          referencesCount: blockData.references?.length || 0
-        });
+        if (this.DEBUG_MODE) {
+          console.log('EXPAND_CHIP_DEBUG: Block data retrieved:', {
+            uid: blockData.uid,
+            stringLength: blockData.string?.length || 0,
+            childrenCount: blockData.children?.length || 0,
+            referencesCount: blockData.references?.length || 0
+          });
+        }
 
         let expandedContent = `\n### Referenced Block ((${uid}))\n`;
         
@@ -213,13 +217,17 @@ export class PromptBuilder {
         
         // Add children if any (with indentation)
         if (blockData.children && blockData.children.length > 0) {
-          console.log('EXPAND_CHIP_DEBUG: Adding children blocks');
+          if (this.DEBUG_MODE) {
+            console.log('EXPAND_CHIP_DEBUG: Adding children blocks');
+          }
           expandedContent += this.formatBlocksForExpansion(blockData.children, 1);
         }
 
         // Add referenced pages if any
         if (blockData.references && blockData.references.length > 0) {
-          console.log('EXPAND_CHIP_DEBUG: Adding referenced pages');
+          if (this.DEBUG_MODE) {
+            console.log('EXPAND_CHIP_DEBUG: Adding referenced pages');
+          }
           expandedContent += '\n**Referenced Pages:**\n';
           for (const page of blockData.references) {
             expandedContent += `\n**Page: ${page.title}**\n`;
@@ -231,10 +239,12 @@ export class PromptBuilder {
         
         expandedContent += '\n';
         
-        console.log('EXPAND_CHIP_DEBUG: Final expanded content:', {
-          length: expandedContent.length,
-          preview: expandedContent.substring(0, 200) + '...'
-        });
+        if (this.DEBUG_MODE) {
+          console.log('EXPAND_CHIP_DEBUG: Final expanded content:', {
+            length: expandedContent.length,
+            preview: expandedContent.substring(0, 200) + '...'
+          });
+        }
         
         return expandedContent;
       }

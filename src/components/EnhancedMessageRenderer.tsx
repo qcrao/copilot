@@ -63,7 +63,15 @@ const BlockReference: React.FC<{
           const preview = RoamQuery.formatBlockPreview(blockData.string, BLOCK_PREVIEW_LENGTH);
           setBlockContent(preview);
         } else {
-          setBlockContent(`[Block not found]`);
+          // Try to find similar blocks or provide better error info
+          setBlockContent(`[Block ${uid} not found]`);
+          
+          // Optional: Log for debugging purposes
+          console.log(`📋 Block not found: ${uid}. This could mean:
+            1. The block was deleted
+            2. There's a sync issue 
+            3. The UID format is incorrect
+            4. Access permissions changed`);
         }
       } catch (error) {
         console.error('Error loading block content for UID:', uid, error);

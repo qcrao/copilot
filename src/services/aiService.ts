@@ -225,6 +225,13 @@ export class AIService {
 - Focus on helping users discover insights and connections in their notes
 - **CRITICAL**: When backlinks (反向链接) are provided, actively reference and discuss them in your response
 
+**STRICTLY FORBIDDEN:**
+- Do NOT include any <think> or </think> tags in your response
+- Do NOT output raw lists of block UIDs like: 4dmeNU66m, tJ5nSkKf3, SQEmCB129, etc.
+- Do NOT include debug information or code blocks with UIDs
+- Do NOT include any XML-style tags in your response
+- Keep your response clean and user-friendly
+
 **Context Processing Instructions:**
 - The context provided contains information specifically retrieved based on user's request
 - Focus on what IS in the context rather than what might be missing
