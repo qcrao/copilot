@@ -59,6 +59,9 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
   const [dragStartPos, setDragStartPos] = useState<{x: number, y: number}>({x: 0, y: 0});
   const [dragStartWindowPos, setDragStartWindowPos] = useState<{top: number, left: number}>({top: 0, left: 0});
   const [isUnmounting, setIsUnmounting] = useState(false);
+  const [lastContextUpdate, setLastContextUpdate] = useState<number>(0);
+  const [isUpdatingContext, setIsUpdatingContext] = useState<boolean>(false);
+  const updateContextTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     if (isUnmounting) return;
@@ -75,96 +78,55 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
     }
   }, [isOpen, windowPosition, windowSize, isUnmounting]);
 
-  useEffect(() => {
-    if (isOpen) {
-      updatePageContext();
-    }
-  }, [isOpen]);
-
-  useEffect(() => {
-    // Listen for page changes in Roam
-    const handlePageChange = () => {
-      console.log("Page change detected, updating context...");
-      updatePageContext();
-    };
-
-    // Listen for URL changes (page navigation)
-    const handlePopState = () => {
-      console.log("URL change detected, updating context...");
-      setTimeout(updatePageContext, 100); // Small delay to ensure page is loaded
-    };
-
-    // Listen for focus changes (switching between pages)
-    const handleFocus = () => {
-      if (isOpen) {
-        console.log("Focus change detected, updating context...");
-        updatePageContext();
-      }
-    };
-
-    // Add event listeners
-    window.addEventListener("popstate", handlePopState);
-    window.addEventListener("focus", handleFocus);
-
-    // Also listen for hash changes (Roam uses hash routing)
-    window.addEventListener("hashchange", handlePageChange);
-
-    // Use MutationObserver to detect DOM changes that indicate page changes
-    const observer = new MutationObserver((mutations) => {
-      if (isUnmounting) return;
-      
-      mutations.forEach((mutation) => {
-        if (mutation.type === "childList") {
-          // Check if the main content area changed
-          const hasPageContent = Array.from(mutation.addedNodes).some(
-            (node) =>
-              node instanceof Element &&
-              (node.classList?.contains("roam-main") ||
-                node.classList?.contains("rm-title-display") ||
-                node.querySelector?.(".rm-title-display"))
-          );
-
-          if (hasPageContent) {
-            console.log("Page content change detected, updating context...");
-            setTimeout(() => {
-              if (!isUnmounting) {
-                updatePageContext();
-              }
-            }, 200); // Delay to ensure content is rendered
-          }
-        }
-      });
-    });
-
-    // Start observing the document body for changes
-    observer.observe(document.body, {
-      childList: true,
-      subtree: true,
-    });
-
-    return () => {
-      window.removeEventListener("popstate", handlePopState);
-      window.removeEventListener("focus", handleFocus);
-      window.removeEventListener("hashchange", handlePageChange);
-      observer.disconnect();
-    };
-  }, [isOpen]);
-
   const updatePageContext = useCallback(async () => {
-    if (isUnmounting) return;
+    if (isUnmounting || isUpdatingContext) return;
+    
+    // Prevent rapid successive updates that could cause infinite loops
+    const now = Date.now();
+    const timeSinceLastUpdate = now - lastContextUpdate;
+    const MIN_UPDATE_INTERVAL = 1000; // 1 second minimum between updates
+    
+    if (timeSinceLastUpdate < MIN_UPDATE_INTERVAL) {
+      console.log(`⏳ Context update throttled (${timeSinceLastUpdate}ms since last update)`);
+      return;
+    }
+    
+    // Clear any pending timeout
+    if (updateContextTimeoutRef.current) {
+      clearTimeout(updateContextTimeoutRef.current);
+      updateContextTimeoutRef.current = null;
+    }
     
     try {
+      setIsUpdatingContext(true);
+      setLastContextUpdate(now);
+      console.log("🔄 Updating page context...");
+      
       const context = await PerformanceMonitor.measure("updatePageContext", async () => {
         return await RoamService.getPageContext();
       });
       
       if (!isUnmounting) {
         setPageContext(context);
+        console.log("✅ Page context updated successfully");
       }
     } catch (error) {
-      console.error("Failed to get page context:", error);
+      console.error("❌ Failed to get page context:", error);
+      // Reset throttle on error to allow retry
+      setLastContextUpdate(0);
+    } finally {
+      setIsUpdatingContext(false);
     }
-  }, [isUnmounting]);
+  }, [isUnmounting, lastContextUpdate, isUpdatingContext]);
+
+  useEffect(() => {
+    if (isOpen) {
+      updatePageContext();
+    }
+  }, [isOpen, updatePageContext]);
+
+  // Remove all page change listeners - context should only update on widget open or new conversation
+  // This prevents context from changing while user is in the middle of a conversation
 
   const addMessage = (message: Omit<ChatMessage, "id" | "timestamp">) => {
     const newMessage: ChatMessage = {
@@ -290,20 +252,53 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
       // Extract page references and block references from the message
       const pageReferences = extractPageReferences(finalUserMessage);
       const blockReferences = extractBlockReferences(finalUserMessage);
+      
+      // Check if user has explicitly referenced specific content
+      const hasExplicitReferences = pageReferences.length > 0 || blockReferences.length > 0;
+      
+      // For TipTap editor input, also check if references were expanded
+      let hasEditorReferences = false;
+      if (typeof messageInput !== 'string') {
+        try {
+          // Check if the original editor JSON contains reference chips
+          const promptResult = await PromptBuilder.buildPrompt(messageInput, 1000); // Small limit just to check
+          hasEditorReferences = promptResult.metadata.referencesExpanded > 0;
+        } catch (error) {
+          // Ignore error, just continue
+        }
+      }
 
-      // Get fresh context before sending to AI
-      const freshContext = await RoamService.getPageContext();
-      setPageContext(freshContext);
+      const hasSpecificIntent = hasExplicitReferences || hasEditorReferences;
+
+      // Use existing pageContext but filter based on user intent
+      const currentContext = pageContext;
+      
+      // Create filtered context based on user intent
+      let filteredContext = currentContext;
+      if (hasSpecificIntent) {
+        // User has specific intent - exclude ambient context to avoid confusion
+        console.log("🎯 User has specific intent, filtering out ambient context");
+        filteredContext = {
+          currentPage: undefined, // Don't include current page content
+          visibleBlocks: [], // Don't include visible blocks
+          selectedText: undefined, // Don't include selected text
+          dailyNote: undefined, // Don't include daily note
+          linkedReferences: [], // Don't include current page's backlinks
+        };
+      } else {
+        console.log("🌍 No specific intent detected, using full ambient context");
+      }
 
       // Build enhanced context using ContextManager
       let contextString = "";
       let contextItems = [];
       
-      // Always try to use enhanced context first to get backlinks
       console.log("🔍 Building enhanced context for:", {
         pageReferences,
         blockReferences,
-        currentPage: freshContext?.currentPage?.title
+        hasSpecificIntent,
+        currentPage: currentContext?.currentPage?.title,
+        strategy: hasSpecificIntent ? "specific-intent" : "ambient-context"
       });
 
       const contextManager = new ContextManager({
@@ -318,11 +313,16 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
         autoIncludeMinimalBacklinkChildren: true, // But auto-include children for backlinks that only contain page references
       });
 
-      // Always include current page as context, even if no references in message
-      const currentPageTitle = freshContext?.currentPage?.title;
-      const pagesToInclude = pageReferences.length > 0 
-        ? pageReferences 
-        : (currentPageTitle ? [currentPageTitle] : []);
+      // Determine pages to include based on user intent
+      let pagesToInclude: string[] = [];
+      if (hasSpecificIntent) {
+        // Only include explicitly referenced pages
+        pagesToInclude = pageReferences;
+      } else {
+        // Include current page if no specific references
+        const currentPageTitle = currentContext?.currentPage?.title;
+        pagesToInclude = currentPageTitle ? [currentPageTitle] : [];
+      }
 
       contextItems = await contextManager.buildContext(
         pagesToInclude,
@@ -350,8 +350,8 @@ ${contextForUser}
 5. When citing information, please maintain the original clickable links so users can jump directly to the original source`;
 
         // Use simplified context for system message
-        contextString = freshContext
-          ? RoamService.formatContextForAI(freshContext, 8000) // Reduce system message context
+        contextString = filteredContext
+          ? RoamService.formatContextForAI(filteredContext, 8000) // Reduce system message context
           : "No additional context available";
           
         console.log("✅ Using enhanced context with", contextItems.length, "items in USER MESSAGE");
@@ -365,14 +365,14 @@ ${contextForUser}
           currentModel
         );
 
-        contextString = freshContext
-          ? RoamService.formatContextForAI(freshContext, maxContextTokens)
+        contextString = filteredContext
+          ? RoamService.formatContextForAI(filteredContext, maxContextTokens)
           : "No context available";
       }
 
       console.log("Sending message with context:", {
-        currentPage: freshContext?.currentPage?.title,
-        traditionalBlocksCount: freshContext?.currentPage?.blocks?.length || 0,
+        currentPage: filteredContext?.currentPage?.title,
+        traditionalBlocksCount: filteredContext?.currentPage?.blocks?.length || 0,
         enhancedContextItems: contextItems.length,
         model: multiProviderSettings.currentModel,
         dateNotesIncluded: dateMatches ? dateMatches.length : 0,
@@ -508,6 +508,10 @@ ${contextForUser}
     setCurrentConversationId(null);
     setInputValue(""); // Clear input value for new conversation
     setDateNotesCache({}); // Clear date notes cache
+    
+    // Update context when starting a new conversation
+    // This ensures the new conversation uses the current page's context
+    updatePageContext();
   };
 
   const toggleConversationList = () => {
@@ -780,6 +784,11 @@ ${contextForUser}
       if (saveTimeoutRef.current) {
         clearTimeout(saveTimeoutRef.current);
         saveTimeoutRef.current = null;
+      }
+      
+      if (updateContextTimeoutRef.current) {
+        clearTimeout(updateContextTimeoutRef.current);
+        updateContextTimeoutRef.current = null;
       }
       
       // Cleanup resize state

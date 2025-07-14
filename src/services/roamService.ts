@@ -1327,7 +1327,7 @@ export class RoamService {
          :where
          [?block :block/string ?string]
          [?block :block/uid ?uid]
-         [(clojure.string/includes? ?string "[[${pageTitle}]]]")]`,
+         [(clojure.string/includes? ?string "[[${pageTitle}]]")]`,
 
         // Tag reference #PageTitle
         `[:find ?uid ?string
