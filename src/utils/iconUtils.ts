@@ -11,6 +11,7 @@ const ICON_URLS = {
   ollama: 'https://unpkg.com/@lobehub/icons-static-svg@latest/icons/ollama.svg',
   deepseek: 'https://unpkg.com/@lobehub/icons-static-svg@latest/icons/deepseek.svg',
   gemma: 'https://unpkg.com/@lobehub/icons-static-svg@latest/icons/gemma.svg',
+  gemini: 'https://unpkg.com/@lobehub/icons-static-svg@latest/icons/gemini.svg',
   qwen: 'https://unpkg.com/@lobehub/icons-static-svg@latest/icons/qwen.svg'
 };
 
@@ -38,6 +39,11 @@ export const getIconUrl = (provider: string, model?: string): string | null => {
   
   if (normalizedModel.includes('qwen')) {
     return ICON_URLS.qwen;
+  }
+  
+  // Gemini models
+  if (normalizedModel.includes('gemini') || provider === 'gemini') {
+    return ICON_URLS.gemini;
   }
   
   // Groq models (llama without gemma)
@@ -88,6 +94,9 @@ const cleanModelName = (modelName: string): string => {
     .replace(/grok-2/i, 'Grok 2')
     .replace(/Meta-Llama-3\.1-8B-Instruct/i, 'Llama 3.1 8B')
     .replace(/Phi-3\.5-mini-instruct/i, 'Phi-3.5 Mini')
+    .replace(/gemini-2\.0-flash-exp/i, 'Gemini 2.0 Flash (Experimental)')
+    .replace(/gemini-1\.5-flash/i, 'Gemini 1.5 Flash')
+    .replace(/gemini-1\.5-pro/i, 'Gemini 1.5 Pro')
     .replace(/qwen2\.5:latest/i, 'Qwen 2.5')
     .replace(/llama3\.2:latest/i, 'Llama 3.2')
     .replace(/:latest/i, '');
@@ -284,6 +293,16 @@ export const getModelDisplayInfo = (model?: string, provider?: string) => {
       fallbackIcon: '🧠', 
       name: cleanedName,
       color: '#CC785C',
+      isLocal: false,
+      blueprintIcon: null
+    };
+  }
+  if (normalizedModel.includes('gemini')) {
+    return { 
+      iconUrl: ICON_URLS.gemini,
+      fallbackIcon: '💎', 
+      name: cleanedName,
+      color: '#4285F4',
       isLocal: false,
       blueprintIcon: null
     };

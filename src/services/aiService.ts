@@ -331,6 +331,15 @@ Please provide helpful analysis and insights based on the available information.
       "grok-beta": 131072,
       "grok-vision-beta": 131072,
       
+      // Google Gemini models
+      "gemini-2.0-flash-exp": 1048576,
+      "gemini-1.5-flash": 1048576,
+      "gemini-1.5-pro": 2097152,
+      
+      // GitHub Models
+      "Phi-3.5-mini-instruct": 128000,
+      "Meta-Llama-3.1-8B-Instruct": 128000,
+      
       // Qwen models (Alibaba Cloud)
       "qwen3:8b": 32000,
       "qwen2.5:latest": 32000,

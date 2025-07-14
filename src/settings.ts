@@ -215,7 +215,8 @@ function updateModelDropdown(extensionAPI: any, providerId: string) {
                   opt.includes("claude") ||
                   opt.includes("llama") ||
                   opt.includes("grok") ||
-                  opt.includes("gemma")
+                  opt.includes("gemma") ||
+                  opt.includes("gemini")
               )
             ) {
               modelSelect = select;

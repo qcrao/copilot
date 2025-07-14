@@ -1,6 +1,7 @@
 // src/utils/llmUtil.ts
 import { createOpenAI } from "@ai-sdk/openai";
 import { createAnthropic } from "@ai-sdk/anthropic";
+import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { CoreMessage, generateText, LanguageModel } from "ai";
 import { multiProviderSettings } from "../settings";
 import { AI_PROVIDERS } from "../types";
@@ -203,6 +204,20 @@ export class LLMUtil {
           apiKey: "ollama", // Ollama doesn't require a real API key
         });
         return ollama(model);
+
+      case "gemini":
+        const gemini = createGoogleGenerativeAI({
+          apiKey: apiKey,
+          baseURL: baseUrl || "https://generativelanguage.googleapis.com/v1beta",
+        });
+        return gemini(model);
+
+      case "github":
+        const github = createOpenAI({
+          baseURL: baseUrl || "https://models.inference.ai.azure.com",
+          apiKey: apiKey,
+        });
+        return github(model);
 
       default:
         throw new Error(`Unsupported provider: ${provider}`);

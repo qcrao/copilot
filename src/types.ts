@@ -277,6 +277,20 @@ export const AI_PROVIDERS: AIProvider[] = [
     supportsTools: false,
   },
   {
+    id: "gemini",
+    name: "Google Gemini",
+    baseUrl: "https://generativelanguage.googleapis.com/v1beta",
+    models: [
+      "gemini-2.0-flash-exp", // Latest experimental model
+      "gemini-1.5-flash", // Fast and efficient
+      "gemini-1.5-pro", // Most capable
+    ],
+    apiKeyUrl: "https://aistudio.google.com/app/apikey",
+    billingUrl: "https://console.cloud.google.com/billing",
+    requiresApiKey: true,
+    supportsTools: false,
+  },
+  {
     id: "ollama",
     name: "Ollama (Local)",
     models: [
