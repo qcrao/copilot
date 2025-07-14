@@ -1662,3 +1662,12 @@ details[style*="thinking"][open] {
 .rr-universal-search-list::-webkit-scrollbar-thumb:hover {
   background: #a8a8a8;
 }
+
+/* Delete all confirmation button styling */
+.rr-copilot-delete-confirm .bp3-icon {
+  color: #f44336 !important;
+}
+
+.rr-copilot-delete-confirm:hover .bp3-icon {
+  color: #d32f2f !important;
+}

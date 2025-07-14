@@ -42,6 +42,12 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
   const [copiedMessageIndex, setCopiedMessageIndex] = useState<number | null>(null);
   const [showConversationList, setShowConversationList] = useState(false);
   const [currentConversationId, setCurrentConversationId] = useState<string | null>(null);
+  const conversationIdRef = useRef<string | null>(null);
+  
+  // Keep ref in sync with state
+  useEffect(() => {
+    conversationIdRef.current = currentConversationId;
+  }, [currentConversationId]);
   const [inputValue, setInputValue] = useState("");
   const [showTemplates, setShowTemplates] = useState(false);
   const [dateNotesCache, setDateNotesCache] = useState<{[date: string]: string}>({});
@@ -137,10 +143,31 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
 
     setState((prev) => {
       const updatedMessages = [...prev.messages, newMessage];
-      // Defer auto-save to avoid render blocking
-      requestAnimationFrame(() => {
-        saveConversationDebounced(updatedMessages);
-      });
+      
+      // Check if this is the first message using ref for immediate sync check
+      if (!conversationIdRef.current && prev.messages.length === 0) {
+        const newConversationId = `conv_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        
+        // Set both ref and state immediately
+        conversationIdRef.current = newConversationId;
+        setCurrentConversationId(newConversationId);
+        
+        // Save immediately for new conversation to prevent race condition
+        requestAnimationFrame(async () => {
+          try {
+            await ConversationService.saveConversationWithId(newConversationId, updatedMessages);
+            console.log("Immediately saved new conversation:", newConversationId);
+          } catch (error) {
+            console.error("Failed to immediately save new conversation:", error);
+          }
+        });
+      } else {
+        // For existing conversations or subsequent messages, use debounced save
+        requestAnimationFrame(() => {
+          saveConversationDebounced(updatedMessages);
+        });
+      }
+      
       return {
         ...prev,
         messages: updatedMessages,
@@ -444,6 +471,7 @@ ${contextForUser}
 
   // Auto-save function to be called when new messages are added
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isSavingRef = useRef<boolean>(false);
   
   const saveConversationDebounced = useCallback(
     (messages: ChatMessage[]) => {
@@ -457,22 +485,38 @@ ${contextForUser}
       
       // Set new timeout
       saveTimeoutRef.current = setTimeout(async () => {
-        if (isUnmounting) return;
+        if (isUnmounting || isSavingRef.current) return;
+        
+        isSavingRef.current = true;
         
         try {
-          if (currentConversationId) {
-            // Update existing conversation
-            await ConversationService.updateConversation(currentConversationId, messages);
+          // Use ref to get the latest conversation ID synchronously
+          const latestConversationId = conversationIdRef.current;
+          
+          if (latestConversationId) {
+            // Always try to update existing conversation first
+            try {
+              await ConversationService.updateConversation(latestConversationId, messages);
+              console.log("Updated existing conversation:", latestConversationId);
+            } catch (updateError) {
+              console.log("Conversation doesn't exist yet, creating:", latestConversationId);
+              // If update fails, the conversation doesn't exist yet, so create it
+              await ConversationService.saveConversationWithId(latestConversationId, messages);
+            }
           } else {
-            // Save new conversation
+            // This should rarely happen now due to immediate ID generation
+            console.warn("No conversation ID found, creating new conversation");
             const newConversationId = await ConversationService.saveConversation(messages);
             if (!isUnmounting) {
+              conversationIdRef.current = newConversationId;
               setCurrentConversationId(newConversationId);
             }
           }
           console.log("Conversation auto-saved");
         } catch (error) {
           console.error("Failed to auto-save conversation:", error);
+        } finally {
+          isSavingRef.current = false;
         }
       }, 2000);
     },
@@ -492,6 +536,7 @@ ${contextForUser}
         isLoading: false
       }));
       
+      conversationIdRef.current = conversationId;
       setCurrentConversationId(conversationId);
       console.log("Loaded conversation:", conversationId, messages.length, "messages");
     } catch (error) {
@@ -505,6 +550,7 @@ ${contextForUser}
       ...prev,
       messages: []
     }));
+    conversationIdRef.current = null;
     setCurrentConversationId(null);
     setInputValue(""); // Clear input value for new conversation
     setDateNotesCache({}); // Clear date notes cache

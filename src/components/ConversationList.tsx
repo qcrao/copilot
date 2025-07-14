@@ -39,6 +39,8 @@ export const ConversationList: React.FC<ConversationListProps> = ({
 
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [refreshSuccess, setRefreshSuccess] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   const loadConversations = useCallback(async () => {
     setIsRefreshing(true);
@@ -108,6 +110,35 @@ export const ConversationList: React.FC<ConversationListProps> = ({
     },
     [currentConversationId, onNewConversation, loadConversations]
   );
+
+  const handleDeleteAll = useCallback(async () => {
+    if (!showDeleteConfirm) {
+      setShowDeleteConfirm(true);
+      return;
+    }
+
+    setIsDeleting(true);
+    setShowDeleteConfirm(false);
+
+    try {
+      // Delete all conversations using service method
+      await ConversationService.deleteAllConversations();
+
+      // Reload conversations
+      await loadConversations();
+
+      // Start new conversation
+      onNewConversation();
+    } catch (error) {
+      console.error("Failed to delete all conversations:", error);
+    } finally {
+      setIsDeleting(false);
+    }
+  }, [showDeleteConfirm, loadConversations, onNewConversation]);
+
+  const handleCancelDeleteAll = useCallback(() => {
+    setShowDeleteConfirm(false);
+  }, []);
 
   const handleSearchChange = useCallback(
     (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -186,7 +217,7 @@ export const ConversationList: React.FC<ConversationListProps> = ({
           <Button
             minimal
             small
-            icon={refreshSuccess ? "tick" : "refresh"}
+            icon={refreshSuccess ? "confirm" : "refresh"}
             onClick={loadConversations}
             title={
               isRefreshing
@@ -202,6 +233,46 @@ export const ConversationList: React.FC<ConversationListProps> = ({
               transition: "color 0.2s ease",
             }}
           />
+          {state.conversations.length > 0 && !showDeleteConfirm && (
+            <Button
+              minimal
+              small
+              icon="trash"
+              onClick={handleDeleteAll}
+              title="Delete All Conversations"
+              style={{ color: "#393a3d" }}
+            />
+          )}
+          {showDeleteConfirm && (
+            <>
+              <Button
+                minimal
+                small
+                icon={isDeleting ? "refresh" : "tick"}
+                onClick={handleDeleteAll}
+                disabled={isDeleting}
+                style={{
+                  minWidth: "20px",
+                  minHeight: "20px"
+                }}
+                title="Confirm Delete All"
+                className={`${isDeleting ? "rr-copilot-refresh-spinning" : ""} rr-copilot-delete-confirm`}
+              />
+              <Button
+                minimal
+                small
+                icon="cross"
+                onClick={handleCancelDeleteAll}
+                disabled={isDeleting}
+                style={{
+                  minWidth: "20px",
+                  minHeight: "20px",
+                  color: "#666"
+                }}
+                title="Cancel"
+              />
+            </>
+          )}
           <Button
             minimal
             small

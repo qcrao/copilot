@@ -288,6 +288,22 @@ export class ConversationService {
 
     try {
       const conversationId = this.generateConversationId();
+      return await this.saveConversationWithId(conversationId, messages);
+    } catch (error) {
+      console.error("Error saving conversation:", error);
+      throw new Error("Failed to save conversation");
+    }
+  }
+
+  /**
+   * Save new conversation with specific ID
+   */
+  static async saveConversationWithId(conversationId: string, messages: ChatMessage[]): Promise<string> {
+    if (messages.length === 0) {
+      throw new Error("Cannot save empty conversation");
+    }
+
+    try {
       const firstUserMessage = messages.find(m => m.role === 'user');
       const title = firstUserMessage ? this.generateTitle(firstUserMessage.content) : 'New Chat';
       
@@ -510,6 +526,25 @@ export class ConversationService {
       }
     } catch (error) {
       console.error("Error deleting conversation metadata:", error);
+      throw error;
+    }
+  }
+
+  /**
+   * Delete all conversations
+   */
+  static async deleteAllConversations(): Promise<void> {
+    try {
+      const conversations = await this.loadConversations();
+      
+      // Delete each conversation
+      for (const conversation of conversations) {
+        await this.deleteConversation(conversation.id);
+      }
+
+      console.log("Deleted all conversations:", conversations.length);
+    } catch (error) {
+      console.error("Error deleting all conversations:", error);
       throw error;
     }
   }
