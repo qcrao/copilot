@@ -367,14 +367,7 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
 
 **Please answer based on the following relevant information:**
 
-${contextForUser}
-
-**Response Requirements:**
-1. Please answer my question based on the above information, with particular attention to the relevant content in backlinks
-2. When answering, please cite specific sources using the provided clickable link format ((block-id))
-3. Please pay attention to the creation time of each piece of information [Created: YYYY-MM-DD], and analyze the user's learning and thinking process in chronological order
-4. If there is relevant information from multiple time points, please organize it chronologically to show the user's cognitive development trajectory on this topic
-5. When citing information, please maintain the original clickable links so users can jump directly to the original source`;
+${contextForUser}`;
 
         // Use simplified context for system message
         contextString = filteredContext
