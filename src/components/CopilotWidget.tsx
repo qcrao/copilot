@@ -134,10 +134,10 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
   // Remove all page change listeners - context should only update on widget open or new conversation
   // This prevents context from changing while user is in the middle of a conversation
 
-  const addMessage = (message: Omit<ChatMessage, "id" | "timestamp">) => {
+  const addMessage = (message: Omit<ChatMessage, "id" | "timestamp"> & { id?: string }) => {
     const newMessage: ChatMessage = {
       ...message,
-      id: Date.now().toString(),
+      id: message.id || Date.now().toString(),
       timestamp: new Date(),
     };
 
@@ -410,34 +410,93 @@ ${contextForUser}
         contextPreview: contextString.substring(0, 300) + "..."
       });
 
-      const response = await AIService.sendMessageWithCurrentModel(
-        enhancedUserMessage, // 使用增强的用户消息
-        contextString,
-        state.messages
-      );
+      // Create a streaming message placeholder
+      const streamingMessageId = `streaming_${Date.now()}`;
+      let streamingContent = "";
+      
+      addMessage({
+        role: "assistant",
+        content: "",
+        id: streamingMessageId,
+        isStreaming: true,
+      });
 
-      const currentModel = multiProviderSettings.currentModel;
-      const provider = await AIService.getProviderForModel(currentModel);
-      const finalProvider = provider?.provider?.id || 'ollama';
-      // console.log(`DEBUG: Saving message with provider: "${finalProvider}" for model: "${currentModel}"`);
-      
-      addMessage({
-        role: "assistant",
-        content: response,
-        model: currentModel,
-        modelProvider: finalProvider,
-      });
-    } catch (error: any) {
-      const currentModel = multiProviderSettings.currentModel;
-      const provider = await AIService.getProviderForModel(currentModel);
-      const finalProvider = provider?.provider?.id || 'ollama';
-      
-      addMessage({
-        role: "assistant",
-        content: `❌ Error: ${error.message}`,
-        model: currentModel,
-        modelProvider: finalProvider,
-      });
+      try {
+        // Use streaming response
+        const streamGenerator = AIService.sendMessageWithCurrentModelStream(
+          enhancedUserMessage,
+          contextString,
+          state.messages
+        );
+
+        for await (const chunk of streamGenerator) {
+          if (chunk.isComplete) {
+            // Update final message with usage info
+            setState((prev) => ({
+              ...prev,
+              messages: prev.messages.map((msg) =>
+                msg.id === streamingMessageId
+                  ? { ...msg, isStreaming: false, usage: chunk.usage }
+                  : msg
+              ),
+            }));
+            break;
+          } else {
+            // Update streaming content
+            streamingContent += chunk.text;
+            setState((prev) => ({
+              ...prev,
+              messages: prev.messages.map((msg) =>
+                msg.id === streamingMessageId
+                  ? { ...msg, content: streamingContent }
+                  : msg
+              ),
+            }));
+            
+            // Force scroll update for streaming content
+            requestAnimationFrame(() => {
+              const messageContainer = document.querySelector('.rr-copilot-message-list');
+              if (messageContainer) {
+                messageContainer.scrollTop = messageContainer.scrollHeight;
+              }
+            });
+          }
+        }
+
+        const currentModel = multiProviderSettings.currentModel;
+        const provider = await AIService.getProviderForModel(currentModel);
+        const finalProvider = provider?.provider?.id || 'ollama';
+        
+        // Update the streaming message with final model info
+        setState((prev) => ({
+          ...prev,
+          messages: prev.messages.map((msg) =>
+            msg.id === streamingMessageId
+              ? { ...msg, model: currentModel, modelProvider: finalProvider }
+              : msg
+          ),
+        }));
+      } catch (streamingError: any) {
+        const currentModel = multiProviderSettings.currentModel;
+        const provider = await AIService.getProviderForModel(currentModel);
+        const finalProvider = provider?.provider?.id || 'ollama';
+        
+        // Update the streaming message with error
+        setState((prev) => ({
+          ...prev,
+          messages: prev.messages.map((msg) =>
+            msg.id === streamingMessageId
+              ? { 
+                  ...msg, 
+                  content: `❌ Error: ${streamingError.message}`,
+                  isStreaming: false,
+                  model: currentModel,
+                  modelProvider: finalProvider 
+                }
+              : msg
+          ),
+        }));
+      }
     } finally {
       setState((prev) => ({ ...prev, isLoading: false }));
     }

@@ -26,7 +26,8 @@
       "Bash(npx roamjs-scripts build:*)",
       "Bash(rg:*)",
       "mcp__ide__getDiagnostics",
-      "WebFetch(domain:docs.github.com)"
+      "WebFetch(domain:docs.github.com)",
+      "Bash(git checkout:*)"
     ],
     "deny": []
   }

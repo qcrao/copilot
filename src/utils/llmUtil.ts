@@ -2,7 +2,7 @@
 import { createOpenAI } from "@ai-sdk/openai";
 import { createAnthropic } from "@ai-sdk/anthropic";
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
-import { CoreMessage, generateText, LanguageModel } from "ai";
+import { CoreMessage, generateText, streamText, LanguageModel } from "ai";
 import { multiProviderSettings } from "../settings";
 import { AI_PROVIDERS } from "../types";
 
@@ -263,6 +263,50 @@ export class LLMUtil {
     }
   }
 
+  static async* generateStreamResponse(
+    config: LLMConfig,
+    messages: any[]
+  ): AsyncGenerator<{ text: string; isComplete: boolean; usage?: any }> {
+    const { temperature = 0.7, maxTokens = 8000 } = config;
+
+    try {
+      const model = this.getProviderClient(config);
+      const systemMessage = messages.find((m) => m.role === "system");
+      const conversationMessages = messages.filter((m) => m.role !== "system");
+
+      const result = await streamText({
+        model,
+        system: systemMessage?.content,
+        messages: this.convertToAISDKMessages(conversationMessages),
+        temperature,
+        maxTokens,
+      });
+
+      for await (const textPart of result.textStream) {
+        yield {
+          text: textPart,
+          isComplete: false,
+        };
+      }
+
+      // Final response with usage info
+      const finalResult = await result.finishReason;
+      const usage = await result.usage;
+      
+      yield {
+        text: "",
+        isComplete: true,
+        usage: usage && {
+          promptTokens: usage.promptTokens,
+          completionTokens: usage.completionTokens,
+          totalTokens: usage.totalTokens,
+        },
+      };
+    } catch (error: any) {
+      throw new Error(`LLM streaming failed: ${error.message}`);
+    }
+  }
+
   static async generateResponseWithCurrentModel(
     userMessage: string,
     systemMessage: string
@@ -408,6 +452,95 @@ export class LLMUtil {
           totalTokens: data.usage.total_tokens || 0,
         },
       };
+    } catch (error: any) {
+      if (error.message.includes("fetch")) {
+        throw new Error(
+          `Cannot connect to Ollama service (${baseUrl}). Please ensure:\n1. Ollama is installed and running\n2. Service URL is configured correctly\n3. Model "${model}" is downloaded`
+        );
+      }
+      throw error;
+    }
+  }
+
+  static async* handleOllamaStreamRequest(
+    config: LLMConfig,
+    messages: any[]
+  ): AsyncGenerator<{ text: string; isComplete: boolean; usage?: any }> {
+    const baseUrl =
+      multiProviderSettings.ollamaBaseUrl || "http://localhost:11434";
+    const { model, temperature = 0.7, maxTokens = 8000 } = config;
+
+    try {
+      const response = await fetch(`${baseUrl}/api/chat`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: model,
+          messages: messages,
+          stream: true,
+          options: {
+            temperature: temperature,
+            num_predict: maxTokens,
+          },
+        }),
+      });
+
+      if (!response.ok) {
+        const error = await response.text().catch(() => "");
+        throw new Error(
+          `Ollama API error: ${response.status} ${error || response.statusText}`
+        );
+      }
+
+      const reader = response.body?.getReader();
+      const decoder = new TextDecoder();
+      
+      if (!reader) {
+        throw new Error("No response body available");
+      }
+
+      try {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          const chunk = decoder.decode(value, { stream: true });
+          const lines = chunk.split('\n').filter(line => line.trim());
+
+          for (const line of lines) {
+            try {
+              const data = JSON.parse(line);
+              
+              if (data.message?.content) {
+                yield {
+                  text: data.message.content,
+                  isComplete: false,
+                };
+              }
+
+              if (data.done) {
+                yield {
+                  text: "",
+                  isComplete: true,
+                  usage: data.usage && {
+                    promptTokens: data.usage.prompt_tokens || 0,
+                    completionTokens: data.usage.completion_tokens || 0,
+                    totalTokens: data.usage.total_tokens || 0,
+                  },
+                };
+                return;
+              }
+            } catch (parseError) {
+              // Skip invalid JSON lines
+              continue;
+            }
+          }
+        }
+      } finally {
+        reader.releaseLock();
+      }
     } catch (error: any) {
       if (error.message.includes("fetch")) {
         throw new Error(

@@ -17,19 +17,29 @@ interface EnhancedMessageRendererProps {
   content: string;
   isUser?: boolean;
   model?: string;
+  isStreaming?: boolean;
 }
 
 // Component for rendering roam block references with content
 const BlockReference: React.FC<{
   uid: string;
   isUser: boolean;
-}> = ({ uid, isUser }) => {
+  isStreaming?: boolean;
+}> = ({ uid, isUser, isStreaming = false }) => {
   const [blockContent, setBlockContent] = useState<string>('');
   const [isLoading, setIsLoading] = useState(true);
+  const [hasAttemptedLoad, setHasAttemptedLoad] = useState(false);
 
   useEffect(() => {
+    // Don't load during streaming to avoid flashing
+    if (isStreaming) {
+      return;
+    }
+
     const loadBlockContent = async () => {
       try {
+        setHasAttemptedLoad(true);
+        
         // Validate UID
         if (!uid || typeof uid !== 'string') {
           setBlockContent(`Invalid block reference`);
@@ -82,7 +92,7 @@ const BlockReference: React.FC<{
     };
 
     loadBlockContent();
-  }, [uid]);
+  }, [uid, isStreaming]);
 
   const handleClick = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -163,7 +173,7 @@ const BlockReference: React.FC<{
       }}
       onClick={handleClick}
     >
-{isLoading ? `[Loading block...]` : blockContent}
+{isStreaming ? `((${uid}))` : (isLoading ? `[Loading block...]` : blockContent)}
     </span>
   );
 };
@@ -292,11 +302,12 @@ const PageReference: React.FC<{
 export const EnhancedMessageRenderer: React.FC<EnhancedMessageRendererProps> = ({ 
   content, 
   isUser = false, 
-  model 
+  model,
+  isStreaming = false
 }) => {
   // Pre-process content to remove thinking blocks and clean up formatting
   const preprocessContent = (text: string): string => {
-    return text
+    let processedText = text
       .replace(/<think>([\s\S]*?)<\/think>/gi, '') // Remove think blocks entirely
       .replace(/^([^：:\n]+?)：\s*$/gm, '$1') // Remove trailing colons from lines that look like titles
       .replace(/^([^：:\n]+?):\s*$/gm, '$1') // Handle both Chinese and English colons
@@ -307,8 +318,19 @@ export const EnhancedMessageRenderer: React.FC<EnhancedMessageRendererProps> = (
       // Convert plain image URLs to markdown image syntax
       .replace(/(?<!\!\[.*?\]\()(?<!\]\()(?<!\()(?<!\[)(https?:\/\/[^\s<>\[\]]+\.(?:jpg|jpeg|png|gif|webp|svg|bmp|tiff|ico)(?:\?[^\s<>\[\]]*)?(?:#[^\s<>\[\]]*)?)/gi, '![Image]($1)')
       // Handle images that are on their own line
-      .replace(/^\s*(https?:\/\/[^\s<>\[\]]+\.(?:jpg|jpeg|png|gif|webp|svg|bmp|tiff|ico)(?:\?[^\s<>\[\]]*)?(?:#[^\s<>\[\]]*)?)\s*$/gim, '![Image]($1)')
-      .trim(); // Remove leading/trailing whitespace
+      .replace(/^\s*(https?:\/\/[^\s<>\[\]]+\.(?:jpg|jpeg|png|gif|webp|svg|bmp|tiff|ico)(?:\?[^\s<>\[\]]*)?(?:#[^\s<>\[\]]*)?)\s*$/gim, '![Image]($1)');
+    
+    // If streaming, hide incomplete block references to prevent "block not found" flashing
+    if (isStreaming) {
+      // Replace incomplete block references with placeholder text
+      processedText = processedText
+        .replace(/\(\([^)]*$/g, '') // Remove incomplete block references at the end
+        .replace(/\(\([^)]*\n/g, '') // Remove incomplete block references that span lines
+        .replace(/\[\[[^\]]*$/g, '') // Remove incomplete page references at the end
+        .replace(/\[\[[^\]]*\n/g, ''); // Remove incomplete page references that span lines
+    }
+    
+    return processedText.trim(); // Remove leading/trailing whitespace
   };
 
   const processedContent = preprocessContent(content);
@@ -328,8 +350,8 @@ export const EnhancedMessageRenderer: React.FC<EnhancedMessageRendererProps> = (
         remarkPlugins={[
           remarkGfm,
           remarkRoamLinks, // Process markdown links first
-          remarkRoamBlocks,
-          remarkRoamPages
+          [remarkRoamBlocks, { isStreaming }],
+          [remarkRoamPages, { isStreaming }]
         ]}
         rehypePlugins={[
           [rehypeHighlight, { detect: true, subset: false }]
@@ -408,7 +430,7 @@ export const EnhancedMessageRenderer: React.FC<EnhancedMessageRendererProps> = (
             
             // Handle Roam block references
             if (className?.includes('roam-block-ref') && props['data-uid']) {
-              return <BlockReference uid={props['data-uid']} isUser={isUser} />;
+              return <BlockReference uid={props['data-uid']} isUser={isUser} isStreaming={isStreaming} />;
             }
             
             // Handle Roam page references

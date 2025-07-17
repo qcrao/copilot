@@ -136,6 +136,110 @@ export class AIService {
     }
   }
 
+  // New streaming method that uses the currently selected model
+  static async* sendMessageWithCurrentModelStream(
+    userMessage: string,
+    context: string,
+    conversationHistory: ChatMessage[] = []
+  ): AsyncGenerator<{ text: string; isComplete: boolean; usage?: any }> {
+    const model = multiProviderSettings.currentModel;
+    if (!model) {
+      throw new Error(
+        "No model selected. Please select a model from the dropdown."
+      );
+    }
+
+    const providerInfo = await this.getProviderForModel(model);
+    if (!providerInfo) {
+      throw new Error(
+        `Model not found or API key not configured for model: ${model}. Please configure the API key in settings.`
+      );
+    }
+
+    // Ollama doesn't need API key validation
+    if (providerInfo.provider.id !== "ollama" && !providerInfo.apiKey) {
+      throw new Error(
+        `No API key configured for model: ${model}. Please configure the API key in settings.`
+      );
+    }
+
+    // Add language instruction based on user's manual setting if it's not English
+    let finalUserMessage = userMessage;
+    const responseLanguage =
+      multiProviderSettings.responseLanguage || "English";
+    if (responseLanguage !== "English") {
+      finalUserMessage =
+        userMessage + `\n\nIMPORTANT: Please respond in ${responseLanguage}.`;
+    }
+
+    // Use LLMUtil streaming
+    const systemMessage = this.getSystemMessage(context);
+    const messagesWithHistory = this.buildMessagesWithHistory(
+      systemMessage,
+      finalUserMessage,
+      conversationHistory,
+      model
+    );
+
+    try {
+      console.log("🔧 AI Service sending streaming message:", {
+        provider: providerInfo.provider.id,
+        model: model,
+        hasApiKey: !!providerInfo.apiKey,
+        userMessageLength: finalUserMessage.length,
+        systemMessageLength: systemMessage.length,
+      });
+
+      const config = {
+        provider: providerInfo.provider.id,
+        model: model,
+        apiKey: providerInfo.apiKey,
+        baseUrl: providerInfo.provider.baseUrl,
+        temperature: multiProviderSettings.temperature || 0.7,
+        maxTokens: multiProviderSettings.maxTokens || 8000,
+      };
+
+      // Handle Ollama separately for streaming
+      if (providerInfo.provider.id === "ollama") {
+        yield* LLMUtil.handleOllamaStreamRequest(config, messagesWithHistory);
+      } else {
+        yield* LLMUtil.generateStreamResponse(config, messagesWithHistory);
+      }
+    } catch (error: any) {
+      console.error("❌ AI Service streaming error:", {
+        provider: providerInfo.provider.id,
+        model: model,
+        error: error.message,
+        stack: error.stack,
+      });
+
+      // Provide more specific error messages
+      if (error.message.includes("API key")) {
+        throw new Error(
+          `API key error (${providerInfo.provider.name}): ${error.message}`
+        );
+      } else if (
+        error.message.includes("rate limit") ||
+        error.message.includes("quota")
+      ) {
+        throw new Error(
+          `Rate limit or quota exceeded (${providerInfo.provider.name}): ${error.message}`
+        );
+      } else if (
+        error.message.includes("network") ||
+        error.message.includes("fetch")
+      ) {
+        throw new Error(
+          `Network connection error (${providerInfo.provider.name}): ${error.message}`
+        );
+      } else {
+        throw new Error(
+          `AI response failed (${providerInfo.provider.name}): ${error.message}`
+        );
+      }
+    }
+  }
+
   static async sendMessage(
     settings: AISettings,
     userMessage: string,

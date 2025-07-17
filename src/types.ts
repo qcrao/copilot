@@ -37,6 +37,12 @@ export interface ChatMessage {
   timestamp: Date;
   model?: string; // AI model used for this message
   modelProvider?: string; // Provider of the model (openai, anthropic, etc.)
+  isStreaming?: boolean; // Whether this message is currently being streamed
+  usage?: {
+    promptTokens: number;
+    completionTokens: number;
+    totalTokens: number;
+  };
 }
 
 export interface RoamBlock {

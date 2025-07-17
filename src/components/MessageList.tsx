@@ -156,6 +156,7 @@ const LoadingIndicator: React.FC<{ currentModel?: string; currentProvider?: stri
 
 const MessageItem: React.FC<MessageItemProps> = ({ message, index, onCopyMessage, copiedMessageIndex }) => {
   const isUser = message.role === 'user';
+  const isStreaming = message.isStreaming;
   const modelInfo = isUser ? null : getModelDisplayInfo(message.model, message.modelProvider);
   const [userAvatar, setUserAvatar] = useState<string>('👤');
 
@@ -302,7 +303,26 @@ const MessageItem: React.FC<MessageItemProps> = ({ message, index, onCopyMessage
             content={message.content} 
             isUser={isUser}
             model={message.model}
+            isStreaming={isStreaming}
           />
+          {isStreaming && !isUser && (
+            <div style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '4px',
+              marginLeft: '4px',
+              fontSize: '14px',
+              color: '#666',
+              lineHeight: '1.5'
+            }}>
+              <span style={{
+                animation: "blink 1.4s infinite both",
+                animationDelay: "0s",
+                fontSize: '14px',
+                lineHeight: '1.5'
+              }}>▊</span>
+            </div>
+          )}
         </div>
 
         {/* Copy Button - positioned at bottom right */}
@@ -356,7 +376,7 @@ export const MessageList: React.FC<MessageListProps> = ({
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // Auto-scroll to bottom when new messages arrive
+  // Auto-scroll to bottom when new messages arrive or streaming content updates
   useEffect(() => {
     if (messagesEndRef.current) {
       messagesEndRef.current.scrollIntoView({ 
@@ -365,6 +385,39 @@ export const MessageList: React.FC<MessageListProps> = ({
       });
     }
   }, [messages, isLoading]);
+
+  // Also scroll when streaming content changes
+  useEffect(() => {
+    const hasStreamingMessage = messages.some(msg => msg.isStreaming);
+    if (hasStreamingMessage && messagesEndRef.current) {
+      // Use requestAnimationFrame for smoother scrolling during streaming
+      requestAnimationFrame(() => {
+        if (messagesEndRef.current) {
+          messagesEndRef.current.scrollIntoView({ 
+            behavior: 'smooth',
+            block: 'end'
+          });
+        }
+      });
+    }
+  }, [messages.map(msg => msg.isStreaming ? msg.content : '').join('')]);
+
+  // Add a more aggressive scroll effect for streaming content
+  useEffect(() => {
+    const streamingMessage = messages.find(msg => msg.isStreaming);
+    if (streamingMessage && messagesEndRef.current) {
+      const container = containerRef.current;
+      if (container) {
+        // Auto-scroll to bottom during streaming
+        const scrollToBottom = () => {
+          container.scrollTop = container.scrollHeight;
+        };
+        
+        // Use setTimeout to ensure content is rendered first
+        setTimeout(scrollToBottom, 10);
+      }
+    }
+  }, [messages.map(msg => msg.isStreaming ? msg.content : '').join('')]);
 
   return (
     <div 
@@ -388,8 +441,8 @@ export const MessageList: React.FC<MessageListProps> = ({
         />
       ))}
 
-      {/* Loading Indicator */}
-      {isLoading && (
+      {/* Loading Indicator - only show if no streaming messages */}
+      {isLoading && !messages.some(msg => msg.isStreaming) && (
         <LoadingIndicator currentModel={currentModel} currentProvider={currentProvider} />
       )}
       
