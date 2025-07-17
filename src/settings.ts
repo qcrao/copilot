@@ -118,11 +118,6 @@ function getSyncAvailableModelsWithKeys(apiKeys: {
   return availableModels;
 }
 
-// Helper function to get models for current provider
-function getModelsForProvider(providerId: string) {
-  const provider = AI_PROVIDERS.find((p) => p.id === providerId);
-  return provider ? provider.models : [];
-}
 
 // Helper function to get available models with given API keys
 async function getAvailableModelsWithKeys(apiKeys: {
@@ -180,123 +175,6 @@ export async function getAvailableModels(): Promise<
   return await getAvailableModelsWithKeys(multiProviderSettings.apiKeys);
 }
 
-// Helper function to update model dropdown
-function updateModelDropdown(extensionAPI: any, providerId: string) {
-  const provider = AI_PROVIDERS.find((p) => p.id === providerId);
-  if (provider && provider.models.length > 0) {
-    // If current model is not available for new provider, set to first available model
-    if (!provider.models.includes(aiSettings.model)) {
-      aiSettings.model = provider.models[0];
-      extensionAPI.settings.set("copilot-model", aiSettings.model);
-    }
-
-    // Try to update model dropdown directly via DOM
-    setTimeout(() => {
-      try {
-        console.log("Searching for model dropdown...");
-
-        // Strategy 1: Find all select elements and log them
-        const allSelects = document.querySelectorAll("select");
-        console.log("Found", allSelects.length, "select elements");
-
-        let modelSelect: HTMLSelectElement | null = null;
-
-        // Strategy 2: Look for select elements and examine their options
-        allSelects.forEach((select, index) => {
-          if (select instanceof HTMLSelectElement) {
-            const options = Array.from(select.options).map((opt) => opt.value);
-            console.log(`Select ${index}:`, options);
-
-            // Check if this select contains any AI model names
-            if (
-              options.some(
-                (opt) =>
-                  opt.includes("gpt") ||
-                  opt.includes("claude") ||
-                  opt.includes("llama") ||
-                  opt.includes("grok") ||
-                  opt.includes("gemma") ||
-                  opt.includes("gemini")
-              )
-            ) {
-              modelSelect = select;
-              console.log("Found model select at index", index);
-            }
-          }
-        });
-
-        // Strategy 3: Look for elements with specific IDs or classes
-        if (!modelSelect) {
-          const potentialSelects = [
-            document.getElementById("copilot-model"),
-            document.querySelector('[data-setting-id="copilot-model"]'),
-            document.querySelector(".copilot-model"),
-            document.querySelector('select[name*="model"]'),
-            document.querySelector('select[id*="model"]'),
-          ].filter(Boolean) as HTMLSelectElement[];
-
-          if (potentialSelects.length > 0) {
-            modelSelect = potentialSelects[0];
-            console.log("Found model select via specific selector");
-          }
-        }
-
-        // Strategy 4: Look for the second select element (assuming first is provider)
-        if (!modelSelect && allSelects.length >= 2) {
-          modelSelect = allSelects[1] as HTMLSelectElement;
-          console.log("Using second select element as model dropdown");
-        }
-
-        if (modelSelect) {
-          console.log("Found model select, updating options");
-          console.log(
-            "Current options before update:",
-            Array.from(modelSelect.options).map((opt) => opt.value)
-          );
-
-          // Clear existing options
-          modelSelect.innerHTML = "";
-
-          // Add new options
-          provider.models.forEach((model) => {
-            const option = document.createElement("option");
-            option.value = model;
-            option.textContent = model;
-            if (model === aiSettings.model) {
-              option.selected = true;
-            }
-            if (modelSelect) {
-              modelSelect.appendChild(option);
-            }
-          });
-
-          console.log("Updated model dropdown with:", provider.models);
-
-          // Trigger change event
-          if (modelSelect) {
-            const changeEvent = new Event("change", { bubbles: true });
-            modelSelect.dispatchEvent(changeEvent);
-          }
-        } else {
-          console.log("Could not find model dropdown in DOM");
-          console.log(
-            "Available elements:",
-            Array.from(document.querySelectorAll("*"))
-              .map(
-                (el) =>
-                  el.tagName +
-                  (el.id ? "#" + el.id : "") +
-                  (el.className ? "." + el.className.split(" ").join(".") : "")
-              )
-              .slice(0, 20)
-          );
-        }
-      } catch (error) {
-        console.log("DOM update failed:", error);
-      }
-    }, 200);
-  }
-}
 
 export function initPanelConfig(extensionAPI: any) {
   // Create settings for all providers
