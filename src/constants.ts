@@ -1,4 +1,9 @@
 // src/constants.ts
+// DEPRECATED: This file has been consolidated into utils/shared/constants.ts
+// Import from the new centralized constants file instead
+
+import { CONTENT_LIMITS } from './utils/shared/constants';
+
 export const MONTHS = [
   "January",
   "February",
@@ -22,5 +27,5 @@ export const MONTH_MAP: { [key: string]: number } = MONTHS.reduce(
   {} as { [key: string]: number }
 );
 
-// Block preview length constant
-export const BLOCK_PREVIEW_LENGTH = 30;
+// Re-export for backward compatibility
+export const BLOCK_PREVIEW_LENGTH = CONTENT_LIMITS.BLOCK_PREVIEW;

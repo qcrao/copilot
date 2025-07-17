@@ -1,6 +1,8 @@
 // src/utils/roamQuery.ts
 import { RoamBlock, RoamPage } from "../types";
-import { BLOCK_PREVIEW_LENGTH } from "../constants";
+import { CONTENT_LIMITS } from "./shared/constants";
+import { roamLogger } from "./shared/debug";
+import { ValidationUtils } from "./shared/validation";
 
 export interface BlockWithReferences extends RoamBlock {
   references?: RoamPage[];
@@ -10,7 +12,6 @@ export interface BlockWithReferences extends RoamBlock {
 }
 
 export class RoamQuery {
-  private static DEBUG_MODE = false; // 控制调试日志
   
   /**
    * Get a block and its content recursively (2 levels deep)
@@ -18,9 +19,9 @@ export class RoamQuery {
    */
   static async getBlock(uid: string): Promise<BlockWithReferences | null> {
     try {
-      if (this.DEBUG_MODE) {
-        console.log("ROAM_QUERY_DEBUG: Getting block:", uid);
-        console.log("ROAM_QUERY_DEBUG: UID sanitized:", JSON.stringify(uid));
+      if (roamLogger.isEnabled()) {
+        roamLogger.log("Getting block:", uid);
+        roamLogger.log("UID sanitized:", JSON.stringify(uid));
       }
 
       // Query for the block itself
@@ -31,17 +32,17 @@ export class RoamQuery {
          [?block :block/string ?string]]
       `;
 
-      if (this.DEBUG_MODE) {
-        console.log("ROAM_QUERY_DEBUG: Executing query:", blockQuery);
+      if (roamLogger.isEnabled()) {
+        roamLogger.log("Executing query:", blockQuery);
       }
       const blockResult = window.roamAlphaAPI.q(blockQuery);
-      if (this.DEBUG_MODE) {
-        console.log("ROAM_QUERY_DEBUG: Query result:", blockResult);
+      if (roamLogger.isEnabled()) {
+        roamLogger.log("Query result:", blockResult);
       }
       
       if (!blockResult || blockResult.length === 0) {
-        if (this.DEBUG_MODE) {
-          console.log("ROAM_QUERY_DEBUG: Block not found:", uid);
+        if (roamLogger.isEnabled()) {
+          roamLogger.log("Block not found:", uid);
         }
         
         // Try alternative queries for robustness
@@ -57,8 +58,8 @@ export class RoamQuery {
           
           const caseResult = window.roamAlphaAPI.q(caseInsensitiveQuery);
           if (caseResult && caseResult.length > 0) {
-            if (this.DEBUG_MODE) {
-              console.log("ROAM_QUERY_DEBUG: Found block with case-insensitive match");
+            if (roamLogger.isEnabled()) {
+              roamLogger.log("Found block with case-insensitive match");
             }
                          const blockString = caseResult[0][1];
              const children = (await this.getBlockChildren(uid, 2)) || [];
@@ -78,13 +79,13 @@ export class RoamQuery {
             };
           }
         } catch (altError) {
-          if (this.DEBUG_MODE) {
-            console.log("ROAM_QUERY_DEBUG: Alternative query failed:", altError);
+          if (roamLogger.isEnabled()) {
+            roamLogger.log("Alternative query failed:", altError);
           }
         }
         
         // Additional debugging: check if any partial matches exist (only for troubleshooting)
-        if (this.DEBUG_MODE && uid.length >= 6) {
+        if (roamLogger.isEnabled() && uid.length >= 6) {
           try {
             const partialQuery = `
               [:find ?uid ?string
@@ -96,17 +97,17 @@ export class RoamQuery {
             
             const partialMatches = window.roamAlphaAPI.q(partialQuery);
             if (partialMatches && partialMatches.length > 0) {
-              console.log("ROAM_QUERY_DEBUG: Found blocks with similar UID prefix:", 
+              roamLogger.log("Found blocks with similar UID prefix:", 
                 partialMatches.slice(0, 3).map(([blockUid, blockString]) => ({ 
                   uid: blockUid, 
                   preview: blockString.substring(0, 50) + '...' 
                 }))
               );
             } else {
-              console.log("ROAM_QUERY_DEBUG: No blocks found with similar UID prefix");
+              roamLogger.log("No blocks found with similar UID prefix");
             }
           } catch (debugError) {
-            console.log("ROAM_QUERY_DEBUG: Could not search for partial UID matches:", debugError);
+            roamLogger.log("Could not search for partial UID matches:", debugError);
           }
         }
         
@@ -130,7 +131,7 @@ export class RoamQuery {
       // Parse page references from block string
       const references = await this.resolvePageReferences(blockString);
 
-      console.log("Retrieved block with enhanced context:", {
+      roamLogger.log("Retrieved block with enhanced context:", {
         uid,
         string: blockString,
         children: children.length,
@@ -150,7 +151,7 @@ export class RoamQuery {
         references
       };
     } catch (error) {
-      console.error("Error getting block:", error);
+      roamLogger.error("Error getting block:", error);
       return null;
     }
   }
@@ -192,7 +193,7 @@ export class RoamQuery {
 
       return children;
     } catch (error) {
-      console.error("Error getting block children:", error);
+      roamLogger.error("Error getting block children:", error);
       return [];
     }
   }
@@ -214,7 +215,7 @@ export class RoamQuery {
         pageMatches.map(match => match.slice(2, -2))
       )];
 
-      console.log("Found page references:", uniquePages);
+      roamLogger.log("Found page references:", uniquePages);
 
       // Get content for each referenced page
       for (const pageName of uniquePages) {
@@ -226,7 +227,7 @@ export class RoamQuery {
 
       return pageReferences;
     } catch (error) {
-      console.error("Error resolving page references:", error);
+      roamLogger.error("Error resolving page references:", error);
       return [];
     }
   }
@@ -236,7 +237,7 @@ export class RoamQuery {
    */
   static async getPageByTitle(title: string): Promise<RoamPage | null> {
     try {
-      console.log("Getting page by title:", title);
+      roamLogger.log("Getting page by title:", title);
 
       // Query for page by title
       const pageQuery = `
@@ -248,7 +249,7 @@ export class RoamQuery {
 
       const pageResult = window.roamAlphaAPI.q(pageQuery);
       if (!pageResult || pageResult.length === 0) {
-        console.log("Page not found:", title);
+        roamLogger.log("Page not found:", title);
         return null;
       }
 
@@ -263,7 +264,7 @@ export class RoamQuery {
         blocks
       };
     } catch (error) {
-      console.error("Error getting page by title:", error);
+      roamLogger.error("Error getting page by title:", error);
       return null;
     }
   }
@@ -300,7 +301,7 @@ export class RoamQuery {
       // Limit to first 5 blocks to prevent overwhelming context
       return blocks.slice(0, 5);
     } catch (error) {
-      console.error("Error getting page first level blocks:", error);
+      roamLogger.error("Error getting page first level blocks:", error);
       return [];
     }
   }
@@ -311,7 +312,7 @@ export class RoamQuery {
   static extractUidFromDragData(dataTransfer: DataTransfer): string | null {
     try {
       const uidList = dataTransfer.getData("roam/block-uid-list");
-      console.log("Drag data received:", uidList);
+      roamLogger.log("Drag data received:", uidList);
       
       if (!uidList) return null;
       
@@ -331,7 +332,7 @@ export class RoamQuery {
         }
       }
       
-      console.log("Parsed UIDs from drag data:", uids);
+      roamLogger.log("Parsed UIDs from drag data:", uids);
       
       // Return first valid UID
       for (const uid of uids) {
@@ -342,7 +343,7 @@ export class RoamQuery {
       
       return null;
     } catch (error) {
-      console.error("Error extracting UID from drag data:", error);
+      roamLogger.error("Error extracting UID from drag data:", error);
       return null;
     }
   }
@@ -374,7 +375,7 @@ export class RoamQuery {
         order: parentOrder
       };
     } catch (error) {
-      console.error("Error getting block parent:", error);
+      roamLogger.error("Error getting block parent:", error);
       return null;
     }
   }
@@ -410,7 +411,7 @@ export class RoamQuery {
       siblings.sort((a, b) => (a.order || 0) - (b.order || 0));
       return siblings;
     } catch (error) {
-      console.error("Error getting block siblings:", error);
+      roamLogger.error("Error getting block siblings:", error);
       return [];
     }
   }
@@ -434,7 +435,7 @@ export class RoamQuery {
       
       return ancestors;
     } catch (error) {
-      console.error("Error getting block ancestor path:", error);
+      roamLogger.error("Error getting block ancestor path:", error);
       return [];
     }
   }
@@ -459,7 +460,7 @@ export class RoamQuery {
 
       return block;
     } catch (error) {
-      console.error("Error getting block with enhanced context:", error);
+      roamLogger.error("Error getting block with enhanced context:", error);
       return null;
     }
   }
@@ -467,7 +468,7 @@ export class RoamQuery {
   /**
    * Format block content for display (preview)
    */
-  static formatBlockPreview(blockString: string, maxLength: number = BLOCK_PREVIEW_LENGTH): string {
+  static formatBlockPreview(blockString: string, maxLength: number = CONTENT_LIMITS.BLOCK_PREVIEW): string {
     if (!blockString) return "Empty block";
     
     const cleanText = blockString
