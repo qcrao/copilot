@@ -52,6 +52,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   const [isLoadingModels, setIsLoadingModels] = useState(true);
   const [isComposing, setIsComposing] = useState(false);
   const [isInitializing, setIsInitializing] = useState(false);
+  const [editorContentVersion, setEditorContentVersion] = useState(0);
 
   // Prompt menu states
   const [showPromptMenu, setShowPromptMenu] = useState(false);
@@ -128,6 +129,8 @@ export const ChatInput: React.FC<ChatInputProps> = ({
     onUpdate: ({ editor }) => {
       const text = editor.getText();
       handleContentChange(text);
+      // Update content version to trigger canSend recalculation
+      setEditorContentVersion(prev => prev + 1);
     },
     onCreate: ({ editor }) => {
       // Initialize with controlled value if provided
@@ -258,6 +261,8 @@ export const ChatInput: React.FC<ChatInputProps> = ({
             if (onChange) {
               onChange(serializedContent);
             }
+            // Update content version to trigger canSend recalculation
+            setEditorContentVersion(prev => prev + 1);
           }
         }, 50);
       }
@@ -552,6 +557,8 @@ export const ChatInput: React.FC<ChatInputProps> = ({
             if (onChange) {
               onChange(serializedContent);
             }
+            // Update content version to trigger canSend recalculation
+            setEditorContentVersion(prev => prev + 1);
           }
         }, 50);
         
@@ -798,7 +805,9 @@ export const ChatInput: React.FC<ChatInputProps> = ({
     if (!editor) return;
 
     const text = editor.getText().trim();
-    if (text && !disabled) {
+    const serializedContent = serializeWithReferences(editor);
+    
+    if ((text || serializedContent.includes('((') || serializedContent.includes('[[')) && !disabled) {
       // Send the editor JSON for processing references
       const editorJSON = editor.getJSON();
       onSend(editorJSON as any);
@@ -806,6 +815,8 @@ export const ChatInput: React.FC<ChatInputProps> = ({
       if (onChange) {
         onChange("");
       }
+      // Update content version to trigger canSend recalculation
+      setEditorContentVersion(prev => prev + 1);
     }
   };
 
@@ -830,7 +841,18 @@ export const ChatInput: React.FC<ChatInputProps> = ({
     }
   };
 
-  const canSend = (editor?.getText()?.trim().length || 0) > 0 && !disabled && !isLoading;
+  const canSend = useMemo(() => {
+    if (!editor || disabled || isLoading) return false;
+    
+    // Check if editor has any text content
+    const hasTextContent = (editor.getText()?.trim().length || 0) > 0;
+    
+    // Check if editor has any reference chips
+    const serializedContent = serializeWithReferences(editor);
+    const hasReferences = serializedContent.includes('((') || serializedContent.includes('[[');
+    
+    return hasTextContent || hasReferences;
+  }, [editor, disabled, isLoading, editorContentVersion]);
 
   // Handle composition events
   const handleCompositionStart = () => {
