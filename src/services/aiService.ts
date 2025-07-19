@@ -188,7 +188,24 @@ export class AIService {
         hasApiKey: !!providerInfo.apiKey,
         userMessageLength: finalUserMessage.length,
         systemMessageLength: systemMessage.length,
+        systemMessagePreview: systemMessage.substring(0, 200) + "...",
+        hasBacklinks: systemMessage.includes("反向链接"),
+        contextInSystemMessage: {
+          hasAvailableContext: systemMessage.includes("**Available Context:**"),
+          contextStartIndex: systemMessage.indexOf("**Available Context:**"),
+          contextLength: context.length,
+          contextPreview: context.substring(0, 500) + "...",
+          hasBacklinksInContext: context.includes("反向链接"),
+          backlinksCount: (context.match(/\*\*反向链接\*\*/g) || []).length,
+          referenceCount: (context.match(/\*\*块引用\*\*/g) || []).length,
+          pageCount: (context.match(/\*\*页面:/g) || []).length
+        }
       });
+
+      // 添加完整的系统消息和用户消息日志
+      console.log("📤 FULL SYSTEM MESSAGE:", systemMessage);
+      console.log("📤 FULL USER MESSAGE:", finalUserMessage);
+      console.log("📤 FULL CONTEXT:", context);
 
       const config = {
         provider: providerInfo.provider.id,
