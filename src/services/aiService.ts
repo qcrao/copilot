@@ -39,17 +39,9 @@ export class AIService {
       );
     }
 
-    // Add language instruction based on user's manual setting if it's not English
-    let finalUserMessage = userMessage;
-    const responseLanguage =
-      multiProviderSettings.responseLanguage || "English";
-    if (responseLanguage !== "English") {
-      finalUserMessage =
-        userMessage + `\n\nIMPORTANT: Please respond in ${responseLanguage}.`;
-    }
-
     // Use LLMUtil without tool calling for better compatibility
     const systemMessage = this.getSystemMessage(context);
+    const finalUserMessage = userMessage;
     const messagesWithHistory = this.buildMessagesWithHistory(
       systemMessage,
       finalUserMessage,
@@ -163,17 +155,9 @@ export class AIService {
       );
     }
 
-    // Add language instruction based on user's manual setting if it's not English
-    let finalUserMessage = userMessage;
-    const responseLanguage =
-      multiProviderSettings.responseLanguage || "English";
-    if (responseLanguage !== "English") {
-      finalUserMessage =
-        userMessage + `\n\nIMPORTANT: Please respond in ${responseLanguage}.`;
-    }
-
     // Use LLMUtil streaming
     const systemMessage = this.getSystemMessage(context);
+    const finalUserMessage = userMessage;
     const messagesWithHistory = this.buildMessagesWithHistory(
       systemMessage,
       finalUserMessage,
@@ -325,13 +309,19 @@ export class AIService {
       timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone
     });
     
+    // Get response language setting
+    const responseLanguage = multiProviderSettings.responseLanguage || "English";
+    const languageInstruction = responseLanguage !== "English" 
+      ? `\n**LANGUAGE REQUIREMENT:** Please respond in ${responseLanguage}.`
+      : "";
+    
     return `You are an introspective AI assistant helping the user reflect on their past thoughts.
 
 **Current Date and Time Context:**
 - Today's date: ${currentDate}
 - User's timezone: ${Intl.DateTimeFormat().resolvedOptions().timeZone}
 
-You will be given a set of notes written by the user over a period of time. These notes may be fragmented, emotional, logical, or incomplete — that's okay. Do not fix or summarize them.
+You will be given a set of notes written by the user over a period of time. These notes may be fragmented, emotional, logical, or incomplete — that's okay. Do not fix or summarize them.${languageInstruction}
 
 **CRITICAL REQUIREMENT: LETTER FORMAT ONLY**
 You MUST ALWAYS write in the form of a **personalized insight letter**. This is non-negotiable regardless of the user's question or content type.
