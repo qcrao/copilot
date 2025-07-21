@@ -10,6 +10,11 @@ import remarkRoamLinks from '../utils/remarkRoamLinks';
 import { RoamQuery } from '../utils/roamQuery';
 import { BLOCK_PREVIEW_LENGTH } from '../constants';
 
+// Global cache for block content to prevent re-loading during streaming
+const blockContentCache = new Map<string, { content: string; timestamp: number }>();
+const pageExistenceCache = new Map<string, { exists: boolean; timestamp: number }>();
+const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes cache
+
 // Import Highlight.js CSS for code highlighting
 import 'highlight.js/styles/github.css';
 
@@ -26,16 +31,22 @@ const BlockReference: React.FC<{
   isUser: boolean;
   isStreaming?: boolean;
 }> = ({ uid, isUser, isStreaming = false }) => {
-  const [blockContent, setBlockContent] = useState<string>('');
-  const [isLoading, setIsLoading] = useState(true);
-  const [hasAttemptedLoad, setHasAttemptedLoad] = useState(false);
+  // Check cache immediately for initial state
+  const getCachedContent = (uid: string): { content: string; isLoading: boolean } => {
+    const now = Date.now();
+    const cached = blockContentCache.get(uid);
+    if (cached && (now - cached.timestamp) < CACHE_DURATION) {
+      return { content: cached.content, isLoading: false };
+    }
+    return { content: '', isLoading: true };
+  };
+
+  const initialState = getCachedContent(uid);
+  const [blockContent, setBlockContent] = useState<string>(initialState.content);
+  const [isLoading, setIsLoading] = useState(initialState.isLoading);
+  const [hasAttemptedLoad, setHasAttemptedLoad] = useState(!initialState.isLoading);
 
   useEffect(() => {
-    // Don't load during streaming to avoid flashing
-    if (isStreaming) {
-      return;
-    }
-
     const loadBlockContent = async () => {
       try {
         setHasAttemptedLoad(true);
@@ -67,14 +78,28 @@ const BlockReference: React.FC<{
           setIsLoading(false);
           return;
         }
+
+        // Check cache first
+        const now = Date.now();
+        const cached = blockContentCache.get(uid);
+        if (cached && (now - cached.timestamp) < CACHE_DURATION) {
+          setBlockContent(cached.content);
+          setIsLoading(false);
+          return;
+        }
+
         const blockData = await RoamQuery.getBlock(uid);
         
         if (blockData) {
           const preview = RoamQuery.formatBlockPreview(blockData.string, BLOCK_PREVIEW_LENGTH);
           setBlockContent(preview);
+          // Cache the result
+          blockContentCache.set(uid, { content: preview, timestamp: now });
         } else {
-          // Try to find similar blocks or provide better error info
-          setBlockContent(`[Block ${uid} not found]`);
+          const errorMsg = `[Block ${uid} not found]`;
+          setBlockContent(errorMsg);
+          // Cache error result for shorter duration
+          blockContentCache.set(uid, { content: errorMsg, timestamp: now - CACHE_DURATION + 30000 }); // 30 second cache for errors
           
           // Optional: Log for debugging purposes
           console.log(`📋 Block not found: ${uid}. This could mean:
@@ -85,14 +110,18 @@ const BlockReference: React.FC<{
         }
       } catch (error) {
         console.error('Error loading block content for UID:', uid, error);
-        setBlockContent(`[Error loading block]`);
+        const errorMsg = `[Error loading block]`;
+        setBlockContent(errorMsg);
+        // Cache error result for shorter duration
+        const now = Date.now();
+        blockContentCache.set(uid, { content: errorMsg, timestamp: now - CACHE_DURATION + 30000 });
       } finally {
         setIsLoading(false);
       }
     };
 
     loadBlockContent();
-  }, [uid, isStreaming]);
+  }, [uid]);
 
   const handleClick = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -173,7 +202,7 @@ const BlockReference: React.FC<{
       }}
       onClick={handleClick}
     >
-{isStreaming ? `((${uid}))` : (isLoading ? `[Loading block...]` : blockContent)}
+      {isLoading ? `[Loading...]` : blockContent}
     </span>
   );
 };
@@ -184,16 +213,39 @@ const PageReference: React.FC<{
   isUser: boolean;
   needsValidation?: boolean;
 }> = ({ pageName, isUser, needsValidation = false }) => {
-  const [pageExists, setPageExists] = useState<boolean | null>(needsValidation ? null : true);
-  const [isChecking, setIsChecking] = useState(needsValidation);
+  // Check cache immediately for initial state
+  const getCachedPageExists = (pageName: string): { exists: boolean | null; isChecking: boolean } => {
+    if (!needsValidation) return { exists: true, isChecking: false };
+    
+    const now = Date.now();
+    const cached = pageExistenceCache.get(pageName);
+    if (cached && (now - cached.timestamp) < CACHE_DURATION) {
+      return { exists: cached.exists, isChecking: false };
+    }
+    return { exists: null, isChecking: true };
+  };
+
+  const initialState = getCachedPageExists(pageName);
+  const [pageExists, setPageExists] = useState<boolean | null>(initialState.exists);
+  const [isChecking, setIsChecking] = useState(initialState.isChecking);
 
   useEffect(() => {
-    if (needsValidation) {
+    if (needsValidation && isChecking) {
       const checkPageExists = async () => {
         try {
+          // Check cache first
+          const now = Date.now();
+          const cached = pageExistenceCache.get(pageName);
+          if (cached && (now - cached.timestamp) < CACHE_DURATION) {
+            setPageExists(cached.exists);
+            setIsChecking(false);
+            return;
+          }
+
           if (typeof window === 'undefined' || !(window as any).roamAlphaAPI) {
             setPageExists(false);
             setIsChecking(false);
+            pageExistenceCache.set(pageName, { exists: false, timestamp: now });
             return;
           }
 
@@ -208,21 +260,26 @@ const PageReference: React.FC<{
           const exists = result && result.length > 0;
           setPageExists(exists);
           setIsChecking(false);
+          // Cache the result
+          pageExistenceCache.set(pageName, { exists, timestamp: now });
         } catch (error) {
           console.error('Error checking page existence:', error);
           setPageExists(false);
           setIsChecking(false);
+          // Cache error result for shorter duration
+          const now = Date.now();
+          pageExistenceCache.set(pageName, { exists: false, timestamp: now - CACHE_DURATION + 30000 });
         }
       };
 
       checkPageExists();
     }
-  }, [pageName, needsValidation]);
+  }, [pageName, needsValidation, isChecking]);
 
   // If page doesn't exist, render as plain text
   if (needsValidation && !isChecking && pageExists === false) {
     return (
-      <span style={{ color: isUser ? '#ffffff' : '#393A3D' }}>
+      <span style={{ color: '#393A3D' }}>
         {pageName}
       </span>
     );
@@ -231,7 +288,7 @@ const PageReference: React.FC<{
   // If still checking, show loading state
   if (isChecking) {
     return (
-      <span style={{ color: isUser ? '#ffffff' : '#393A3D', fontStyle: 'italic' }}>
+      <span style={{ color: '#393A3D', fontStyle: 'italic' }}>
         {pageName}
       </span>
     );
@@ -320,14 +377,20 @@ export const EnhancedMessageRenderer: React.FC<EnhancedMessageRendererProps> = (
       // Handle images that are on their own line
       .replace(/^\s*(https?:\/\/[^\s<>\[\]]+\.(?:jpg|jpeg|png|gif|webp|svg|bmp|tiff|ico)(?:\?[^\s<>\[\]]*)?(?:#[^\s<>\[\]]*)?)\s*$/gim, '![Image]($1)');
     
-    // If streaming, hide incomplete block references to prevent "block not found" flashing
+    // Smart handling for streaming: only hide truly incomplete references
     if (isStreaming) {
-      // Replace incomplete block references with placeholder text
+      // Only remove incomplete references at the very end of content or spanning newlines
+      // This allows complete references like ((uid)) and [[page]] to be processed normally
       processedText = processedText
-        .replace(/\(\([^)]*$/g, '') // Remove incomplete block references at the end
-        .replace(/\(\([^)]*\n/g, '') // Remove incomplete block references that span lines
-        .replace(/\[\[[^\]]*$/g, '') // Remove incomplete page references at the end
-        .replace(/\[\[[^\]]*\n/g, ''); // Remove incomplete page references that span lines
+        // Remove incomplete block references only at end of text or before newlines
+        .replace(/\(\([^)]*$/, '') // Incomplete ((... at end of text
+        .replace(/\(\([^)]*(?=\n)/g, '') // Incomplete ((... before newline
+        // Remove incomplete page references only at end of text or before newlines  
+        .replace(/\[\[[^\]]*$/, '') // Incomplete [[... at end of text
+        .replace(/\[\[[^\]]*(?=\n)/g, ''); // Incomplete [[... before newline
+      
+      // Keep complete references intact - they should be processed normally
+      // Complete patterns like ((uid)) and [[page]] will be handled by remarkRoam
     }
     
     return processedText.trim(); // Remove leading/trailing whitespace
@@ -350,8 +413,14 @@ export const EnhancedMessageRenderer: React.FC<EnhancedMessageRendererProps> = (
         remarkPlugins={[
           remarkGfm,
           remarkRoamLinks, // Process markdown links first
-          [remarkRoamBlocks, { isStreaming }],
-          [remarkRoamPages, { isStreaming }]
+          [remarkRoamBlocks, { 
+            processBlocks: true,
+            processPages: true,
+            processLinks: true,
+            validateReferences: true,
+            debugMode: false,
+            isStreaming
+          }]
         ]}
         rehypePlugins={[
           [rehypeHighlight, { detect: true, subset: false }]
@@ -471,7 +540,7 @@ export const EnhancedMessageRenderer: React.FC<EnhancedMessageRendererProps> = (
                 href={href}
                 onClick={handleLinkClick}
                 style={{
-                  color: isUser ? '#ffffff' : '#393A3D',
+                  color: '#106ba3',
                   textDecoration: 'underline',
                   cursor: 'pointer'
                 }}
@@ -530,7 +599,7 @@ export const EnhancedMessageRenderer: React.FC<EnhancedMessageRendererProps> = (
             <h1 style={{ 
               fontSize: '1.4em', 
               fontWeight: 'bold', 
-              color: isUser ? '#ffffff' : '#393A3D',
+              color: '#393A3D',
               margin: '12px 0 6px 0',
               lineHeight: '1.3'
             }} {...rest}>{children}</h1>
@@ -539,7 +608,7 @@ export const EnhancedMessageRenderer: React.FC<EnhancedMessageRendererProps> = (
             <h2 style={{ 
               fontSize: '1.2em', 
               fontWeight: 'bold', 
-              color: isUser ? '#ffffff' : '#393A3D',
+              color: '#393A3D',
               margin: '12px 0 6px 0',
               lineHeight: '1.3'
             }} {...rest}>{children}</h2>
@@ -548,7 +617,7 @@ export const EnhancedMessageRenderer: React.FC<EnhancedMessageRendererProps> = (
             <h3 style={{ 
               fontSize: '1.1em', 
               fontWeight: 'bold', 
-              color: isUser ? '#ffffff' : '#393A3D',
+              color: '#393A3D',
               margin: '12px 0 6px 0',
               lineHeight: '1.3'
             }} {...rest}>{children}</h3>
@@ -557,7 +626,7 @@ export const EnhancedMessageRenderer: React.FC<EnhancedMessageRendererProps> = (
             <h4 style={{ 
               fontSize: '1.05em', 
               fontWeight: 'bold', 
-              color: isUser ? '#ffffff' : '#393A3D',
+              color: '#393A3D',
               margin: '10px 0 5px 0',
               lineHeight: '1.3'
             }} {...rest}>{children}</h4>
@@ -566,7 +635,7 @@ export const EnhancedMessageRenderer: React.FC<EnhancedMessageRendererProps> = (
             <h5 style={{ 
               fontSize: '1em', 
               fontWeight: 'bold', 
-              color: isUser ? '#ffffff' : '#393A3D',
+              color: '#393A3D',
               margin: '10px 0 5px 0',
               lineHeight: '1.3'
             }} {...rest}>{children}</h5>
@@ -575,7 +644,7 @@ export const EnhancedMessageRenderer: React.FC<EnhancedMessageRendererProps> = (
             <h6 style={{ 
               fontSize: '0.9em', 
               fontWeight: 'bold', 
-              color: isUser ? '#ffffff' : '#393A3D',
+              color: '#393A3D',
               margin: '10px 0 5px 0',
               lineHeight: '1.3'
             }} {...rest}>{children}</h6>

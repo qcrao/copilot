@@ -44,6 +44,7 @@ export interface RemarkRoamOptions {
   processLinks?: boolean;
   validateReferences?: boolean;
   debugMode?: boolean;
+  isStreaming?: boolean;
 }
 
 const DEFAULT_OPTIONS: RemarkRoamOptions = {
@@ -52,6 +53,7 @@ const DEFAULT_OPTIONS: RemarkRoamOptions = {
   processLinks: true,
   validateReferences: true,
   debugMode: false,
+  isStreaming: false,
 };
 
 /**
@@ -107,7 +109,11 @@ function processBlockReferences(
     // Sanitize and validate the UID
     const sanitizedUid = ValidationUtils.sanitizeUID(uid);
     
-    if (sanitizedUid && (!options.validateReferences || ValidationUtils.isValidUID(sanitizedUid))) {
+    // In streaming mode, be extra careful about incomplete references
+    const isCompleteReference = fullMatch.endsWith('))') || fullMatch.endsWith(')))');
+    const shouldProcess = !options.isStreaming || isCompleteReference;
+    
+    if (shouldProcess && sanitizedUid && (!options.validateReferences || ValidationUtils.isValidUID(sanitizedUid))) {
       // Add the Roam block reference node
       newNodes.push({
         type: 'roamBlock',
@@ -124,17 +130,24 @@ function processBlockReferences(
       if (options.debugMode) {
         console.log('RemarkRoam: Processed block reference:', {
           original: fullMatch,
-          sanitized: sanitizedUid
+          sanitized: sanitizedUid,
+          isStreaming: options.isStreaming,
+          isComplete: isCompleteReference
         });
       }
     } else {
-      // Treat as regular text if validation fails
+      // Treat as regular text if validation fails or streaming with incomplete reference
       newNodes.push({
         type: 'text',
         value: fullMatch
       });
 
-      if (options.debugMode) {
+      if (options.debugMode && options.isStreaming && !isCompleteReference) {
+        console.log('RemarkRoam: Skipped incomplete block reference during streaming:', {
+          original: fullMatch,
+          isComplete: isCompleteReference
+        });
+      } else if (options.debugMode) {
         console.warn('RemarkRoam: Invalid block reference:', {
           original: fullMatch,
           sanitized: sanitizedUid
@@ -190,8 +203,12 @@ function processPageReferences(
       });
     }
 
+    // In streaming mode, be extra careful about incomplete references
+    const isCompleteReference = fullMatch.endsWith(']]');
+    const shouldProcess = !options.isStreaming || isCompleteReference;
+
     // Validate if this is a legitimate page reference
-    if (!options.validateReferences || ValidationUtils.isValidPageName(trimmedPageName)) {
+    if (shouldProcess && (!options.validateReferences || ValidationUtils.isValidPageName(trimmedPageName))) {
       // Add the Roam page reference node
       newNodes.push({
         type: 'roamPage',
@@ -207,7 +224,11 @@ function processPageReferences(
       } as RoamPageNode);
 
       if (options.debugMode) {
-        console.log('RemarkRoam: Processed page reference:', trimmedPageName);
+        console.log('RemarkRoam: Processed page reference:', {
+          pageName: trimmedPageName,
+          isStreaming: options.isStreaming,
+          isComplete: isCompleteReference
+        });
       }
     } else {
       // Treat as regular text, not a page reference
@@ -216,7 +237,12 @@ function processPageReferences(
         value: fullMatch
       });
 
-      if (options.debugMode) {
+      if (options.debugMode && options.isStreaming && !isCompleteReference) {
+        console.log('RemarkRoam: Skipped incomplete page reference during streaming:', {
+          original: fullMatch,
+          isComplete: isCompleteReference
+        });
+      } else if (options.debugMode) {
         console.warn('RemarkRoam: Invalid page reference:', trimmedPageName);
       }
     }

@@ -446,13 +446,7 @@ ${contextForUser}`;
               ),
             }));
             
-            // Force scroll update for streaming content
-            requestAnimationFrame(() => {
-              const messageContainer = document.querySelector('.rr-copilot-message-list');
-              if (messageContainer) {
-                messageContainer.scrollTop = messageContainer.scrollHeight;
-              }
-            });
+            // Scrolling is handled by MessageList component
           }
         }
 

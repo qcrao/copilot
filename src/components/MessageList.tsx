@@ -154,7 +154,7 @@ const LoadingIndicator: React.FC<{ currentModel?: string; currentProvider?: stri
   );
 };
 
-const MessageItem: React.FC<MessageItemProps> = ({ message, index, onCopyMessage, copiedMessageIndex }) => {
+const MessageItem: React.FC<MessageItemProps> = React.memo(({ message, index, onCopyMessage, copiedMessageIndex }) => {
   const isUser = message.role === 'user';
   const isStreaming = message.isStreaming;
   const modelInfo = isUser ? null : getModelDisplayInfo(message.model, message.modelProvider);
@@ -363,7 +363,15 @@ const MessageItem: React.FC<MessageItemProps> = ({ message, index, onCopyMessage
       </div>
     </div>
   );
-};
+}, (prevProps, nextProps) => {
+  // Only re-render if the message content, streaming status, or copy status actually changed
+  return (
+    prevProps.message.content === nextProps.message.content &&
+    prevProps.message.isStreaming === nextProps.message.isStreaming &&
+    prevProps.copiedMessageIndex === nextProps.copiedMessageIndex &&
+    prevProps.message.id === nextProps.message.id
+  );
+});
 
 export const MessageList: React.FC<MessageListProps> = ({ 
   messages, 
@@ -376,48 +384,36 @@ export const MessageList: React.FC<MessageListProps> = ({
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // Auto-scroll to bottom when new messages arrive or streaming content updates
+  // Unified scrolling logic - only one effect to prevent conflicts
   useEffect(() => {
-    if (messagesEndRef.current) {
-      messagesEndRef.current.scrollIntoView({ 
+    const container = containerRef.current;
+    const endElement = messagesEndRef.current;
+    
+    if (!container || !endElement) return;
+
+    const hasStreamingMessage = messages.some(msg => msg.isStreaming);
+    
+    // For streaming content, use immediate scroll without animation to reduce flicker
+    if (hasStreamingMessage) {
+      // Use direct scroll for streaming to avoid visual conflicts
+      const scrollToBottom = () => {
+        container.scrollTop = container.scrollHeight;
+      };
+      
+      // Use requestAnimationFrame to ensure DOM has updated
+      requestAnimationFrame(scrollToBottom);
+    } else {
+      // For new messages or loading states, use smooth scroll
+      endElement.scrollIntoView({ 
         behavior: 'smooth',
         block: 'end'
       });
     }
-  }, [messages, isLoading]);
-
-  // Also scroll when streaming content changes
-  useEffect(() => {
-    const hasStreamingMessage = messages.some(msg => msg.isStreaming);
-    if (hasStreamingMessage && messagesEndRef.current) {
-      // Use requestAnimationFrame for smoother scrolling during streaming
-      requestAnimationFrame(() => {
-        if (messagesEndRef.current) {
-          messagesEndRef.current.scrollIntoView({ 
-            behavior: 'smooth',
-            block: 'end'
-          });
-        }
-      });
-    }
-  }, [messages.map(msg => msg.isStreaming ? msg.content : '').join('')]);
-
-  // Add a more aggressive scroll effect for streaming content
-  useEffect(() => {
-    const streamingMessage = messages.find(msg => msg.isStreaming);
-    if (streamingMessage && messagesEndRef.current) {
-      const container = containerRef.current;
-      if (container) {
-        // Auto-scroll to bottom during streaming
-        const scrollToBottom = () => {
-          container.scrollTop = container.scrollHeight;
-        };
-        
-        // Use setTimeout to ensure content is rendered first
-        setTimeout(scrollToBottom, 10);
-      }
-    }
-  }, [messages.map(msg => msg.isStreaming ? msg.content : '').join('')]);
+  }, [
+    messages.length, // Trigger on new messages
+    isLoading, // Trigger on loading state changes
+    messages.map(msg => msg.isStreaming ? msg.content.length : 0).join(',') // Trigger on streaming content changes (using length to reduce frequency)
+  ]);
 
   return (
     <div 
