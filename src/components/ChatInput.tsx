@@ -509,49 +509,68 @@ export const ChatInput: React.FC<ChatInputProps> = ({
       left: editorRect.left,
     };
   };
-  const insertUniversalSearchResult = (result: UniversalSearchResult) => {
-    if (!editor || !atSymbolContext.isInAtContext) {
-      return;
-    }
-    
-    const { from } = editor.state.selection;
-    const text = editor.getText();
-    const startPos = atSymbolContext.startPos;
-     
-    if (startPos !== -1) {
-      try {
-        closeUniversalSearch();
-        
-        let actualEndPos = from;
-        while (actualEndPos > startPos && text[actualEndPos - 1] === '\n') {
-          actualEndPos--;
-        }
-         
-        // 1. 设置选区来替换 "@searchterm"
-        editor.commands.setTextSelection({ from: startPos, to: actualEndPos });
-         
-        // 2. 调用我们强大的辅助函数，它会完成插入+加空格+聚焦的所有操作
-        if (result.type === 'page' || result.type === 'daily-note') {
-          insertReferenceChip(editor, result.uid, result.title || result.preview, 'page');
-        } else {
-          insertReferenceChip(editor, result.uid, result.preview, 'block');
-        }
 
-        // 3. 直接在这里更新React状态，不再需要 setTimeout
-        // Tiptap命令是同步的，执行到这里时，编辑器状态已经更新完毕
-        const serializedContent = serializeWithReferences(editor);
-        if (onChange) {
-          onChange(serializedContent);
-        }
-        setEditorContentVersion(prev => prev + 1);
-         
-      } catch (error) {
-        console.error('Error inserting reference chip:', error);
+
+// src/components/ChatInput.tsx
+
+const insertUniversalSearchResult = (result: UniversalSearchResult) => {
+  if (!editor) {
+    return;
+  }
+
+  const searchTermWithAt = `@${universalSearchTerm}`;
+
+  const { state } = editor;
+  const { selection } = state;
+  let start = -1;
+  let end = -1;
+
+  state.doc.nodesBetween(0, selection.from, (node, pos) => {
+    if (node.isText) {
+      const text = node.text || '';
+      const index = text.lastIndexOf(searchTermWithAt);
+      if (index !== -1) {
+        start = pos + index;
+        end = start + searchTermWithAt.length;
       }
-    } else {
-      closeUniversalSearch();
     }
-  };
+    return start === -1;
+  });
+
+  if (start === -1) {
+    console.error("无法在文档中定位到搜索词: ", searchTermWithAt);
+    return;
+  }
+  
+  editor
+    .chain()
+    .focus()
+    .deleteRange({ from: start, to: end })
+    .insertContent({
+      type: 'referenceChip',
+      attrs: {
+        uid: result.uid,
+        preview: (result.type === 'page' || result.type === 'daily-note')
+          ? (result.title || result.preview)
+          : result.preview,
+        type: (result.type === 'page' || result.type === 'daily-note')
+          ? 'page'
+          : 'block',
+      },
+    })
+    .insertContent(' ')
+    // ✨ 使用正确的命令来清理换行 ✨
+    .joinBackward()
+    .run();
+
+  // 更新 React 状态的逻辑保持不变
+  closeUniversalSearch();
+  const serializedContent = serializeWithReferences(editor);
+  if (onChange) {
+    onChange(serializedContent);
+  }
+  setEditorContentVersion(prev => prev + 1);
+};
 
 
 
@@ -690,7 +709,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
             if (universalSearchResults[selectedUniversalIndex]) {
               insertUniversalSearchResult(universalSearchResults[selectedUniversalIndex]);
             }
-            return;
+            return true;
           case "Escape":
             event.preventDefault();
             closeUniversalSearch();
