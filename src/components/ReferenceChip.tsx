@@ -86,7 +86,7 @@ export const ReferenceChip = Node.create({
   group: "inline",
   inline: true,
   atom: true,
-  selectable: false,
+  selectable: true,
 
   addAttributes() {
     return {

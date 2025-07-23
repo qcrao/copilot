@@ -509,59 +509,42 @@ export const ChatInput: React.FC<ChatInputProps> = ({
       left: editorRect.left,
     };
   };
-
   const insertUniversalSearchResult = (result: UniversalSearchResult) => {
-    if (!editor) {
+    if (!editor || !atSymbolContext.isInAtContext) {
       return;
     }
     
-    if (!atSymbolContext.isInAtContext) {
-      return;
-    }
-
     const { from } = editor.state.selection;
     const text = editor.getText();
     const startPos = atSymbolContext.startPos;
-    
+     
     if (startPos !== -1) {
       try {
-        // Close the search first to prevent interference
         closeUniversalSearch();
         
-        // Find the actual end position, skipping newlines
         let actualEndPos = from;
         while (actualEndPos > startPos && text[actualEndPos - 1] === '\n') {
           actualEndPos--;
         }
-        
-        // Set selection to replace the @ symbol and search term
+         
+        // 1. 设置选区来替换 "@searchterm"
         editor.commands.setTextSelection({ from: startPos, to: actualEndPos });
-        
-        // Insert the reference chip based on result type
+         
+        // 2. 调用我们强大的辅助函数，它会完成插入+加空格+聚焦的所有操作
         if (result.type === 'page' || result.type === 'daily-note') {
-          // For pages, use the title as both uid and preview, and set type to page
           insertReferenceChip(editor, result.uid, result.title || result.preview, 'page');
         } else {
-          // For blocks, use the uid and preview as before
           insertReferenceChip(editor, result.uid, result.preview, 'block');
         }
-        
-        // Ensure the editor remains focused and cursor is visible
-        setTimeout(() => {
-          if (editor && editor.view && editor.view.dom) {
-            editor.commands.focus();
-            // Force editor to re-evaluate its content state (important for placeholder hiding)
-            editor.view.dispatch(editor.state.tr);
-            // Trigger a content change to ensure the editor is properly updated
-            const serializedContent = serializeWithReferences(editor);
-            if (onChange) {
-              onChange(serializedContent);
-            }
-            // Update content version to trigger canSend recalculation
-            setEditorContentVersion(prev => prev + 1);
-          }
-        }, 50);
-        
+
+        // 3. 直接在这里更新React状态，不再需要 setTimeout
+        // Tiptap命令是同步的，执行到这里时，编辑器状态已经更新完毕
+        const serializedContent = serializeWithReferences(editor);
+        if (onChange) {
+          onChange(serializedContent);
+        }
+        setEditorContentVersion(prev => prev + 1);
+         
       } catch (error) {
         console.error('Error inserting reference chip:', error);
       }
@@ -569,7 +552,6 @@ export const ChatInput: React.FC<ChatInputProps> = ({
       closeUniversalSearch();
     }
   };
-
 
 
 
