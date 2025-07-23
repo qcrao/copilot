@@ -270,7 +270,7 @@ function serializeNodeToText(node: any): string {
     const content =
       node.content?.map((child: any) => serializeNodeToText(child)).join("") ||
       "";
-    return content + "\n";
+    return content;
   }
 
   if (node.type === "doc") {

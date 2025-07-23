@@ -545,7 +545,8 @@ const insertUniversalSearchResult = (result: UniversalSearchResult) => {
   editor
     .chain()
     .focus()
-    .deleteRange({ from: start, to: end })
+    .setTextSelection({ from: start, to: end })
+    .deleteSelection()
     .insertContent({
       type: 'referenceChip',
       attrs: {
@@ -559,8 +560,6 @@ const insertUniversalSearchResult = (result: UniversalSearchResult) => {
       },
     })
     .insertContent(' ')
-    // ✨ 使用正确的命令来清理换行 ✨
-    .joinBackward()
     .run();
 
   // 更新 React 状态的逻辑保持不变
