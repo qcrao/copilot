@@ -105,7 +105,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
       attributes: {
         class: "rr-copilot-editor",
         style:
-          "outline: none; min-height: 24px; max-height: 120px; overflow-y: auto; line-height: 1.5;",
+          "outline: none; min-height: 52px; max-height: 120px; overflow-y: auto; line-height: 1.5;",
         "data-placeholder": placeholder,
         tabindex: "0",
       },
@@ -538,7 +538,7 @@ const insertUniversalSearchResult = (result: UniversalSearchResult) => {
   });
 
   if (start === -1) {
-    console.error("无法在文档中定位到搜索词: ", searchTermWithAt);
+    console.error("Unable to locate search term in document: ", searchTermWithAt);
     return;
   }
   
@@ -562,7 +562,7 @@ const insertUniversalSearchResult = (result: UniversalSearchResult) => {
     .insertContent(' ')
     .run();
 
-  // 更新 React 状态的逻辑保持不变
+  // Update React state as before
   closeUniversalSearch();
   const serializedContent = serializeWithReferences(editor);
   if (onChange) {
@@ -872,7 +872,6 @@ const insertUniversalSearchResult = (result: UniversalSearchResult) => {
     if (editor && editor.view) {
       // Check if we clicked in an empty area or need to focus
       const target = event.target as HTMLElement;
-      const editorDom = editor.view.dom as HTMLElement;
 
       // If we clicked on the container but not on the editor content, focus the editor
       if (
