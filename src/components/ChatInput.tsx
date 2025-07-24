@@ -102,6 +102,18 @@ export const ChatInput: React.FC<ChatInputProps> = ({
     content: controlledValue || "",
     autofocus: false, // Don't autofocus on creation
     editorProps: {
+      handleKeyDown: (view, event) => {
+        // Handle universal search Enter key at TipTap level to prevent default paragraph creation
+        if (showUniversalSearch && universalSearchResults.length > 0 && event.key === 'Enter') {
+          event.preventDefault();
+          event.stopPropagation();
+          if (universalSearchResults[selectedUniversalIndex]) {
+            insertUniversalSearchResult(universalSearchResults[selectedUniversalIndex]);
+          }
+          return true; // Prevent TipTap's default handling
+        }
+        return false; // Allow normal TipTap handling
+      },
       attributes: {
         class: "rr-copilot-editor",
         style:
@@ -702,13 +714,6 @@ const insertUniversalSearchResult = (result: UniversalSearchResult) => {
               prev > 0 ? prev - 1 : universalSearchResults.length - 1
             );
             return;
-          case "Enter":
-            event.preventDefault();
-            event.stopPropagation(); // Prevent any other handlers from running
-            if (universalSearchResults[selectedUniversalIndex]) {
-              insertUniversalSearchResult(universalSearchResults[selectedUniversalIndex]);
-            }
-            return true;
           case "Escape":
             event.preventDefault();
             closeUniversalSearch();

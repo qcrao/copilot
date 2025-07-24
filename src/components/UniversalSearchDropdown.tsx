@@ -54,7 +54,7 @@ export const UniversalSearchDropdown: React.FC<UniversalSearchDropdownProps> = (
     }
   }, [isVisible, selectedIndex, results.length]);
 
-  // 移除冗余的渲染日志
+  // Remove redundant render logging
   // console.log(`🔍 UniversalSearchDropdown render: visible=${isVisible}, results.length=${results.length}`, results.map(r => r.preview));
   
   if (!isVisible) {
