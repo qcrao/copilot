@@ -306,22 +306,7 @@ const MessageItem: React.FC<MessageItemProps> = React.memo(({ message, index, on
             isStreaming={isStreaming}
           />
           {isStreaming && !isUser && (
-            <div style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '4px',
-              marginLeft: '4px',
-              fontSize: '14px',
-              color: '#666',
-              lineHeight: '1.5'
-            }}>
-              <span style={{
-                animation: "blink 1.4s infinite both",
-                animationDelay: "0s",
-                fontSize: '14px',
-                lineHeight: '1.5'
-              }}>▊</span>
-            </div>
+            <span className="rr-copilot-streaming-cursor" style={{ marginLeft: '2px' }}>▊</span>
           )}
         </div>
 

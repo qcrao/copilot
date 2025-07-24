@@ -9,6 +9,21 @@
   51%, 100% { opacity: 0; }
 }
 
+/* Optimized streaming cursor for message content */
+.rr-copilot-streaming-cursor {
+  display: inline;
+  font-size: 14px;
+  line-height: 1.5;
+  height: 1.5em;
+  color: #666;
+  vertical-align: baseline;
+  animation: blink 1.4s infinite both;
+  font-family: inherit;
+  /* Ensure cursor matches text metrics */
+  position: relative;
+  top: 0;
+}
+
 /* Copilot styles - direct positioning without full-screen container */
 .roam-copilot-widget {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
