@@ -425,14 +425,23 @@ ${contextForUser}`;
         for await (const chunk of streamGenerator) {
           if (chunk.isComplete) {
             // Update final message with usage info
-            setState((prev) => ({
-              ...prev,
-              messages: prev.messages.map((msg) =>
+            setState((prev) => {
+              const updatedMessages = prev.messages.map((msg) =>
                 msg.id === streamingMessageId
                   ? { ...msg, isStreaming: false, usage: chunk.usage }
                   : msg
-              ),
-            }));
+              );
+              
+              // Save conversation after streaming is complete
+              requestAnimationFrame(() => {
+                saveConversationDebounced(updatedMessages);
+              });
+              
+              return {
+                ...prev,
+                messages: updatedMessages,
+              };
+            });
             break;
           } else {
             // Update streaming content
@@ -455,23 +464,31 @@ ${contextForUser}`;
         const finalProvider = provider?.provider?.id || 'ollama';
         
         // Update the streaming message with final model info
-        setState((prev) => ({
-          ...prev,
-          messages: prev.messages.map((msg) =>
+        setState((prev) => {
+          const updatedMessages = prev.messages.map((msg) =>
             msg.id === streamingMessageId
               ? { ...msg, model: currentModel, modelProvider: finalProvider }
               : msg
-          ),
-        }));
+          );
+          
+          // Save conversation after model info is updated
+          requestAnimationFrame(() => {
+            saveConversationDebounced(updatedMessages);
+          });
+          
+          return {
+            ...prev,
+            messages: updatedMessages,
+          };
+        });
       } catch (streamingError: any) {
         const currentModel = multiProviderSettings.currentModel;
         const provider = await AIService.getProviderForModel(currentModel);
         const finalProvider = provider?.provider?.id || 'ollama';
         
         // Update the streaming message with error
-        setState((prev) => ({
-          ...prev,
-          messages: prev.messages.map((msg) =>
+        setState((prev) => {
+          const updatedMessages = prev.messages.map((msg) =>
             msg.id === streamingMessageId
               ? { 
                   ...msg, 
@@ -481,8 +498,18 @@ ${contextForUser}`;
                   modelProvider: finalProvider 
                 }
               : msg
-          ),
-        }));
+          );
+          
+          // Save conversation even after error
+          requestAnimationFrame(() => {
+            saveConversationDebounced(updatedMessages);
+          });
+          
+          return {
+            ...prev,
+            messages: updatedMessages,
+          };
+        });
       }
     } finally {
       setState((prev) => ({ ...prev, isLoading: false }));
