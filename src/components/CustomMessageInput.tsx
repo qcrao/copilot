@@ -8,6 +8,7 @@ import {
 import { AI_PROVIDERS, PromptTemplate } from "../types";
 import { PROMPT_TEMPLATES } from "../data/promptTemplates";
 import { PromptMenu } from "./PromptMenu";
+import { UI_CONSTANTS } from "../utils/shared/constants";
 
 interface CustomMessageInputProps {
   placeholder?: string;
@@ -20,7 +21,7 @@ interface CustomMessageInputProps {
 }
 
 export const CustomMessageInput: React.FC<CustomMessageInputProps> = ({
-  placeholder = "Ask anything — @ for pages, drag blocks, / for prompts",
+  placeholder = UI_CONSTANTS.CHAT_INPUT.PLACEHOLDER_TEXT,
   onSend,
   disabled = false,
   onModelChange,

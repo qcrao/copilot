@@ -117,6 +117,7 @@ export const UI_CONSTANTS = {
     MIN_HEIGHT: 40,
     MAX_HEIGHT: 200,
     PLACEHOLDER_ROTATION_INTERVAL: 3000,
+    PLACEHOLDER_TEXT: "Ask anything — @ for pages, drag blocks, / for prompts",
   },
 } as const;
 

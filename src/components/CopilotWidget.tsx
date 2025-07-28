@@ -17,6 +17,7 @@ import { MessageList } from "./MessageList";
 import { PromptBuilder } from "../utils/promptBuilder";
 import { useMemoryManager } from "../utils/memoryManager";
 import { PerformanceMonitor } from "../utils/performance";
+import { UI_CONSTANTS } from "../utils/shared/constants";
 
 interface CopilotWidgetProps {
   isOpen: boolean;
@@ -1199,7 +1200,7 @@ ${contextForUser}`;
           </div>
 
                         <ChatInput
-                placeholder="Ask anything — @ for pages, drag blocks, / for prompts"
+                placeholder={UI_CONSTANTS.CHAT_INPUT.PLACEHOLDER_TEXT}
                 onSend={handleSendMessage}
                 disabled={false} // Don't disable input while loading
                 onModelChange={handleModelChange}

@@ -24,6 +24,7 @@ import {
 } from "../settings";
 import { BLOCK_PREVIEW_LENGTH } from "../constants";
 import { ModelSelector } from "./ModelSelector";
+import { UI_CONSTANTS } from "../utils/shared/constants";
 
 interface ChatInputProps {
   placeholder?: string;
@@ -37,7 +38,7 @@ interface ChatInputProps {
 }
 
 export const ChatInput: React.FC<ChatInputProps> = ({
-  placeholder = "Ask anything — @ for pages, drag blocks, / for prompts",
+  placeholder = UI_CONSTANTS.CHAT_INPUT.PLACEHOLDER_TEXT,
   onSend,
   disabled = false,
   onModelChange,
