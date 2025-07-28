@@ -58,6 +58,15 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
   });
   const [isResizing, setIsResizing] = useState(false);
   const [resizeHandle, setResizeHandle] = useState<string | null>(null);
+  
+  // Add state change logging
+  useEffect(() => {
+    console.log("🔧 [State Change] isResizing changed to:", isResizing);
+  }, [isResizing]);
+  
+  useEffect(() => {
+    console.log("🔧 [State Change] resizeHandle changed to:", resizeHandle);
+  }, [resizeHandle]);
   const [startMousePos, setStartMousePos] = useState<{x: number, y: number}>({x: 0, y: 0});
   const [startWindowSize, setStartWindowSize] = useState<{width: number, height: number}>({width: 0, height: 0});
   const [startWindowPos, setStartWindowPos] = useState<{top: number, left: number}>({top: 0, left: 0});
@@ -70,16 +79,38 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
   const updateContextTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
-    if (isUnmounting) return;
-    
-    setState((prev) => ({
-      ...prev,
+    console.log("🔄 [CopilotWidget useEffect] Props changed:", {
       isOpen,
-      isMinimized: !isOpen,
-    }));
+      isUnmounting,
+      hasWindowPosition: !!windowPosition
+    });
     
-    // Calculate window position when opening (center of screen)
+    if (isUnmounting) {
+      console.log("⚠️ [CopilotWidget useEffect] Component is unmounting, skipping update");
+      return;
+    }
+    
+    setState((prev) => {
+      // Only update if the isOpen state actually changed
+      if (prev.isOpen !== isOpen) {
+        console.log("🔄 [CopilotWidget useEffect] Updating internal state:", {
+          previousIsOpen: prev.isOpen,
+          newIsOpen: isOpen,
+          newIsMinimized: !isOpen
+        });
+        return {
+          ...prev,
+          isOpen,
+          isMinimized: !isOpen,
+        };
+      }
+      console.log("🔄 [CopilotWidget useEffect] No state change needed");
+      return prev;
+    });
+    
+    // Calculate window position when opening (center of screen)  
     if (isOpen && !windowPosition) {
+      console.log("🔄 [CopilotWidget useEffect] Setting initial window position");
       setWindowPosition(calculateCenterPosition());
     }
   }, [isOpen, windowPosition, windowSize, isUnmounting]);
@@ -637,6 +668,55 @@ ${contextForUser}`;
     setShowConversationList(prev => !prev);
   };
 
+  const handleMinimize = useCallback((e: React.MouseEvent) => {
+    console.log("🔍 [handleMinimize] Button clicked, event:", e.type);
+    console.log("🔍 [handleMinimize] Current states:", {
+      isResizing,
+      isDragging,
+      showConversationList,
+      showTemplates,
+      documentBodyCursor: document.body.style.cursor,
+      documentBodyUserSelect: document.body.style.userSelect
+    });
+    
+    e.preventDefault();
+    e.stopPropagation();
+    
+    // Force reset any stuck resize state that might block interactions
+    if (isResizing) {
+      console.log("⚠️ [handleMinimize] Detected stuck resize state, resetting...");
+      setIsResizing(false);
+      setResizeHandle(null);
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    }
+    
+    // Force reset any stuck drag state
+    if (isDragging) {
+      console.log("⚠️ [handleMinimize] Detected stuck drag state, resetting...");
+      setIsDragging(false);
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    }
+    
+    // Close conversation list if open
+    if (showConversationList) {
+      console.log("🔍 [handleMinimize] Closing conversation list");
+      setShowConversationList(false);
+    }
+    
+    // Hide templates if showing
+    if (showTemplates) {
+      console.log("🔍 [handleMinimize] Hiding templates");
+      setShowTemplates(false);
+    }
+    
+    console.log("✅ [handleMinimize] Calling onToggle()...");
+    // Call the parent's toggle function to minimize
+    onToggle();
+    console.log("✅ [handleMinimize] onToggle() completed");
+  }, [showConversationList, showTemplates, onToggle, isResizing, isDragging]);
+
   const calculateCenterPosition = () => {
     // Position window so its bottom-right corner aligns with icon center
     const iconMargin = 20;
@@ -704,9 +784,18 @@ ${contextForUser}`;
 
   // Resize handlers
   const handleResizeStart = (e: React.MouseEvent, handle: string) => {
+    console.log("🔧 [handleResizeStart] Resize started, handle:", handle);
+    
+    // Prevent resize from interfering with button clicks
+    if ((e.target as Element).closest('button') || (e.target as Element).closest('.bp4-button')) {
+      console.log("🔧 [handleResizeStart] Blocked - clicked on button");
+      return;
+    }
+    
     e.preventDefault();
     e.stopPropagation();
     
+    console.log("🔧 [handleResizeStart] Setting resize state to true");
     setIsResizing(true);
     setResizeHandle(handle);
     setStartMousePos({ x: e.clientX, y: e.clientY });
@@ -718,6 +807,10 @@ ${contextForUser}`;
     
     document.body.style.cursor = getCursor(handle);
     document.body.style.userSelect = 'none';
+    console.log("🔧 [handleResizeStart] Document body styles set:", { 
+      cursor: document.body.style.cursor, 
+      userSelect: document.body.style.userSelect 
+    });
   };
 
   const handleResizeMove = useCallback((e: MouseEvent) => {
@@ -801,10 +894,15 @@ ${contextForUser}`;
   }, [isResizing, resizeHandle, startMousePos.x, startMousePos.y, startWindowSize.width, startWindowSize.height, startWindowPos.top, startWindowPos.left]);
 
   const handleResizeEnd = useCallback(() => {
+    console.log("🔧 [handleResizeEnd] Ending resize, clearing states and document styles");
     setIsResizing(false);
     setResizeHandle(null);
     document.body.style.cursor = '';
     document.body.style.userSelect = '';
+    console.log("🔧 [handleResizeEnd] Document body styles cleared:", { 
+      cursor: document.body.style.cursor, 
+      userSelect: document.body.style.userSelect 
+    });
   }, []);
 
   const getCursor = (handle: string) => {
@@ -823,8 +921,11 @@ ${contextForUser}`;
 
   // Window drag handlers
   const handleDragStart = (e: React.MouseEvent) => {
-    // Don't start drag if clicking on buttons
-    if ((e.target as Element).closest('button')) return;
+    // Don't start drag if clicking on buttons or interactive elements
+    const target = e.target as Element;
+    if (target.closest('button') || target.closest('.bp4-button') || target.closest('input') || target.closest('textarea')) {
+      return;
+    }
     
     e.preventDefault();
     e.stopPropagation();
@@ -873,10 +974,16 @@ ${contextForUser}`;
     if (isResizing) {
       document.addEventListener('mousemove', handleResizeMove);
       document.addEventListener('mouseup', handleResizeEnd);
+      // Add mouseleave to handle cases where mouse exits window during resize
+      document.addEventListener('mouseleave', handleResizeEnd);
+      // Add window blur to reset state if user switches windows
+      window.addEventListener('blur', handleResizeEnd);
       
       return () => {
         document.removeEventListener('mousemove', handleResizeMove);
         document.removeEventListener('mouseup', handleResizeEnd);
+        document.removeEventListener('mouseleave', handleResizeEnd);
+        window.removeEventListener('blur', handleResizeEnd);
       };
     }
   }, [isResizing, handleResizeMove, handleResizeEnd]);
@@ -886,17 +993,24 @@ ${contextForUser}`;
     if (isDragging) {
       document.addEventListener('mousemove', handleDragMove);
       document.addEventListener('mouseup', handleDragEnd);
+      // Add mouseleave to handle cases where mouse exits window during drag
+      document.addEventListener('mouseleave', handleDragEnd);
+      // Add window blur to reset state if user switches windows
+      window.addEventListener('blur', handleDragEnd);
       
       return () => {
         document.removeEventListener('mousemove', handleDragMove);
         document.removeEventListener('mouseup', handleDragEnd);
+        document.removeEventListener('mouseleave', handleDragEnd);
+        window.removeEventListener('blur', handleDragEnd);
       };
     }
   }, [isDragging, handleDragMove, handleDragEnd]);
 
-  // Cleanup resize state on unmount
+  // Cleanup only on actual unmount (no dependencies)
   useEffect(() => {
     return () => {
+      console.log("🧹 [Cleanup] Component is actually unmounting");
       setIsUnmounting(true);
       
       // Clear any pending timeouts
@@ -911,12 +1025,10 @@ ${contextForUser}`;
       }
       
       // Cleanup resize state
-      if (isResizing) {
-        document.body.style.cursor = '';
-        document.body.style.userSelect = '';
-      }
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
     };
-  }, [isResizing]);
+  }, []); // Empty dependency array - only runs on actual mount/unmount
 
   if (state.isMinimized) {
     return (
@@ -1075,9 +1187,21 @@ ${contextForUser}`;
             <Button
               minimal
               small
-              icon="minus"
-              onClick={onToggle}
-              title="Minimize"
+              icon="minimize"
+              onClick={handleMinimize}
+              onMouseDown={(e) => {
+                console.log("🖱️ [MinimizeButton] mousedown event", e.type);
+              }}
+              onMouseUp={(e) => {
+                console.log("🖱️ [MinimizeButton] mouseup event", e.type);
+              }}
+              title="Minimize Copilot"
+              style={{
+                transition: "all 0.2s ease",
+                borderRadius: "4px",
+                pointerEvents: "auto",
+                zIndex: 9999
+              }}
             />
           </div>
 

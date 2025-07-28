@@ -15,7 +15,13 @@ let copilotState = {
 };
 
 const toggleCopilot = () => {
+  const previousState = copilotState.isOpen;
   copilotState.isOpen = !copilotState.isOpen;
+  console.log("🔄 [toggleCopilot] State changed:", {
+    previous: previousState,
+    current: copilotState.isOpen,
+    isVisible: copilotState.isVisible
+  });
   renderCopilot();
 };
 
@@ -32,13 +38,24 @@ const closeCopilot = () => {
 };
 
 const renderCopilot = () => {
-  if (!copilotState.root) return;
+  console.log("🎨 [renderCopilot] Rendering with state:", {
+    isOpen: copilotState.isOpen,
+    isVisible: copilotState.isVisible,
+    hasRoot: !!copilotState.root
+  });
+  
+  if (!copilotState.root) {
+    console.log("⚠️ [renderCopilot] No root found, skipping render");
+    return;
+  }
 
   if (!copilotState.isVisible) {
+    console.log("🎨 [renderCopilot] Not visible, rendering null");
     copilotState.root.render(null);
     return;
   }
 
+  console.log("🎨 [renderCopilot] Rendering CopilotWidget with isOpen:", copilotState.isOpen);
   copilotState.root.render(
     <ErrorBoundary>
       <CopilotWidget
