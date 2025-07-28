@@ -409,15 +409,22 @@ ${contextForUser}`;
         contextPreview: contextString.substring(0, 300) + "..."
       });
 
-      // Create a streaming message placeholder
+      // Create a streaming message placeholder with model info
       const streamingMessageId = `streaming_${Date.now()}`;
       let streamingContent = "";
+      
+      // Get model info before creating the streaming message
+      const currentModel = multiProviderSettings.currentModel;
+      const provider = await AIService.getProviderForModel(currentModel);
+      const currentProvider = provider?.provider?.id || 'ollama';
       
       addMessage({
         role: "assistant",
         content: "",
         id: streamingMessageId,
         isStreaming: true,
+        model: currentModel,
+        modelProvider: currentProvider,
       });
 
       try {
@@ -465,19 +472,15 @@ ${contextForUser}`;
           }
         }
 
-        const currentModel = multiProviderSettings.currentModel;
-        const provider = await AIService.getProviderForModel(currentModel);
-        const finalProvider = provider?.provider?.id || 'ollama';
-        
-        // Update the streaming message with final model info
+        // Model info is already set when creating the streaming message, just update the final state
         setState((prev) => {
           const updatedMessages = prev.messages.map((msg) =>
             msg.id === streamingMessageId
-              ? { ...msg, model: currentModel, modelProvider: finalProvider }
+              ? { ...msg, isStreaming: false }
               : msg
           );
           
-          // Save conversation after model info is updated
+          // Save conversation after streaming is complete
           requestAnimationFrame(() => {
             saveConversationDebounced(updatedMessages);
           });
@@ -488,20 +491,14 @@ ${contextForUser}`;
           };
         });
       } catch (streamingError: any) {
-        const currentModel = multiProviderSettings.currentModel;
-        const provider = await AIService.getProviderForModel(currentModel);
-        const finalProvider = provider?.provider?.id || 'ollama';
-        
-        // Update the streaming message with error
+        // Model info is already set when creating the streaming message, just update with error
         setState((prev) => {
           const updatedMessages = prev.messages.map((msg) =>
             msg.id === streamingMessageId
               ? { 
                   ...msg, 
                   content: `❌ Error: ${streamingError.message}`,
-                  isStreaming: false,
-                  model: currentModel,
-                  modelProvider: finalProvider 
+                  isStreaming: false
                 }
               : msg
           );

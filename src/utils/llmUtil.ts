@@ -349,6 +349,7 @@ export class LLMUtil {
   static async getProviderForModel(
     model: string
   ): Promise<{ provider: any; apiKey: string } | null> {
+    // First, try exact model match in AI_PROVIDERS
     for (const provider of AI_PROVIDERS) {
       if (provider.models.includes(model)) {
         if (provider.id === "ollama") {
@@ -362,6 +363,76 @@ export class LLMUtil {
       }
     }
 
+    // If no exact match, try model name pattern matching to determine provider
+    const modelLower = model.toLowerCase();
+    
+    // Check for OpenAI models
+    if (modelLower.includes('gpt')) {
+      const openaiProvider = AI_PROVIDERS.find((p) => p.id === "openai");
+      if (openaiProvider) {
+        const apiKey = multiProviderSettings.apiKeys[openaiProvider.id];
+        if (apiKey && apiKey.trim() !== "") {
+          return { provider: openaiProvider, apiKey };
+        }
+      }
+    }
+    
+    // Check for Anthropic models
+    if (modelLower.includes('claude')) {
+      const anthropicProvider = AI_PROVIDERS.find((p) => p.id === "anthropic");
+      if (anthropicProvider) {
+        const apiKey = multiProviderSettings.apiKeys[anthropicProvider.id];
+        if (apiKey && apiKey.trim() !== "") {
+          return { provider: anthropicProvider, apiKey };
+        }
+      }
+    }
+    
+    // Check for Groq models
+    if (modelLower.includes('llama') && !modelLower.includes('meta-llama')) {
+      const groqProvider = AI_PROVIDERS.find((p) => p.id === "groq");
+      if (groqProvider) {
+        const apiKey = multiProviderSettings.apiKeys[groqProvider.id];
+        if (apiKey && apiKey.trim() !== "") {
+          return { provider: groqProvider, apiKey };
+        }
+      }
+    }
+    
+    // Check for xAI models
+    if (modelLower.includes('grok')) {
+      const xaiProvider = AI_PROVIDERS.find((p) => p.id === "xai");
+      if (xaiProvider) {
+        const apiKey = multiProviderSettings.apiKeys[xaiProvider.id];
+        if (apiKey && apiKey.trim() !== "") {
+          return { provider: xaiProvider, apiKey };
+        }
+      }
+    }
+    
+    // Check for GitHub models
+    if (modelLower.includes('phi') || modelLower.includes('meta-llama')) {
+      const githubProvider = AI_PROVIDERS.find((p) => p.id === "github");
+      if (githubProvider) {
+        const apiKey = multiProviderSettings.apiKeys[githubProvider.id];
+        if (apiKey && apiKey.trim() !== "") {
+          return { provider: githubProvider, apiKey };
+        }
+      }
+    }
+    
+    // Check for Google Gemini models
+    if (modelLower.includes('gemini')) {
+      const geminiProvider = AI_PROVIDERS.find((p) => p.id === "gemini");
+      if (geminiProvider) {
+        const apiKey = multiProviderSettings.apiKeys[geminiProvider.id];
+        if (apiKey && apiKey.trim() !== "") {
+          return { provider: geminiProvider, apiKey };
+        }
+      }
+    }
+
+    // Finally, check Ollama for local models
     const ollamaProvider = AI_PROVIDERS.find((p) => p.id === "ollama");
     if (ollamaProvider?.supportsDynamicModels) {
       try {
@@ -373,8 +444,13 @@ export class LLMUtil {
         console.log("Failed to check Ollama dynamic models:", error);
       }
 
-      console.log(`Assuming model "${model}" is a local Ollama model`);
-      return { provider: ollamaProvider, apiKey: "" };
+      // Only assume Ollama for models that look like local models
+      if (modelLower.includes(':latest') || modelLower.includes(':') || 
+          modelLower.includes('qwen') || modelLower.includes('deepseek') ||
+          modelLower.includes('mistral') || modelLower.includes('phi3')) {
+        console.log(`Assuming model "${model}" is a local Ollama model`);
+        return { provider: ollamaProvider, apiKey: "" };
+      }
     }
 
     return null;

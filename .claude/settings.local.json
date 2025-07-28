@@ -27,7 +27,8 @@
       "Bash(rg:*)",
       "mcp__ide__getDiagnostics",
       "WebFetch(domain:docs.github.com)",
-      "Bash(git checkout:*)"
+      "Bash(git checkout:*)",
+      "Bash(node:*)"
     ],
     "deny": []
   }
