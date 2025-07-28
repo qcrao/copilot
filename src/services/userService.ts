@@ -122,13 +122,7 @@ export class UserService {
     canvas.height = 64;
 
     // Background color based on name
-    const colors = [
-      '#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', 
-      '#FFEAA7', '#DDA0DD', '#98D8C8', '#F7DC6F'
-    ];
-    const colorIndex = name.charCodeAt(0) % colors.length;
-    
-    ctx.fillStyle = colors[colorIndex];
+    ctx.fillStyle = "#3A3B40";
     ctx.fillRect(0, 0, 64, 64);
     
     // Text
