@@ -10,6 +10,7 @@ import { ConversationService } from "../services/conversationService";
 import { ContextManager } from "../services/contextManager";
 import { aiSettings, multiProviderSettings } from "../settings";
 import { AI_PROVIDERS } from "../types";
+import { PROMPT_TEMPLATES } from "../data/promptTemplates";
 import { ChatInput } from "./ChatInput";
 import { ConversationList } from "./ConversationList";
 import { PromptTemplatesGrid } from "./PromptTemplatesGrid";
@@ -254,6 +255,51 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
       }
     }
 
+    // Check if the user message is a prompt template BEFORE context enhancement
+    let customPrompt: string | undefined = undefined;
+    let actualUserMessage = finalUserMessage;
+    
+    console.log("🔍 Template detection:", {
+      originalUserMessage: userMessage,
+      availableTemplates: PROMPT_TEMPLATES.length
+    });
+    
+    // Find matching prompt template using the original user message (before context enhancement)
+    // Template might have language instructions appended, so we check if message starts with the base template
+    const matchingTemplate = PROMPT_TEMPLATES.find(template => {
+      const basePrompt = template.prompt.trim();
+      const userMsg = userMessage.trim();
+      
+      console.log("🔍 Checking template:", {
+        templateId: template.id,
+        templateTitle: template.title,
+        basePromptLength: basePrompt.length,
+        userMsgLength: userMsg.length,
+        startsWithTemplate: userMsg.startsWith(basePrompt)
+      });
+      
+      // Check if user message starts with the template prompt
+      if (userMsg.startsWith(basePrompt)) {
+        // Additional check: make sure it's not just a partial match
+        // Either it's exact match or followed by language instruction
+        const remainingText = userMsg.substring(basePrompt.length).trim();
+        console.log("🔍 Remaining text after template:", remainingText);
+        return remainingText === "" || remainingText.startsWith("IMPORTANT: Please respond");
+      }
+      return false;
+    });
+    
+    if (matchingTemplate) {
+      customPrompt = matchingTemplate.prompt;
+      actualUserMessage = ""; // Clear user message since we're using the template as system prompt
+      console.log("🎯 Detected prompt template:", matchingTemplate.title, "- using as custom system prompt");
+    }
+    
+    // If we have a custom prompt but no actual user message, provide a default prompt to trigger AI response
+    if (customPrompt && !actualUserMessage.trim()) {
+      actualUserMessage = "Please analyze the current context and provide insights.";
+    }
+
     // Clear input value
     setInputValue("");
 
@@ -261,15 +307,16 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
     const datePattern = /\[(\d{4}-\d{2}-\d{2})\]/g;
     const dateMatches = userMessage.match(datePattern);
     
-    if (dateMatches) {
+    if (dateMatches && !customPrompt) {
+      // Only add date notes if we're not using a custom prompt template
       for (const dateMatch of dateMatches) {
         const dateString = dateMatch.slice(1, -1); // Remove brackets
         const cachedNotes = dateNotesCache[dateString];
         
         if (cachedNotes) {
-          finalUserMessage += `\n\nHere are my notes from ${dateString}:\n${cachedNotes}`;
+          actualUserMessage += `\n\nHere are my notes from ${dateString}:\n${cachedNotes}`;
         } else {
-          finalUserMessage += `\n\nNote: No notes found for ${dateString}.`;
+          actualUserMessage += `\n\nNote: No notes found for ${dateString}.`;
         }
       }
     }
@@ -284,8 +331,8 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
 
     try {
       // Extract page references and block references from the message
-      const pageReferences = extractPageReferences(finalUserMessage);
-      const blockReferences = extractBlockReferences(finalUserMessage);
+      const pageReferences = extractPageReferences(actualUserMessage);
+      const blockReferences = extractBlockReferences(actualUserMessage);
       
       // Check if user has explicitly referenced specific content
       const hasExplicitReferences = pageReferences.length > 0 || blockReferences.length > 0;
@@ -363,25 +410,28 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
         blockReferences
       );
 
-      let enhancedUserMessage = finalUserMessage;
+      let enhancedUserMessage = actualUserMessage;
       
-      if (contextItems.length > 0) {
-        // Add key context information directly to user message
+      if (contextItems.length > 0 && actualUserMessage) {
+        // Add key context information directly to user message (only if there's actual user content)
         const contextForUser = contextManager.formatContextForAI(contextItems);
         
         // Build enhanced user message with context information embedded
-        enhancedUserMessage = `${finalUserMessage}
+        enhancedUserMessage = `${actualUserMessage}
 
 **Please answer based on the following relevant information:**
 
 ${contextForUser}`;
-
+      } else if (contextItems.length > 0 && customPrompt) {
+        // For prompt templates, context should go to system message context, not user message
+        enhancedUserMessage = actualUserMessage; // Keep empty if using template
+        
         // Use simplified context for system message
         contextString = filteredContext
           ? RoamService.formatContextForAI(filteredContext, 8000) // Reduce system message context
           : "No additional context available";
           
-        console.log("✅ Using enhanced context with", contextItems.length, "items in USER MESSAGE");
+        console.log("✅ Using enhanced context with", contextItems.length, "items for custom prompt");
       } else {
         // Fallback to traditional context only if enhanced context fails
         console.log("⚠️ Enhanced context failed, falling back to traditional context");
@@ -403,7 +453,7 @@ ${contextForUser}`;
         enhancedContextItems: contextItems.length,
         model: multiProviderSettings.currentModel,
         dateNotesIncluded: dateMatches ? dateMatches.length : 0,
-        originalMessageLength: finalUserMessage.length,
+        originalMessageLength: actualUserMessage.length,
         enhancedMessageLength: enhancedUserMessage.length,
         usingEnhancedContext: contextItems.length > 0,
         contextStringLength: contextString.length,
@@ -430,10 +480,16 @@ ${contextForUser}`;
 
       try {
         // Use streaming response
+        console.log("🚀 Calling AI service with:", {
+          userMessage: enhancedUserMessage,
+          hasCustomPrompt: !!customPrompt,
+          customPrompt: customPrompt
+        });
         const streamGenerator = AIService.sendMessageWithCurrentModelStream(
           enhancedUserMessage,
           contextString,
-          state.messages
+          state.messages,
+          customPrompt
         );
 
         for await (const chunk of streamGenerator) {

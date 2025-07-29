@@ -347,6 +347,8 @@ export const ChatInput: React.FC<ChatInputProps> = ({
       }
     } finally {
       setIsInitializing(false);
+      // Trigger canSend recalculation after initialization
+      setEditorContentVersion(prev => prev + 1);
     }
   };
 

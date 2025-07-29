@@ -16,7 +16,8 @@ export class AIService {
   static async sendMessageWithCurrentModel(
     userMessage: string,
     context: string,
-    conversationHistory: ChatMessage[] = []
+    conversationHistory: ChatMessage[] = [],
+    customPrompt?: string
   ): Promise<string> {
     const model = multiProviderSettings.currentModel;
     if (!model) {
@@ -40,7 +41,7 @@ export class AIService {
     }
 
     // Use LLMUtil without tool calling for better compatibility
-    const systemMessage = this.getSystemMessage(context);
+    const systemMessage = this.getSystemMessage(context, customPrompt);
     const finalUserMessage = userMessage;
     const messagesWithHistory = this.buildMessagesWithHistory(
       systemMessage,
@@ -122,7 +123,8 @@ export class AIService {
   static async* sendMessageWithCurrentModelStream(
     userMessage: string,
     context: string,
-    conversationHistory: ChatMessage[] = []
+    conversationHistory: ChatMessage[] = [],
+    customPrompt?: string
   ): AsyncGenerator<{ text: string; isComplete: boolean; usage?: any }> {
     const model = multiProviderSettings.currentModel;
     if (!model) {
@@ -146,7 +148,7 @@ export class AIService {
     }
 
     // Use LLMUtil streaming
-    const systemMessage = this.getSystemMessage(context);
+    const systemMessage = this.getSystemMessage(context, customPrompt);
     const finalUserMessage = userMessage;
     const messagesWithHistory = this.buildMessagesWithHistory(
       systemMessage,
@@ -164,6 +166,8 @@ export class AIService {
         systemMessageLength: systemMessage.length,
         systemMessagePreview: systemMessage.substring(0, 200) + "...",
         hasBacklinks: systemMessage.includes("反向链接"),
+        customPromptProvided: !!customPrompt,
+        customPromptPreview: customPrompt ? customPrompt.substring(0, 100) + "..." : "none",
         contextInSystemMessage: {
           hasAvailableContext: systemMessage.includes("**Available Context:**"),
           contextStartIndex: systemMessage.indexOf("**Available Context:**"),
@@ -177,6 +181,7 @@ export class AIService {
       });
 
       // 添加完整的系统消息和用户消息日志
+      console.log("🎯 CUSTOM PROMPT:", customPrompt);
       console.log("📤 FULL SYSTEM MESSAGE:", systemMessage);
       console.log("📤 FULL USER MESSAGE:", finalUserMessage);
       console.log("📤 FULL CONTEXT:", context);
@@ -235,7 +240,8 @@ export class AIService {
     settings: AISettings,
     userMessage: string,
     context: string,
-    conversationHistory: ChatMessage[] = []
+    conversationHistory: ChatMessage[] = [],
+    customPrompt?: string
   ): Promise<string> {
     // Ollama doesn't need API key validation
     if (settings.provider !== "ollama" && !settings.apiKey) {
@@ -244,7 +250,7 @@ export class AIService {
       );
     }
 
-    const systemMessage = this.getSystemMessage(context);
+    const systemMessage = this.getSystemMessage(context, customPrompt);
     const messagesWithHistory = this.buildMessagesWithHistory(
       systemMessage,
       userMessage,
@@ -290,13 +296,20 @@ export class AIService {
   }
 
 
-  private static getSystemMessage(context: string): string {
+  private static getSystemMessage(context: string, customPrompt?: string): string {
     // Get response language setting
     const responseLanguage = multiProviderSettings.responseLanguage || "English";
     const languageInstruction = responseLanguage !== "English" 
       ? `\n**LANGUAGE REQUIREMENT:** Please respond in ${responseLanguage}.`
       : "";
     
+    // If custom prompt is provided, use it instead of default psychology analyst prompt
+    if (customPrompt) {
+      const contextSection = context ? `\n\n**Available Context:**\n${context}` : "";
+      return `${customPrompt}${languageInstruction}${contextSection}`;
+    }
+    
+    // Default psychology analyst prompt
     return `STOP! DO NOT SUMMARIZE OR ORGANIZE ANYTHING!
 
 If you are thinking about:
