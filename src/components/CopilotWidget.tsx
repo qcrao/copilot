@@ -336,10 +336,10 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
       }
     }
 
-    // Add user message (display the original without expanded references)
+    // Add user message (display the template content if using template, otherwise original message)
     addMessage({
       role: "user",
-      content: userMessage,
+      content: matchingTemplate ? matchingTemplate.prompt : userMessage,
     });
 
     setState((prev) => ({ ...prev, isLoading: true }));

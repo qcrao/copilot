@@ -5,7 +5,6 @@ import remarkGfm from 'remark-gfm';
 import rehypeHighlight from 'rehype-highlight';
 
 import remarkRoamBlocks from '../utils/remarkRoamBlocks';
-import remarkRoamPages from '../utils/remarkRoamPages';
 import remarkRoamLinks from '../utils/remarkRoamLinks';
 import { RoamQuery } from '../utils/roamQuery';
 import { BLOCK_PREVIEW_LENGTH } from '../constants';
@@ -21,7 +20,6 @@ import 'highlight.js/styles/github.css';
 interface EnhancedMessageRendererProps {
   content: string;
   isUser?: boolean;
-  model?: string;
   isStreaming?: boolean;
 }
 
@@ -29,8 +27,7 @@ interface EnhancedMessageRendererProps {
 const BlockReference: React.FC<{
   uid: string;
   isUser: boolean;
-  isStreaming?: boolean;
-}> = ({ uid, isUser, isStreaming = false }) => {
+}> = ({ uid, isUser }) => {
   // Check cache immediately for initial state
   const getCachedContent = (uid: string): { content: string; isLoading: boolean } => {
     const now = Date.now();
@@ -44,12 +41,10 @@ const BlockReference: React.FC<{
   const initialState = getCachedContent(uid);
   const [blockContent, setBlockContent] = useState<string>(initialState.content);
   const [isLoading, setIsLoading] = useState(initialState.isLoading);
-  const [hasAttemptedLoad, setHasAttemptedLoad] = useState(!initialState.isLoading);
 
   useEffect(() => {
     const loadBlockContent = async () => {
       try {
-        setHasAttemptedLoad(true);
         
         // Validate UID
         if (!uid || typeof uid !== 'string') {
@@ -210,9 +205,8 @@ const BlockReference: React.FC<{
 // Component for rendering Roam page references with existence validation
 const PageReference: React.FC<{
   pageName: string;
-  isUser: boolean;
   needsValidation?: boolean;
-}> = ({ pageName, isUser, needsValidation = false }) => {
+}> = ({ pageName, needsValidation = false }) => {
   // Check cache immediately for initial state
   const getCachedPageExists = (pageName: string): { exists: boolean | null; isChecking: boolean } => {
     if (!needsValidation) return { exists: true, isChecking: false };
@@ -359,7 +353,6 @@ const PageReference: React.FC<{
 export const EnhancedMessageRenderer: React.FC<EnhancedMessageRendererProps> = ({ 
   content, 
   isUser = false, 
-  model,
   isStreaming = false
 }) => {
   // Pre-process content to remove thinking blocks and clean up formatting
@@ -376,6 +369,7 @@ export const EnhancedMessageRenderer: React.FC<EnhancedMessageRendererProps> = (
       .replace(/(?<!\!\[.*?\]\()(?<!\]\()(?<!\()(?<!\[)(https?:\/\/[^\s<>\[\]]+\.(?:jpg|jpeg|png|gif|webp|svg|bmp|tiff|ico)(?:\?[^\s<>\[\]]*)?(?:#[^\s<>\[\]]*)?)/gi, '![Image]($1)')
       // Handle images that are on their own line
       .replace(/^\s*(https?:\/\/[^\s<>\[\]]+\.(?:jpg|jpeg|png|gif|webp|svg|bmp|tiff|ico)(?:\?[^\s<>\[\]]*)?(?:#[^\s<>\[\]]*)?)\s*$/gim, '![Image]($1)');
+    
     
     // Smart handling for streaming: only hide truly incomplete references
     if (isStreaming) {
@@ -499,7 +493,7 @@ export const EnhancedMessageRenderer: React.FC<EnhancedMessageRendererProps> = (
             
             // Handle Roam block references
             if (className?.includes('roam-block-ref') && props['data-uid']) {
-              return <BlockReference uid={props['data-uid']} isUser={isUser} isStreaming={isStreaming} />;
+              return <BlockReference uid={props['data-uid']} isUser={isUser} />;
             }
             
             // Handle Roam page references
@@ -508,7 +502,6 @@ export const EnhancedMessageRenderer: React.FC<EnhancedMessageRendererProps> = (
               return (
                 <PageReference 
                   pageName={props['data-page-name']} 
-                  isUser={isUser} 
                   needsValidation={needsValidation}
                 />
               );
@@ -680,7 +673,7 @@ export const EnhancedMessageRenderer: React.FC<EnhancedMessageRendererProps> = (
             />
           ),
 
-          // Style paragraphs with tighter spacing
+          // Style paragraphs with tighter spacing and handle structured content
           p: ({ children, ...rest }) => {
             // Check if paragraph is empty or only contains whitespace
             const isEmpty = !children || (Array.isArray(children) && children.every(child => 
@@ -692,8 +685,15 @@ export const EnhancedMessageRenderer: React.FC<EnhancedMessageRendererProps> = (
               return null;
             }
             
+            // Check if this paragraph contains structured content (like section headers)
+            const childrenStr = React.Children.toArray(children).join('');
+            const isStructuredContent = /^\*\*[A-Z\s]+\*\*:?$|^\d+\.\s+\*\*[^\*]+\*\*:/.test(childrenStr);
+            
             return (
-              <p style={{ margin: '0 0 4px 0', lineHeight: '1.6' }} {...rest}>
+              <p style={{ 
+                margin: isStructuredContent ? '8px 0 6px 0' : '0 0 4px 0', 
+                lineHeight: '1.6' 
+              }} {...rest}>
                 {children}
               </p>
             );

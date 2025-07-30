@@ -302,7 +302,6 @@ const MessageItem: React.FC<MessageItemProps> = React.memo(({ message, index, on
           <EnhancedMessageRenderer 
             content={message.content} 
             isUser={isUser}
-            model={message.model}
             isStreaming={isStreaming}
           />
           {isStreaming && !isUser && (
