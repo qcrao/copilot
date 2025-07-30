@@ -28,7 +28,9 @@
       "mcp__ide__getDiagnostics",
       "WebFetch(domain:docs.github.com)",
       "Bash(git checkout:*)",
-      "Bash(node:*)"
+      "Bash(node:*)",
+      "Bash(rg -A 5 -B 5 \"strong\" /Users/qcrao/copilot/src/components/EnhancedMessageRenderer.tsx)",
+      "Bash(rg -n \"strong\\|bold.*:\" /Users/qcrao/copilot/src/components/EnhancedMessageRenderer.tsx)"
     ],
     "deny": []
   }

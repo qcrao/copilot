@@ -673,6 +673,16 @@ export const EnhancedMessageRenderer: React.FC<EnhancedMessageRendererProps> = (
             />
           ),
 
+          // Style strong/bold text appropriately
+          strong: ({ children, ...rest }) => (
+            <strong style={{ 
+              fontWeight: 'bold', 
+              color: 'inherit' 
+            }} {...rest}>
+              {children}
+            </strong>
+          ),
+
           // Style paragraphs with tighter spacing and handle structured content
           p: ({ children, ...rest }) => {
             // Check if paragraph is empty or only contains whitespace
