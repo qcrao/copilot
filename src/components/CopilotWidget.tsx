@@ -286,6 +286,17 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
         console.log("🔍 Remaining text after template:", remainingText);
         return remainingText === "" || remainingText.startsWith("IMPORTANT: Please respond");
       }
+      
+      // Also check if the template content appears at the beginning with slight variations
+      // This handles cases where there might be slight formatting differences
+      const normalizedUserMsg = userMsg.replace(/\s+/g, ' ').toLowerCase();
+      const normalizedTemplate = basePrompt.replace(/\s+/g, ' ').toLowerCase();
+      
+      if (normalizedUserMsg.startsWith(normalizedTemplate)) {
+        console.log("🔍 Template detected with normalization:", template.title);
+        return true;
+      }
+      
       return false;
     });
     
@@ -293,6 +304,10 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
       customPrompt = matchingTemplate.prompt;
       actualUserMessage = ""; // Clear user message since we're using the template as system prompt
       console.log("🎯 Detected prompt template:", matchingTemplate.title, "- using as custom system prompt");
+      console.log("🎯 Custom prompt set to:", customPrompt.substring(0, 100) + "...");
+    } else {
+      console.log("❌ No template detected. User message will be sent as-is.");
+      console.log("📝 First 100 chars of user message:", userMessage.substring(0, 100));
     }
     
     // If we have a custom prompt but no actual user message, provide a default prompt to trigger AI response
@@ -749,6 +764,7 @@ ${contextForUser}`;
   };
 
   const handlePromptSelect = (prompt: string) => {
+    console.log("📝 Template selected, setting input value:", prompt.substring(0, 100) + "...");
     setInputValue(prompt);
     
     // Only hide templates if we're in an existing conversation (has messages)
