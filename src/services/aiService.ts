@@ -125,7 +125,7 @@ export class AIService {
     context: string,
     conversationHistory: ChatMessage[] = [],
     customPrompt?: string
-  ): AsyncGenerator<{ text: string; isComplete: boolean; usage?: any }> {
+  ): AsyncGenerator<{ text: string; isComplete: boolean; usage?: any; error?: string }> {
     const model = multiProviderSettings.currentModel;
     if (!model) {
       throw new Error(

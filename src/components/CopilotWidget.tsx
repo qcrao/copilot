@@ -500,48 +500,113 @@ ${contextForUser}`;
           hasCustomPrompt: !!customPrompt,
           customPrompt: customPrompt
         });
-        const streamGenerator = AIService.sendMessageWithCurrentModelStream(
-          enhancedUserMessage,
-          contextString,
-          state.messages,
-          customPrompt
-        );
+        
+        let streamGenerator: AsyncGenerator<{ text: string; isComplete: boolean; usage?: any }>;
+        
+        try {
+          streamGenerator = AIService.sendMessageWithCurrentModelStream(
+            enhancedUserMessage,
+            contextString,
+            state.messages,
+            customPrompt
+          );
+        } catch (initError: any) {
+          // Handle immediate errors (like invalid API key) before streaming starts
+          console.error("❌ Error initializing stream:", initError);
+          throw initError;
+        }
 
-        for await (const chunk of streamGenerator) {
-          if (chunk.isComplete) {
-            // Update final message with usage info
-            setState((prev) => {
-              const updatedMessages = prev.messages.map((msg) =>
-                msg.id === streamingMessageId
-                  ? { ...msg, isStreaming: false, usage: chunk.usage }
-                  : msg
-              );
+        try {
+          for await (const chunk of streamGenerator) {
+            if (chunk.isComplete) {
+              // Check if there's an error in the chunk
+              if ('error' in chunk && chunk.error) {
+                console.error("❌ Stream completed with error:", chunk.error);
+                // Update message with error and stop streaming
+                setState((prev) => {
+                  const updatedMessages = prev.messages.map((msg) =>
+                    msg.id === streamingMessageId
+                      ? { 
+                          ...msg, 
+                          content: `❌ Error: ${chunk.error}`,
+                          isStreaming: false
+                        }
+                      : msg
+                  );
+                  
+                  console.log("🔧 Stream error detected - setting isStreaming to false");
+                  
+                  // Save conversation even after error
+                  requestAnimationFrame(() => {
+                    saveConversationDebounced(updatedMessages);
+                  });
+                  
+                  return {
+                    ...prev,
+                    messages: updatedMessages,
+                  };
+                });
+                return; // Exit the function early
+              }
               
-              // Save conversation after streaming is complete
-              requestAnimationFrame(() => {
-                saveConversationDebounced(updatedMessages);
+              // Update final message with usage info (normal completion)
+              setState((prev) => {
+                const updatedMessages = prev.messages.map((msg) =>
+                  msg.id === streamingMessageId
+                    ? { ...msg, isStreaming: false, usage: chunk.usage }
+                    : msg
+                );
+                
+                // Save conversation after streaming is complete
+                requestAnimationFrame(() => {
+                  saveConversationDebounced(updatedMessages);
+                });
+                
+                return {
+                  ...prev,
+                  messages: updatedMessages,
+                };
               });
-              
-              return {
+              break;
+            } else {
+              // Update streaming content
+              streamingContent += chunk.text;
+              setState((prev) => ({
                 ...prev,
-                messages: updatedMessages,
-              };
-            });
-            break;
-          } else {
-            // Update streaming content
-            streamingContent += chunk.text;
-            setState((prev) => ({
-              ...prev,
-              messages: prev.messages.map((msg) =>
-                msg.id === streamingMessageId
-                  ? { ...msg, content: streamingContent }
-                  : msg
-              ),
-            }));
-            
-            // Scrolling is handled by MessageList component
+                messages: prev.messages.map((msg) =>
+                  msg.id === streamingMessageId
+                    ? { ...msg, content: streamingContent }
+                    : msg
+                ),
+              }));
+              
+              // Scrolling is handled by MessageList component
+            }
           }
+        } catch (streamIterationError: any) {
+          console.error("❌ Error during stream iteration:", streamIterationError);
+          // Immediately stop streaming and show error
+          setState((prev) => {
+            const updatedMessages = prev.messages.map((msg) =>
+              msg.id === streamingMessageId
+                ? { 
+                    ...msg, 
+                    content: `❌ Error: ${streamIterationError.message}`,
+                    isStreaming: false
+                  }
+                : msg
+            );
+            
+            console.log("🔧 Stream iteration error - setting isStreaming to false");
+            
+            return {
+              ...prev,
+              messages: updatedMessages,
+            };
+          });
+          
+          // Don't re-throw here, as we've handled the error
+          return;
         }
 
         // Model info is already set when creating the streaming message, just update the final state
@@ -563,7 +628,10 @@ ${contextForUser}`;
           };
         });
       } catch (streamingError: any) {
-        // Model info is already set when creating the streaming message, just update with error
+        console.error("❌ Streaming error caught:", streamingError);
+        
+        // Immediately stop the streaming cursor and show error
+        // Use synchronous state update to ensure immediate UI change
         setState((prev) => {
           const updatedMessages = prev.messages.map((msg) =>
             msg.id === streamingMessageId
@@ -574,6 +642,8 @@ ${contextForUser}`;
                 }
               : msg
           );
+          
+          console.log("🔧 Updated streaming message with error, isStreaming set to false");
           
           // Save conversation even after error
           requestAnimationFrame(() => {

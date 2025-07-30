@@ -266,7 +266,7 @@ export class LLMUtil {
   static async* generateStreamResponse(
     config: LLMConfig,
     messages: any[]
-  ): AsyncGenerator<{ text: string; isComplete: boolean; usage?: any }> {
+  ): AsyncGenerator<{ text: string; isComplete: boolean; usage?: any; error?: string }> {
     const { temperature = 0.7, maxTokens = 8000 } = config;
 
     try {
@@ -274,36 +274,77 @@ export class LLMUtil {
       const systemMessage = messages.find((m) => m.role === "system");
       const conversationMessages = messages.filter((m) => m.role !== "system");
 
+      let streamError: string | null = null;
+
       const result = await streamText({
         model,
         system: systemMessage?.content,
         messages: this.convertToAISDKMessages(conversationMessages),
         temperature,
         maxTokens,
+        onError({ error }) {
+          console.error("❌ AI SDK onError callback:", error);
+          streamError = (error as any)?.message || "Unknown streaming error";
+        },
       });
 
-      for await (const textPart of result.textStream) {
+      try {
+        // Use fullStream to handle error parts properly
+        for await (const part of result.fullStream) {
+          switch (part.type) {
+            case 'text-delta':
+              yield {
+                text: part.textDelta,
+                isComplete: false,
+              };
+              break;
+            case 'finish':
+              yield {
+                text: "",
+                isComplete: true,
+                usage: part.usage && {
+                  promptTokens: part.usage.promptTokens,
+                  completionTokens: part.usage.completionTokens,
+                  totalTokens: part.usage.totalTokens,
+                },
+              };
+              break;
+            case 'error':
+              console.error("❌ Stream error part:", part.error);
+              yield {
+                text: "",
+                isComplete: true,
+                error: (part.error as any)?.message || "Streaming error occurred",
+              };
+              return;
+          }
+        }
+
+        // If onError was called but no error part was yielded
+        if (streamError) {
+          yield {
+            text: "",
+            isComplete: true,
+            error: streamError,
+          };
+          return;
+        }
+
+      } catch (streamError: any) {
+        console.error("❌ Stream processing error:", streamError);
         yield {
-          text: textPart,
-          isComplete: false,
+          text: "",
+          isComplete: true,
+          error: streamError.message || "Stream processing failed",
         };
       }
-
-      // Final response with usage info
-      const finalResult = await result.finishReason;
-      const usage = await result.usage;
-      
+    } catch (error: any) {
+      console.error("❌ LLM streaming setup error:", error);
       yield {
         text: "",
         isComplete: true,
-        usage: usage && {
-          promptTokens: usage.promptTokens,
-          completionTokens: usage.completionTokens,
-          totalTokens: usage.totalTokens,
-        },
+        error: `LLM streaming failed: ${error.message}`,
       };
-    } catch (error: any) {
-      throw new Error(`LLM streaming failed: ${error.message}`);
     }
   }
 
