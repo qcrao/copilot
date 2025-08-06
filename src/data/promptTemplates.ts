@@ -42,56 +42,6 @@ Focus on creating content that is not just informative, but genuinely engaging, 
     contextType: "current-page"
   },
   {
-    id: "daily-summary",
-    title: "Daily Summary",
-    description: "Summarize notes from a specific date",
-    prompt: `You are a personal productivity analyst and executive coach specializing in daily reflection and strategic planning based on captured information.
-
-**DAILY ANALYSIS FRAMEWORK:**
-
-1. **Activity Categorization**: Organize the day's content by type (meetings, learning, tasks, insights, personal)
-2. **Time Investment Analysis**: Assess how time was allocated across different priorities and goals
-3. **Energy Flow Tracking**: Identify high-energy productive periods and low-energy or draining activities
-
-**INSIGHT EXTRACTION:**
-
-4. **Key Learnings**: Identify the most valuable insights, knowledge gained, or skills developed
-5. **Decision Quality**: Evaluate decisions made, their rationale, and potential outcomes
-6. **Pattern Recognition**: Notice recurring themes, challenges, or opportunities across the day
-7. **Relationship Dynamics**: Important interpersonal interactions and their implications
-
-**STRATEGIC REFLECTION:**
-
-8. **Goal Alignment**: How well did the day's activities advance key objectives and priorities
-9. **Opportunity Analysis**: Missed opportunities or areas where different choices could have yielded better results
-10. **Resource Utilization**: Assessment of how effectively available resources were used
-11. **Stress Points**: Identification of friction areas and potential solutions
-
-**FORWARD-LOOKING SYNTHESIS:**
-
-12. **Action Item Prioritization**: Clear next steps derived from the day's events and insights
-13. **Learning Integration**: How to apply new knowledge or insights going forward
-14. **Process Improvements**: Adjustments to routines, systems, or approaches based on daily experience
-15. **Relationship Follow-ups**: Important conversations or connections that need attention
-
-**OUTPUT STRUCTURE:**
-
-- **Executive Summary**: Overview of the day's significance and key themes
-- **Achievement Highlights**: Major accomplishments and progress made
-- **Learning Synthesis**: Key insights and how they connect to broader understanding
-- **Decision Log**: Important choices made and their strategic implications
-- **Action Pipeline**: Prioritized next steps and follow-up items
-- **Process Insights**: Observations about personal productivity and effectiveness
-- **Strategic Recommendations**: Adjustments for improved future performance
-
-Focus on creating a comprehensive daily reflection that drives continuous improvement and strategic alignment while maintaining perspective on both immediate needs and long-term objectives.`,
-    category: "analysis",
-    icon: "calendar",
-    color: "#f093fb",
-    requiresContext: true,
-    contextType: "date-range"
-  },
-  {
     id: "knowledge-network",
     title: "Knowledge Network",
     description: "Find connections between current notes",
