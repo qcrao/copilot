@@ -152,15 +152,16 @@ async function getAvailableModelsWithKeys(apiKeys: {
               "CORS error detected for Ollama. Skipping Ollama models from model selector. " +
               "To fix this, configure CORS on your Ollama instance by setting OLLAMA_ORIGINS=* environment variable."
             );
-            // Skip adding any Ollama models when CORS is detected
-            continue;
+          } else {
+            console.warn(
+              "Failed to connect to Ollama. Skipping Ollama models from model selector. " +
+              "Please ensure Ollama is running and accessible.",
+              error
+            );
           }
           
-          console.log(
-            "Failed to fetch dynamic Ollama models, using fallback:",
-            error
-          );
-          // Use fallback models from provider config for other errors
+          // Skip adding any Ollama models when any error occurs (CORS, network, etc.)
+          continue;
         }
       }
 
