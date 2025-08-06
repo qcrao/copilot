@@ -220,6 +220,15 @@ The chat interface is designed to be intuitive and powerful.
 
 When you start a new chat, you'll see a grid of prompt templates. Click on a template to start a conversation with a pre-defined prompt.
 
+**Available Templates:**
+- **Creative Writing** - Transform notes into publishable content with strategic analysis
+- **Knowledge Network** - Discover hidden connections and relationships between ideas
+- **Task Planner** - Convert ideas into executable action plans with priorities
+- **Learning Review** - Consolidate learning and identify knowledge gaps
+- **Meeting Insights** - Extract decisions and action items from meeting notes
+- **Research Assistant** - Expand research directions based on current notes
+- **Idea Synthesizer** - Combine different concepts to generate new insights
+
 <!-- TODO: Add screenshot of the prompt templates grid. -->
 
 ### Analyzing Notes from a Specific Date
