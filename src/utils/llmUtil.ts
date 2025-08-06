@@ -521,9 +521,29 @@ export class LLMUtil {
       console.log("Ollama models fetched:", models);
       return models;
     } catch (error: any) {
+      // Check if this is a CORS error
+      if (this.isCorsError(error)) {
+        console.warn("CORS error detected when fetching Ollama models. Please configure CORS on your Ollama instance.");
+        // Throw a specific error that can be caught upstream
+        throw new Error("CORS_ERROR");
+      }
+      
       console.warn("Failed to fetch Ollama models:", error.message);
       return [];
     }
+  }
+
+  // Helper method to detect CORS errors
+  private static isCorsError(error: any): boolean {
+    const errorMessage = error.message?.toLowerCase() || '';
+    
+    // Common CORS error patterns
+    return (
+      errorMessage.includes('cors') ||
+      errorMessage.includes('cross-origin') ||
+      errorMessage.includes('failed to fetch') ||
+      error.name === 'TypeError' && errorMessage.includes('fetch')
+    );
   }
 
   static async handleOllamaRequest(
