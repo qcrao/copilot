@@ -58,7 +58,7 @@ export class AIService {
         hasApiKey: !!providerInfo.apiKey,
         userMessageLength: finalUserMessage.length,
         systemMessageLength: systemMessage.length,
-        contextLength: context.length
+        contextLength: context.length,
       });
 
       // 添加完整的系统消息和用户消息日志
@@ -120,12 +120,17 @@ export class AIService {
   }
 
   // New streaming method that uses the currently selected model
-  static async* sendMessageWithCurrentModelStream(
+  static async *sendMessageWithCurrentModelStream(
     userMessage: string,
     context: string,
     conversationHistory: ChatMessage[] = [],
     customPrompt?: string
-  ): AsyncGenerator<{ text: string; isComplete: boolean; usage?: any; error?: string }> {
+  ): AsyncGenerator<{
+    text: string;
+    isComplete: boolean;
+    usage?: any;
+    error?: string;
+  }> {
     const model = multiProviderSettings.currentModel;
     if (!model) {
       throw new Error(
@@ -167,7 +172,9 @@ export class AIService {
         systemMessagePreview: systemMessage.substring(0, 200) + "...",
         hasBacklinks: systemMessage.includes("反向链接"),
         customPromptProvided: !!customPrompt,
-        customPromptPreview: customPrompt ? customPrompt.substring(0, 100) + "..." : "none",
+        customPromptPreview: customPrompt
+          ? customPrompt.substring(0, 100) + "..."
+          : "none",
         contextInSystemMessage: {
           hasAvailableContext: systemMessage.includes("**Available Context:**"),
           contextStartIndex: systemMessage.indexOf("**Available Context:**"),
@@ -176,8 +183,8 @@ export class AIService {
           hasBacklinksInContext: context.includes("反向链接"),
           backlinksCount: (context.match(/\*\*反向链接\*\*/g) || []).length,
           referenceCount: (context.match(/\*\*块引用\*\*/g) || []).length,
-          pageCount: (context.match(/\*\*页面:/g) || []).length
-        }
+          pageCount: (context.match(/\*\*页面:/g) || []).length,
+        },
       });
 
       // 添加完整的系统消息和用户消息日志
@@ -295,20 +302,23 @@ export class AIService {
     }
   }
 
-
-  private static getSystemMessage(context: string, customPrompt?: string): string {
+  private static getSystemMessage(
+    context: string,
+    customPrompt?: string
+  ): string {
     // Get response language setting
-    const responseLanguage = multiProviderSettings.responseLanguage || "English";
-    const languageInstruction = responseLanguage !== "English" 
-      ? `\n**LANGUAGE REQUIREMENT:** Please respond in ${responseLanguage}.`
-      : "";
-    
+    const responseLanguage =
+      multiProviderSettings.responseLanguage || "English";
+    const languageInstruction = `\n\n**LANGUAGE REQUIREMENT:** Please respond in ${responseLanguage}.`;
+
     // If custom prompt is provided, use it instead of default psychology analyst prompt
     if (customPrompt) {
-      const contextSection = context ? `\n\n**Available Context:**\n${context}` : "";
+      const contextSection = context
+        ? `\n\n**Available Context:**\n${context}`
+        : "";
       return `${customPrompt}${languageInstruction}${contextSection}`;
     }
-    
+
     // Default psychology analyst prompt
     return `STOP! DO NOT SUMMARIZE OR ORGANIZE ANYTHING!
 
@@ -347,7 +357,11 @@ Start directly with a bold title (NO prefixes like "标题:" or "Title:"), then 
 
 DON'T TELL THEM WHAT THEY WROTE. TELL THEM WHAT THEY CAN'T SEE.
 
-${context ? `\n**Your Notes and Thoughts:**\n${context}` : "\n**No notes provided.**"}
+${
+  context
+    ? `\n**Your Notes and Thoughts:**\n${context}`
+    : "\n**No notes provided.**"
+}
 
 Find the hidden psychological pattern. Make them say "I never realized that about myself!"
 
@@ -355,7 +369,7 @@ CRITICAL: Start directly with your title in bold. Never write "标题:" or "Titl
 
 NO SUMMARIES. ONLY REVELATIONS.
 
-${responseLanguage !== "English" ? `**CRITICAL:** Respond in ${responseLanguage}. This is essential for user comprehension.` : ""}`;
+${languageInstruction}`;
   }
 
   /**
@@ -368,47 +382,47 @@ ${responseLanguage !== "English" ? `**CRITICAL:** Respond in ${responseLanguage}
     modelName: string
   ): Array<{ role: string; content: string }> {
     const messages: Array<{ role: string; content: string }> = [];
-    
+
     // Add system message
     messages.push({ role: "system", content: systemMessage });
-    
+
     // Get token limit for the model
     const tokenLimit = this.getModelTokenLimit(modelName);
     const reservedTokens = 1000; // Reserve tokens for response
     const availableTokens = tokenLimit - reservedTokens;
-    
+
     // Estimate tokens for system message and current user message
     const systemTokens = this.estimateTokens(systemMessage);
     const currentMessageTokens = this.estimateTokens(currentUserMessage);
     let usedTokens = systemTokens + currentMessageTokens;
-    
+
     // Add conversation history in reverse order (most recent first)
     const relevantHistory: ChatMessage[] = [];
     const recentHistory = conversationHistory.slice(-10); // Last 10 messages
-    
+
     for (let i = recentHistory.length - 1; i >= 0; i--) {
       const message = recentHistory[i];
       const messageTokens = this.estimateTokens(message.content);
-      
+
       if (usedTokens + messageTokens > availableTokens) {
         break; // Stop if adding this message would exceed token limit
       }
-      
+
       relevantHistory.unshift(message);
       usedTokens += messageTokens;
     }
-    
+
     // Add relevant history to messages
     for (const message of relevantHistory) {
       messages.push({
         role: message.role,
-        content: message.content
+        content: message.content,
       });
     }
-    
+
     // Add current user message
     messages.push({ role: "user", content: currentUserMessage });
-    
+
     // console.log("🔧 Context Management:", {
     //   totalMessages: messages.length,
     //   historyMessages: relevantHistory.length,
@@ -416,10 +430,10 @@ ${responseLanguage !== "English" ? `**CRITICAL:** Respond in ${responseLanguage}
     //   tokenLimit: tokenLimit,
     //   model: modelName
     // });
-    
+
     return messages;
   }
-  
+
   /**
    * Get token limit for a specific model
    */
@@ -431,7 +445,7 @@ ${responseLanguage !== "English" ? `**CRITICAL:** Respond in ${responseLanguage}
       "gpt-4-turbo": 128000,
       "gpt-4": 8000,
       "gpt-3.5-turbo": 16000,
-      
+
       // Anthropic models
       "claude-3-5-sonnet-20241022": 200000,
       "claude-3-5-sonnet-20240620": 200000,
@@ -439,20 +453,20 @@ ${responseLanguage !== "English" ? `**CRITICAL:** Respond in ${responseLanguage}
       "claude-3-opus-20240229": 200000,
       "claude-3-sonnet-20240229": 200000,
       "claude-3-haiku-20240307": 200000,
-      
+
       // xAI models
       "grok-beta": 131072,
       "grok-vision-beta": 131072,
-      
+
       // Google Gemini models
       "gemini-2.0-flash-exp": 1048576,
       "gemini-1.5-flash": 1048576,
       "gemini-1.5-pro": 2097152,
-      
+
       // GitHub Models
       "Phi-3.5-mini-instruct": 128000,
       "Meta-Llama-3.1-8B-Instruct": 128000,
-      
+
       // Qwen models (Alibaba Cloud)
       "qwen3:8b": 32000,
       "qwen2.5:latest": 32000,
@@ -465,7 +479,7 @@ ${responseLanguage !== "English" ? `**CRITICAL:** Respond in ${responseLanguage}
       "qwen:7b": 32000,
       "qwen:14b": 32000,
       "qwen:72b": 32000,
-      
+
       // DeepSeek models
       "deepseek-r1:latest": 64000,
       "deepseek-r1:8b": 64000,
@@ -475,7 +489,7 @@ ${responseLanguage !== "English" ? `**CRITICAL:** Respond in ${responseLanguage}
       "deepseek-coder:latest": 64000,
       "deepseek-coder:6.7b": 64000,
       "deepseek-coder:33b": 64000,
-      
+
       // Other common Ollama models
       "llama3.2:latest": 128000,
       "llama3.2:3b": 128000,
@@ -501,27 +515,27 @@ ${responseLanguage !== "English" ? `**CRITICAL:** Respond in ${responseLanguage}
       "gemma:latest": 32000,
       "gemma:2b": 32000,
       "gemma:7b": 32000,
-      
+
       // Default for unknown models
-      "default": 4000
+      default: 4000,
     };
-    
+
     return tokenLimits[modelName] || tokenLimits["default"];
   }
-  
+
   /**
    * Estimate token count for a given text (rough approximation)
    */
   private static estimateTokens(text: string): number {
-    if (!text || typeof text !== 'string') {
+    if (!text || typeof text !== "string") {
       return 0;
     }
-    
+
     // Rough estimation: 1 token ≈ 4 characters for English
     // For Chinese and other languages, it's closer to 1 token ≈ 1.5 characters
     const chineseCharCount = (text.match(/[\u4e00-\u9fff]/g) || []).length;
     const otherCharCount = text.length - chineseCharCount;
-    
+
     return Math.ceil(chineseCharCount / 1.5 + otherCharCount / 4);
   }
 

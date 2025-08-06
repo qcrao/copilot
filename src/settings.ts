@@ -22,7 +22,9 @@ const DEFAULT_MULTI_PROVIDER_SETTINGS: MultiProviderSettings = {
 };
 
 // New multi-provider settings
-export let multiProviderSettings: MultiProviderSettings = { ...DEFAULT_MULTI_PROVIDER_SETTINGS };
+export let multiProviderSettings: MultiProviderSettings = {
+  ...DEFAULT_MULTI_PROVIDER_SETTINGS,
+};
 
 export let aiSettings: AISettings = { ...DEFAULT_AI_SETTINGS };
 
@@ -118,7 +120,6 @@ function getSyncAvailableModelsWithKeys(apiKeys: {
   return availableModels;
 }
 
-
 // Helper function to get available models with given API keys
 async function getAvailableModelsWithKeys(apiKeys: {
   [providerId: string]: string;
@@ -150,16 +151,16 @@ async function getAvailableModelsWithKeys(apiKeys: {
           if (error.message === "CORS_ERROR") {
             console.warn(
               "CORS error detected for Ollama. Skipping Ollama models from model selector. " +
-              "To fix this, configure CORS on your Ollama instance by setting OLLAMA_ORIGINS=* environment variable."
+                "To fix this, configure CORS on your Ollama instance by setting OLLAMA_ORIGINS=* environment variable."
             );
           } else {
             console.warn(
               "Failed to connect to Ollama. Skipping Ollama models from model selector. " +
-              "Please ensure Ollama is running and accessible.",
+                "Please ensure Ollama is running and accessible.",
               error
             );
           }
-          
+
           // Skip adding any Ollama models when any error occurs (CORS, network, etc.)
           continue;
         }
@@ -184,7 +185,6 @@ export async function getAvailableModels(): Promise<
 > {
   return await getAvailableModelsWithKeys(multiProviderSettings.apiKeys);
 }
-
 
 export function initPanelConfig(extensionAPI: any) {
   // Create settings for all providers
