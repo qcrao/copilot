@@ -3,7 +3,12 @@ import React, { useState, useEffect, useRef, useCallback } from "react";
 import { Button, Icon, Spinner } from "@blueprintjs/core";
 import { IconNames } from "@blueprintjs/icons";
 // Removing chatscope imports - using custom MessageList now
-import { ChatMessage, CopilotState, PageContext, ConversationListState } from "../types";
+import {
+  ChatMessage,
+  CopilotState,
+  PageContext,
+  ConversationListState,
+} from "../types";
 import { AIService } from "../services/aiService";
 import { RoamService } from "../services/roamService";
 import { ConversationService } from "../services/conversationService";
@@ -32,7 +37,7 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
   onClose,
 }) => {
   const { registerCleanup, createManagedTimeout } = useMemoryManager();
-  
+
   const [state, setState] = useState<CopilotState>({
     isOpen,
     isMinimized: !isOpen,
@@ -41,40 +46,72 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
   });
 
   const [pageContext, setPageContext] = useState<PageContext | null>(null);
-  const [copiedMessageIndex, setCopiedMessageIndex] = useState<number | null>(null);
+  const [copiedMessageIndex, setCopiedMessageIndex] = useState<number | null>(
+    null
+  );
   const [showConversationList, setShowConversationList] = useState(false);
-  const [currentConversationId, setCurrentConversationId] = useState<string | null>(null);
+  const [currentConversationId, setCurrentConversationId] = useState<
+    string | null
+  >(null);
   const conversationIdRef = useRef<string | null>(null);
-  
+
   // Keep ref in sync with state
   useEffect(() => {
     conversationIdRef.current = currentConversationId;
   }, [currentConversationId]);
   const [inputValue, setInputValue] = useState("");
   const [showTemplates, setShowTemplates] = useState(false);
-  const [dateNotesCache, setDateNotesCache] = useState<{[date: string]: string}>({});
-  const [selectedTemplate, setSelectedTemplate] = useState<{id: string, prompt: string} | null>(null);
-  const [windowPosition, setWindowPosition] = useState<{top: number, left: number} | null>(null);
-  const [windowSize, setWindowSize] = useState<{width: number, height: number}>({
+  const [dateNotesCache, setDateNotesCache] = useState<{
+    [date: string]: string;
+  }>({});
+  const [selectedTemplate, setSelectedTemplate] = useState<{
+    id: string;
+    prompt: string;
+  } | null>(null);
+  const [windowPosition, setWindowPosition] = useState<{
+    top: number;
+    left: number;
+  } | null>(null);
+  const [windowSize, setWindowSize] = useState<{
+    width: number;
+    height: number;
+  }>({
     width: Math.min(window.innerWidth * 0.5, 1200),
-    height: Math.min(window.innerHeight * 0.8, 1000)
+    height: Math.min(window.innerHeight * 0.8, 1000),
   });
   const [isResizing, setIsResizing] = useState(false);
   const [resizeHandle, setResizeHandle] = useState<string | null>(null);
-  const [startMousePos, setStartMousePos] = useState<{x: number, y: number}>({x: 0, y: 0});
-  const [startWindowSize, setStartWindowSize] = useState<{width: number, height: number}>({width: 0, height: 0});
-  const [startWindowPos, setStartWindowPos] = useState<{top: number, left: number}>({top: 0, left: 0});
+  const [startMousePos, setStartMousePos] = useState<{ x: number; y: number }>({
+    x: 0,
+    y: 0,
+  });
+  const [startWindowSize, setStartWindowSize] = useState<{
+    width: number;
+    height: number;
+  }>({ width: 0, height: 0 });
+  const [startWindowPos, setStartWindowPos] = useState<{
+    top: number;
+    left: number;
+  }>({ top: 0, left: 0 });
   const [isDragging, setIsDragging] = useState(false);
-  const [dragStartPos, setDragStartPos] = useState<{x: number, y: number}>({x: 0, y: 0});
-  const [dragStartWindowPos, setDragStartWindowPos] = useState<{top: number, left: number}>({top: 0, left: 0});
+  const [dragStartPos, setDragStartPos] = useState<{ x: number; y: number }>({
+    x: 0,
+    y: 0,
+  });
+  const [dragStartWindowPos, setDragStartWindowPos] = useState<{
+    top: number;
+    left: number;
+  }>({ top: 0, left: 0 });
   const [isUnmounting, setIsUnmounting] = useState(false);
   const [lastContextUpdate, setLastContextUpdate] = useState<number>(0);
   const [isUpdatingContext, setIsUpdatingContext] = useState<boolean>(false);
-  const updateContextTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const updateContextTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null
+  );
 
   useEffect(() => {
     if (isUnmounting) return;
-    
+
     setState((prev) => {
       // Only update if the isOpen state actually changed
       if (prev.isOpen !== isOpen) {
@@ -86,7 +123,7 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
       }
       return prev;
     });
-    
+
     // Calculate window position when opening (center of screen)
     if (isOpen && !windowPosition) {
       setWindowPosition(calculateCenterPosition());
@@ -95,32 +132,37 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
 
   const updatePageContext = useCallback(async () => {
     if (isUnmounting || isUpdatingContext) return;
-    
+
     // Prevent rapid successive updates that could cause infinite loops
     const now = Date.now();
     const timeSinceLastUpdate = now - lastContextUpdate;
     const MIN_UPDATE_INTERVAL = 1000; // 1 second minimum between updates
-    
+
     if (timeSinceLastUpdate < MIN_UPDATE_INTERVAL) {
-      console.log(`⏳ Context update throttled (${timeSinceLastUpdate}ms since last update)`);
+      console.log(
+        `⏳ Context update throttled (${timeSinceLastUpdate}ms since last update)`
+      );
       return;
     }
-    
+
     // Clear any pending timeout
     if (updateContextTimeoutRef.current) {
       clearTimeout(updateContextTimeoutRef.current);
       updateContextTimeoutRef.current = null;
     }
-    
+
     try {
       setIsUpdatingContext(true);
       setLastContextUpdate(now);
       console.log("🔄 Updating page context...");
-      
-      const context = await PerformanceMonitor.measure("updatePageContext", async () => {
-        return await RoamService.getPageContext();
-      });
-      
+
+      const context = await PerformanceMonitor.measure(
+        "updatePageContext",
+        async () => {
+          return await RoamService.getPageContext();
+        }
+      );
+
       if (!isUnmounting) {
         setPageContext(context);
         console.log("✅ Page context updated successfully");
@@ -143,7 +185,9 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
   // Remove all page change listeners - context should only update on widget open or new conversation
   // This prevents context from changing while user is in the middle of a conversation
 
-  const addMessage = (message: Omit<ChatMessage, "id" | "timestamp"> & { id?: string }) => {
+  const addMessage = (
+    message: Omit<ChatMessage, "id" | "timestamp"> & { id?: string }
+  ) => {
     const newMessage: ChatMessage = {
       ...message,
       id: message.id || Date.now().toString(),
@@ -152,22 +196,33 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
 
     setState((prev) => {
       const updatedMessages = [...prev.messages, newMessage];
-      
+
       // Check if this is the first message using ref for immediate sync check
       if (!conversationIdRef.current && prev.messages.length === 0) {
-        const newConversationId = `conv_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-        
+        const newConversationId = `conv_${Date.now()}_${Math.random()
+          .toString(36)
+          .substr(2, 9)}`;
+
         // Set both ref and state immediately
         conversationIdRef.current = newConversationId;
         setCurrentConversationId(newConversationId);
-        
+
         // Save immediately for new conversation to prevent race condition
         requestAnimationFrame(async () => {
           try {
-            await ConversationService.saveConversationWithId(newConversationId, updatedMessages);
-            console.log("Immediately saved new conversation:", newConversationId);
+            await ConversationService.saveConversationWithId(
+              newConversationId,
+              updatedMessages
+            );
+            console.log(
+              "Immediately saved new conversation:",
+              newConversationId
+            );
           } catch (error) {
-            console.error("Failed to immediately save new conversation:", error);
+            console.error(
+              "Failed to immediately save new conversation:",
+              error
+            );
           }
         });
       } else {
@@ -176,7 +231,7 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
           saveConversationDebounced(updatedMessages);
         });
       }
-      
+
       return {
         ...prev,
         messages: updatedMessages,
@@ -189,11 +244,11 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
     const pageRefPattern = /\[\[([^\]]+)\]\]/g;
     const matches = [];
     let match;
-    
+
     while ((match = pageRefPattern.exec(text)) !== null) {
       matches.push(match[1]);
     }
-    
+
     return [...new Set(matches)]; // Remove duplicates
   };
 
@@ -201,22 +256,25 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
     const blockRefPattern = /\(\(([^)]+)\)\)/g;
     const matches = [];
     let match;
-    
+
     while ((match = blockRefPattern.exec(text)) !== null) {
       matches.push(match[1]);
     }
-    
+
     return [...new Set(matches)]; // Remove duplicates
   };
 
-  const handleSendMessage = async (messageInput: string | any, templateInfo?: {id: string, prompt: string}) => {
+  const handleSendMessage = async (
+    messageInput: string | any,
+    templateInfo?: { id: string; prompt: string }
+  ) => {
     if (state.isLoading) return;
 
     let userMessage: string;
     let finalUserMessage: string;
 
     // Handle both string input (legacy) and editor JSON
-    if (typeof messageInput === 'string') {
+    if (typeof messageInput === "string") {
       userMessage = messageInput.trim();
       if (!userMessage) return;
       finalUserMessage = userMessage;
@@ -232,12 +290,15 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
         const provider = await AIService.getProviderForModel(currentModel);
         // console.log(`DEBUG: Model "${currentModel}" detected provider:`, provider?.provider?.id || 'null');
         const maxTokens = RoamService.getModelTokenLimit(
-          provider?.provider?.id || 'openai', 
+          provider?.provider?.id || "openai",
           currentModel
         );
 
         // Build expanded prompt with reference content
-        const promptResult = await PromptBuilder.buildPrompt(messageInput, maxTokens);
+        const promptResult = await PromptBuilder.buildPrompt(
+          messageInput,
+          maxTokens
+        );
         finalUserMessage = promptResult.text;
 
         console.log("Prompt expansion result:", {
@@ -245,7 +306,7 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
           expandedLength: finalUserMessage.length,
           referencesExpanded: promptResult.metadata.referencesExpanded,
           estimatedTokens: promptResult.metadata.totalTokensEstimate,
-          truncated: promptResult.metadata.truncated
+          truncated: promptResult.metadata.truncated,
         });
       } catch (error) {
         console.error("Error processing editor content:", error);
@@ -259,28 +320,39 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
     // Check if we're using a selected template
     let customPrompt: string | undefined = undefined;
     let actualUserMessage = finalUserMessage;
-    
+
     // Check if we have template info passed directly or from state
     const currentTemplate = templateInfo || selectedTemplate;
-    
+
     if (currentTemplate) {
       customPrompt = currentTemplate.prompt;
       actualUserMessage = ""; // Clear user message since we're using the template as system prompt
-      console.log("🎯 Using template:", currentTemplate.id, "- using as custom system prompt");
-      console.log("🎯 Custom prompt set to:", customPrompt.substring(0, 100) + "...");
-      
+      console.log(
+        "🎯 Using template:",
+        currentTemplate.id,
+        "- using as custom system prompt"
+      );
+      console.log(
+        "🎯 Custom prompt set to:",
+        customPrompt.substring(0, 100) + "..."
+      );
+
       // Clear the selected template state if it was used
       if (selectedTemplate) {
         setSelectedTemplate(null);
       }
     } else {
       console.log("📝 No template selected. User message will be sent as-is.");
-      console.log("📝 First 100 chars of user message:", userMessage.substring(0, 100));
+      console.log(
+        "📝 First 100 chars of user message:",
+        userMessage.substring(0, 100)
+      );
     }
-    
+
     // If we have a custom prompt but no actual user message, provide a default prompt to trigger AI response
     if (customPrompt && !actualUserMessage.trim()) {
-      actualUserMessage = "Please analyze the current context and provide insights.";
+      actualUserMessage =
+        "Please analyze the current context and provide insights.";
     }
 
     // Clear input value
@@ -289,13 +361,13 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
     // Check if message contains date references and add cached notes
     const datePattern = /\[(\d{4}-\d{2}-\d{2})\]/g;
     const dateMatches = userMessage.match(datePattern);
-    
+
     if (dateMatches && !customPrompt) {
       // Only add date notes if we're not using a custom prompt template
       for (const dateMatch of dateMatches) {
         const dateString = dateMatch.slice(1, -1); // Remove brackets
         const cachedNotes = dateNotesCache[dateString];
-        
+
         if (cachedNotes) {
           actualUserMessage += `\n\nHere are my notes from ${dateString}:\n${cachedNotes}`;
         } else {
@@ -316,16 +388,20 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
       // Extract page references and block references from the message
       const pageReferences = extractPageReferences(actualUserMessage);
       const blockReferences = extractBlockReferences(actualUserMessage);
-      
+
       // Check if user has explicitly referenced specific content
-      const hasExplicitReferences = pageReferences.length > 0 || blockReferences.length > 0;
-      
+      const hasExplicitReferences =
+        pageReferences.length > 0 || blockReferences.length > 0;
+
       // For TipTap editor input, also check if references were expanded
       let hasEditorReferences = false;
-      if (typeof messageInput !== 'string') {
+      if (typeof messageInput !== "string") {
         try {
           // Check if the original editor JSON contains reference chips
-          const promptResult = await PromptBuilder.buildPrompt(messageInput, 1000); // Small limit just to check
+          const promptResult = await PromptBuilder.buildPrompt(
+            messageInput,
+            1000
+          ); // Small limit just to check
           hasEditorReferences = promptResult.metadata.referencesExpanded > 0;
         } catch (error) {
           // Ignore error, just continue
@@ -336,12 +412,14 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
 
       // Use existing pageContext but filter based on user intent
       const currentContext = pageContext;
-      
+
       // Create filtered context based on user intent
       let filteredContext = currentContext;
       if (hasSpecificIntent) {
         // User has specific intent - exclude ambient context to avoid confusion
-        console.log("🎯 User has specific intent, filtering out ambient context");
+        console.log(
+          "🎯 User has specific intent, filtering out ambient context"
+        );
         filteredContext = {
           currentPage: undefined, // Don't include current page content
           visibleBlocks: [], // Don't include visible blocks
@@ -350,19 +428,21 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
           linkedReferences: [], // Don't include current page's backlinks
         };
       } else {
-        console.log("🌍 No specific intent detected, using full ambient context");
+        console.log(
+          "🌍 No specific intent detected, using full ambient context"
+        );
       }
 
       // Build enhanced context using ContextManager
       let contextString = "";
       let contextItems = [];
-      
+
       console.log("🔍 Building enhanced context for:", {
         pageReferences,
         blockReferences,
         hasSpecificIntent,
         currentPage: currentContext?.currentPage?.title,
-        strategy: hasSpecificIntent ? "specific-intent" : "ambient-context"
+        strategy: hasSpecificIntent ? "specific-intent" : "ambient-context",
       });
 
       const contextManager = new ContextManager({
@@ -394,11 +474,11 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
       );
 
       let enhancedUserMessage = actualUserMessage;
-      
+
       if (contextItems.length > 0 && actualUserMessage) {
         // Add key context information directly to user message (only if there's actual user content)
         const contextForUser = contextManager.formatContextForAI(contextItems);
-        
+
         // Build enhanced user message with context information embedded
         enhancedUserMessage = `${actualUserMessage}
 
@@ -408,20 +488,26 @@ ${contextForUser}`;
       } else if (contextItems.length > 0 && customPrompt) {
         // For prompt templates, context should go to system message context, not user message
         enhancedUserMessage = actualUserMessage; // Keep empty if using template
-        
+
         // Use simplified context for system message
         contextString = filteredContext
           ? RoamService.formatContextForAI(filteredContext, 8000) // Reduce system message context
           : "No additional context available";
-          
-        console.log("✅ Using enhanced context with", contextItems.length, "items for custom prompt");
+
+        console.log(
+          "✅ Using enhanced context with",
+          contextItems.length,
+          "items for custom prompt"
+        );
       } else {
         // Fallback to traditional context only if enhanced context fails
-        console.log("⚠️ Enhanced context failed, falling back to traditional context");
+        console.log(
+          "⚠️ Enhanced context failed, falling back to traditional context"
+        );
         const currentModel = multiProviderSettings.currentModel;
         const provider = await AIService.getProviderForModel(currentModel);
         const maxContextTokens = RoamService.getModelTokenLimit(
-          provider?.provider?.id || 'openai', 
+          provider?.provider?.id || "openai",
           currentModel
         );
 
@@ -432,7 +518,8 @@ ${contextForUser}`;
 
       console.log("Sending message with context:", {
         currentPage: filteredContext?.currentPage?.title,
-        traditionalBlocksCount: filteredContext?.currentPage?.blocks?.length || 0,
+        traditionalBlocksCount:
+          filteredContext?.currentPage?.blocks?.length || 0,
         enhancedContextItems: contextItems.length,
         model: multiProviderSettings.currentModel,
         dateNotesIncluded: dateMatches ? dateMatches.length : 0,
@@ -440,18 +527,18 @@ ${contextForUser}`;
         enhancedMessageLength: enhancedUserMessage.length,
         usingEnhancedContext: contextItems.length > 0,
         contextStringLength: contextString.length,
-        contextPreview: contextString.substring(0, 300) + "..."
+        contextPreview: contextString.substring(0, 300) + "...",
       });
 
       // Create a streaming message placeholder with model info
       const streamingMessageId = `streaming_${Date.now()}`;
       let streamingContent = "";
-      
+
       // Get model info before creating the streaming message
       const currentModel = multiProviderSettings.currentModel;
       const provider = await AIService.getProviderForModel(currentModel);
-      const currentProvider = provider?.provider?.id || 'ollama';
-      
+      const currentProvider = provider?.provider?.id || "ollama";
+
       addMessage({
         role: "assistant",
         content: "",
@@ -466,11 +553,15 @@ ${contextForUser}`;
         console.log("🚀 Calling AI service with:", {
           userMessage: enhancedUserMessage,
           hasCustomPrompt: !!customPrompt,
-          customPrompt: customPrompt
+          customPrompt: customPrompt,
         });
-        
-        let streamGenerator: AsyncGenerator<{ text: string; isComplete: boolean; usage?: any }>;
-        
+
+        let streamGenerator: AsyncGenerator<{
+          text: string;
+          isComplete: boolean;
+          usage?: any;
+        }>;
+
         try {
           streamGenerator = AIService.sendMessageWithCurrentModelStream(
             enhancedUserMessage,
@@ -488,27 +579,29 @@ ${contextForUser}`;
           for await (const chunk of streamGenerator) {
             if (chunk.isComplete) {
               // Check if there's an error in the chunk
-              if ('error' in chunk && chunk.error) {
+              if ("error" in chunk && chunk.error) {
                 console.error("❌ Stream completed with error:", chunk.error);
                 // Update message with error and stop streaming
                 setState((prev) => {
                   const updatedMessages = prev.messages.map((msg) =>
                     msg.id === streamingMessageId
-                      ? { 
-                          ...msg, 
+                      ? {
+                          ...msg,
                           content: `❌ Error: ${chunk.error}`,
-                          isStreaming: false
+                          isStreaming: false,
                         }
                       : msg
                   );
-                  
-                  console.log("🔧 Stream error detected - setting isStreaming to false");
-                  
+
+                  console.log(
+                    "🔧 Stream error detected - setting isStreaming to false"
+                  );
+
                   // Save conversation even after error
                   requestAnimationFrame(() => {
                     saveConversationDebounced(updatedMessages);
                   });
-                  
+
                   return {
                     ...prev,
                     messages: updatedMessages,
@@ -516,7 +609,7 @@ ${contextForUser}`;
                 });
                 return; // Exit the function early
               }
-              
+
               // Update final message with usage info (normal completion)
               setState((prev) => {
                 const updatedMessages = prev.messages.map((msg) =>
@@ -524,12 +617,12 @@ ${contextForUser}`;
                     ? { ...msg, isStreaming: false, usage: chunk.usage }
                     : msg
                 );
-                
+
                 // Save conversation after streaming is complete
                 requestAnimationFrame(() => {
                   saveConversationDebounced(updatedMessages);
                 });
-                
+
                 return {
                   ...prev,
                   messages: updatedMessages,
@@ -547,32 +640,37 @@ ${contextForUser}`;
                     : msg
                 ),
               }));
-              
+
               // Scrolling is handled by MessageList component
             }
           }
         } catch (streamIterationError: any) {
-          console.error("❌ Error during stream iteration:", streamIterationError);
+          console.error(
+            "❌ Error during stream iteration:",
+            streamIterationError
+          );
           // Immediately stop streaming and show error
           setState((prev) => {
             const updatedMessages = prev.messages.map((msg) =>
               msg.id === streamingMessageId
-                ? { 
-                    ...msg, 
+                ? {
+                    ...msg,
                     content: `❌ Error: ${streamIterationError.message}`,
-                    isStreaming: false
+                    isStreaming: false,
                   }
                 : msg
             );
-            
-            console.log("🔧 Stream iteration error - setting isStreaming to false");
-            
+
+            console.log(
+              "🔧 Stream iteration error - setting isStreaming to false"
+            );
+
             return {
               ...prev,
               messages: updatedMessages,
             };
           });
-          
+
           // Don't re-throw here, as we've handled the error
           return;
         }
@@ -580,16 +678,14 @@ ${contextForUser}`;
         // Model info is already set when creating the streaming message, just update the final state
         setState((prev) => {
           const updatedMessages = prev.messages.map((msg) =>
-            msg.id === streamingMessageId
-              ? { ...msg, isStreaming: false }
-              : msg
+            msg.id === streamingMessageId ? { ...msg, isStreaming: false } : msg
           );
-          
+
           // Save conversation after streaming is complete
           requestAnimationFrame(() => {
             saveConversationDebounced(updatedMessages);
           });
-          
+
           return {
             ...prev,
             messages: updatedMessages,
@@ -597,27 +693,29 @@ ${contextForUser}`;
         });
       } catch (streamingError: any) {
         console.error("❌ Streaming error caught:", streamingError);
-        
+
         // Immediately stop the streaming cursor and show error
         // Use synchronous state update to ensure immediate UI change
         setState((prev) => {
           const updatedMessages = prev.messages.map((msg) =>
             msg.id === streamingMessageId
-              ? { 
-                  ...msg, 
+              ? {
+                  ...msg,
                   content: `❌ Error: ${streamingError.message}`,
-                  isStreaming: false
+                  isStreaming: false,
                 }
               : msg
           );
-          
-          console.log("🔧 Updated streaming message with error, isStreaming set to false");
-          
+
+          console.log(
+            "🔧 Updated streaming message with error, isStreaming set to false"
+          );
+
           // Save conversation even after error
           requestAnimationFrame(() => {
             saveConversationDebounced(updatedMessages);
           });
-          
+
           return {
             ...prev,
             messages: updatedMessages,
@@ -658,41 +756,54 @@ ${contextForUser}`;
   // Auto-save function to be called when new messages are added
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isSavingRef = useRef<boolean>(false);
-  
+
   const saveConversationDebounced = useCallback(
     (messages: ChatMessage[]) => {
       if (isUnmounting) return;
-      
+
       // Clear existing timeout
       if (saveTimeoutRef.current) {
         clearTimeout(saveTimeoutRef.current);
         saveTimeoutRef.current = null;
       }
-      
+
       // Set new timeout
       saveTimeoutRef.current = setTimeout(async () => {
         if (isUnmounting || isSavingRef.current) return;
-        
+
         isSavingRef.current = true;
-        
+
         try {
           // Use ref to get the latest conversation ID synchronously
           const latestConversationId = conversationIdRef.current;
-          
+
           if (latestConversationId) {
             // Always try to update existing conversation first
             try {
-              await ConversationService.updateConversation(latestConversationId, messages);
-              console.log("Updated existing conversation:", latestConversationId);
+              await ConversationService.updateConversation(
+                latestConversationId,
+                messages
+              );
+              console.log(
+                "Updated existing conversation:",
+                latestConversationId
+              );
             } catch (updateError) {
-              console.log("Conversation doesn't exist yet, creating:", latestConversationId);
+              console.log(
+                "Conversation doesn't exist yet, creating:",
+                latestConversationId
+              );
               // If update fails, the conversation doesn't exist yet, so create it
-              await ConversationService.saveConversationWithId(latestConversationId, messages);
+              await ConversationService.saveConversationWithId(
+                latestConversationId,
+                messages
+              );
             }
           } else {
             // This should rarely happen now due to immediate ID generation
             console.warn("No conversation ID found, creating new conversation");
-            const newConversationId = await ConversationService.saveConversation(messages);
+            const newConversationId =
+              await ConversationService.saveConversation(messages);
             if (!isUnmounting) {
               conversationIdRef.current = newConversationId;
               setCurrentConversationId(newConversationId);
@@ -711,77 +822,89 @@ ${contextForUser}`;
 
   const handleConversationSelect = async (conversationId: string) => {
     try {
-      setState(prev => ({ ...prev, isLoading: true }));
-      
+      setState((prev) => ({ ...prev, isLoading: true }));
+
       // Load conversation messages
-      const messages = await ConversationService.loadConversationMessages(conversationId, 0, 100);
-      
-      setState(prev => ({
+      const messages = await ConversationService.loadConversationMessages(
+        conversationId,
+        0,
+        100
+      );
+
+      setState((prev) => ({
         ...prev,
         messages,
-        isLoading: false
+        isLoading: false,
       }));
-      
+
       conversationIdRef.current = conversationId;
       setCurrentConversationId(conversationId);
-      console.log("Loaded conversation:", conversationId, messages.length, "messages");
+      console.log(
+        "Loaded conversation:",
+        conversationId,
+        messages.length,
+        "messages"
+      );
     } catch (error) {
       console.error("Failed to load conversation:", error);
-      setState(prev => ({ ...prev, isLoading: false }));
+      setState((prev) => ({ ...prev, isLoading: false }));
     }
   };
 
   const handleNewConversation = () => {
-    setState(prev => ({
+    setState((prev) => ({
       ...prev,
-      messages: []
+      messages: [],
     }));
     conversationIdRef.current = null;
     setCurrentConversationId(null);
     setInputValue(""); // Clear input value for new conversation
     setDateNotesCache({}); // Clear date notes cache
-    
+
     // Update context when starting a new conversation
     // This ensures the new conversation uses the current page's context
     updatePageContext();
   };
 
   const toggleConversationList = () => {
-    setShowConversationList(prev => !prev);
+    setShowConversationList((prev) => !prev);
   };
 
-  const handleMinimize = useCallback((e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    
-    // Force reset any stuck resize state that might block interactions
-    if (isResizing) {
-      setIsResizing(false);
-      setResizeHandle(null);
-      document.body.style.cursor = '';
-      document.body.style.userSelect = '';
-    }
-    
-    // Force reset any stuck drag state
-    if (isDragging) {
-      setIsDragging(false);
-      document.body.style.cursor = '';
-      document.body.style.userSelect = '';
-    }
-    
-    // Close conversation list if open
-    if (showConversationList) {
-      setShowConversationList(false);
-    }
-    
-    // Hide templates if showing
-    if (showTemplates) {
-      setShowTemplates(false);
-    }
-    
-    // Call the parent's toggle function to minimize
-    onToggle();
-  }, [showConversationList, showTemplates, onToggle, isResizing, isDragging]);
+  const handleMinimize = useCallback(
+    (e: React.MouseEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+
+      // Force reset any stuck resize state that might block interactions
+      if (isResizing) {
+        setIsResizing(false);
+        setResizeHandle(null);
+        document.body.style.cursor = "";
+        document.body.style.userSelect = "";
+      }
+
+      // Force reset any stuck drag state
+      if (isDragging) {
+        setIsDragging(false);
+        document.body.style.cursor = "";
+        document.body.style.userSelect = "";
+      }
+
+      // Close conversation list if open
+      if (showConversationList) {
+        setShowConversationList(false);
+      }
+
+      // Hide templates if showing
+      if (showTemplates) {
+        setShowTemplates(false);
+      }
+
+      // Call the parent's toggle function to minimize
+      onToggle();
+    },
+    [showConversationList, showTemplates, onToggle, isResizing, isDragging]
+  );
 
   const calculateCenterPosition = () => {
     // Position window so its bottom-right corner aligns with icon center
@@ -789,66 +912,77 @@ ${contextForUser}`;
     const iconSize = 60;
     const iconCenterX = window.innerWidth - iconMargin - iconSize / 2;
     const iconCenterY = window.innerHeight - iconMargin - iconSize / 2;
-    
+
     // Calculate window position
     const left = iconCenterX - windowSize.width;
     const top = iconCenterY - windowSize.height;
-    
+
     // Ensure window doesn't go off-screen (but prioritize icon alignment)
     const finalLeft = Math.max(20, left);
     const finalTop = Math.max(20, top);
-    
+
     return { top: finalTop, left: finalLeft };
   };
 
   const handlePromptSelect = (prompt: string) => {
     console.log("📝 Template selected:", prompt.substring(0, 100) + "...");
-    
+
     // Find the template that matches this prompt (try exact match first)
-    let template = PROMPT_TEMPLATES.find(t => t.prompt === prompt);
-    
+    let template = PROMPT_TEMPLATES.find((t) => t.prompt === prompt);
+
     // If no exact match, try to find by base prompt (before language instructions)
     if (!template) {
-      template = PROMPT_TEMPLATES.find(t => {
+      template = PROMPT_TEMPLATES.find((t) => {
         // Check if the prompt starts with the template's base prompt
         const basePrompt = t.prompt.trim();
         const normalizedPrompt = prompt.trim();
-        
+
         if (normalizedPrompt.startsWith(basePrompt)) {
           // Check if the remaining part is just language instruction
-          const remainingText = normalizedPrompt.substring(basePrompt.length).trim();
-          return remainingText === "" || remainingText.startsWith("IMPORTANT: Please respond");
+          const remainingText = normalizedPrompt
+            .substring(basePrompt.length)
+            .trim();
+          return (
+            remainingText === "" ||
+            remainingText.startsWith("IMPORTANT: Please respond")
+          );
         }
         return false;
       });
     }
-    
+
     if (template) {
       console.log("🎯 Found matching template:", template.id, template.title);
-      
+
       // Hide templates since we're sending a message
       setShowTemplates(false);
-      
+
       // Send the prompt directly with template info
       handleSendMessage(prompt, {
         id: template.id,
-        prompt: template.prompt // Use the original template prompt, not the modified one
+        prompt: template.prompt, // Use the original template prompt, not the modified one
       });
     } else {
-      console.error("❌ No matching template found for prompt:", prompt.substring(0, 100) + "...");
-      console.log("Available templates:", PROMPT_TEMPLATES.map(t => ({id: t.id, title: t.title})));
+      console.error(
+        "❌ No matching template found for prompt:",
+        prompt.substring(0, 100) + "..."
+      );
+      console.log(
+        "Available templates:",
+        PROMPT_TEMPLATES.map((t) => ({ id: t.id, title: t.title }))
+      );
     }
   };
 
   const handleDateSelect = (date: string, notes: string) => {
     // Cache the notes for this date
-    setDateNotesCache(prev => ({
+    setDateNotesCache((prev) => ({
       ...prev,
-      [date]: notes
+      [date]: notes,
     }));
-    
+
     // Update input value with new date
-    setInputValue(prev => prev.replace(/\[\d{4}-\d{2}-\d{2}\]/, `[${date}]`));
+    setInputValue((prev) => prev.replace(/\[\d{4}-\d{2}-\d{2}\]/, `[${date}]`));
   };
 
   const handleTemplateSelect = (templateId: string, prompt: string) => {
@@ -857,7 +991,7 @@ ${contextForUser}`;
     // We just need to set the template state so it's detected when sent
     setSelectedTemplate({
       id: templateId,
-      prompt: prompt
+      prompt: prompt,
     });
   };
 
@@ -865,149 +999,211 @@ ${contextForUser}`;
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (!showConversationList) return;
-      
+
       const target = event.target as Element;
-      const conversationPanel = document.querySelector('.rr-copilot-conversation-list-panel');
+      const conversationPanel = document.querySelector(
+        ".rr-copilot-conversation-list-panel"
+      );
       const menuButton = document.querySelector('[title*="chat list"]');
-      
+
       // Don't close if clicking on the conversation panel itself or the menu button
       if (conversationPanel && conversationPanel.contains(target)) return;
       if (menuButton && menuButton.contains(target)) return;
-      
+
       // Close the conversation list
       setShowConversationList(false);
     };
 
     if (showConversationList) {
-      document.addEventListener('mousedown', handleClickOutside);
+      document.addEventListener("mousedown", handleClickOutside);
     }
 
     return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener("mousedown", handleClickOutside);
     };
   }, [showConversationList]);
 
   // Resize handlers
   const handleResizeStart = (e: React.MouseEvent, handle: string) => {
     // Prevent resize from interfering with button clicks
-    if ((e.target as Element).closest('button') || (e.target as Element).closest('.bp4-button')) {
+    if (
+      (e.target as Element).closest("button") ||
+      (e.target as Element).closest(".bp4-button")
+    ) {
       return;
     }
-    
+
     e.preventDefault();
     e.stopPropagation();
-    
+
     setIsResizing(true);
     setResizeHandle(handle);
     setStartMousePos({ x: e.clientX, y: e.clientY });
     setStartWindowSize({ width: windowSize.width, height: windowSize.height });
-    setStartWindowPos({ 
-      top: windowPosition?.top || 0, 
-      left: windowPosition?.left || 0 
+    setStartWindowPos({
+      top: windowPosition?.top || 0,
+      left: windowPosition?.left || 0,
     });
-    
+
     document.body.style.cursor = getCursor(handle);
-    document.body.style.userSelect = 'none';
+    document.body.style.userSelect = "none";
   };
 
-  const handleResizeMove = useCallback((e: MouseEvent) => {
-    if (!isResizing || !resizeHandle) return;
-    
-    const deltaX = e.clientX - startMousePos.x;
-    const deltaY = e.clientY - startMousePos.y;
-    
-    // Apply constraints
-    const minWidth = 400;
-    const minHeight = 500;
-    const maxWidth = window.innerWidth - 40;
-    const maxHeight = window.innerHeight - 40;
-    
-    let newWidth = startWindowSize.width;
-    let newHeight = startWindowSize.height;
-    let newTop = startWindowPos.top;
-    let newLeft = startWindowPos.left;
-    
-    // Handle different resize directions
-    switch (resizeHandle) {
-      case 'nw': // Northwest corner
-        newWidth = Math.max(minWidth, Math.min(maxWidth, startWindowSize.width - deltaX));
-        newHeight = Math.max(minHeight, Math.min(maxHeight, startWindowSize.height - deltaY));
-        newLeft = startWindowPos.left + (startWindowSize.width - newWidth);
-        newTop = startWindowPos.top + (startWindowSize.height - newHeight);
-        break;
-      case 'ne': // Northeast corner
-        newWidth = Math.max(minWidth, Math.min(maxWidth, startWindowSize.width + deltaX));
-        newHeight = Math.max(minHeight, Math.min(maxHeight, startWindowSize.height - deltaY));
-        newTop = startWindowPos.top + (startWindowSize.height - newHeight);
-        break;
-      case 'sw': // Southwest corner
-        newWidth = Math.max(minWidth, Math.min(maxWidth, startWindowSize.width - deltaX));
-        newHeight = Math.max(minHeight, Math.min(maxHeight, startWindowSize.height + deltaY));
-        newLeft = startWindowPos.left + (startWindowSize.width - newWidth);
-        break;
-      case 'se': // Southeast corner
-        newWidth = Math.max(minWidth, Math.min(maxWidth, startWindowSize.width + deltaX));
-        newHeight = Math.max(minHeight, Math.min(maxHeight, startWindowSize.height + deltaY));
-        break;
-      case 'n': // North edge
-        newHeight = Math.max(minHeight, Math.min(maxHeight, startWindowSize.height - deltaY));
-        newTop = startWindowPos.top + (startWindowSize.height - newHeight);
-        break;
-      case 's': // South edge
-        newHeight = Math.max(minHeight, Math.min(maxHeight, startWindowSize.height + deltaY));
-        break;
-      case 'w': // West edge
-        newWidth = Math.max(minWidth, Math.min(maxWidth, startWindowSize.width - deltaX));
-        newLeft = startWindowPos.left + (startWindowSize.width - newWidth);
-        break;
-      case 'e': // East edge
-        newWidth = Math.max(minWidth, Math.min(maxWidth, startWindowSize.width + deltaX));
-        break;
-    }
-    
-    // Ensure window stays within screen bounds with improved logic
-    // Calculate safe boundaries
-    const minLeft = 20;
-    const minTop = 0; // Allow touching the top edge
-    const maxLeft = Math.max(minLeft, window.innerWidth - newWidth - 20);
-    const maxTop = Math.max(minTop, window.innerHeight - newHeight - 40); // Leave more space at bottom
-    
-    // Apply boundary constraints more carefully
-    // Only constrain if the new position is significantly out of bounds
-    if (newLeft < minLeft) {
-      newLeft = minLeft;
-    } else if (newLeft > maxLeft) {
-      newLeft = maxLeft;
-    }
-    
-    if (newTop < minTop) {
-      newTop = minTop;
-    } else if (newTop > maxTop) {
-      newTop = maxTop;
-    }
-    
-    setWindowSize({ width: newWidth, height: newHeight });
-    setWindowPosition({ top: newTop, left: newLeft });
-  }, [isResizing, resizeHandle, startMousePos.x, startMousePos.y, startWindowSize.width, startWindowSize.height, startWindowPos.top, startWindowPos.left]);
+  const handleResizeMove = useCallback(
+    (e: MouseEvent) => {
+      if (!isResizing || !resizeHandle) return;
+
+      const deltaX = e.clientX - startMousePos.x;
+      const deltaY = e.clientY - startMousePos.y;
+
+      // Apply constraints
+      const minWidth = 400;
+      const minHeight = 500;
+      const maxWidth = window.innerWidth - 40;
+      const maxHeight = window.innerHeight - 40;
+
+      let newWidth = startWindowSize.width;
+      let newHeight = startWindowSize.height;
+      let newTop = startWindowPos.top;
+      let newLeft = startWindowPos.left;
+
+      // Handle different resize directions
+      switch (resizeHandle) {
+        case "nw": // Northwest corner
+          newWidth = Math.max(
+            minWidth,
+            Math.min(maxWidth, startWindowSize.width - deltaX)
+          );
+          newHeight = Math.max(
+            minHeight,
+            Math.min(maxHeight, startWindowSize.height - deltaY)
+          );
+          newLeft = startWindowPos.left + (startWindowSize.width - newWidth);
+          newTop = startWindowPos.top + (startWindowSize.height - newHeight);
+          break;
+        case "ne": // Northeast corner
+          newWidth = Math.max(
+            minWidth,
+            Math.min(maxWidth, startWindowSize.width + deltaX)
+          );
+          newHeight = Math.max(
+            minHeight,
+            Math.min(maxHeight, startWindowSize.height - deltaY)
+          );
+          newTop = startWindowPos.top + (startWindowSize.height - newHeight);
+          break;
+        case "sw": // Southwest corner
+          newWidth = Math.max(
+            minWidth,
+            Math.min(maxWidth, startWindowSize.width - deltaX)
+          );
+          newHeight = Math.max(
+            minHeight,
+            Math.min(maxHeight, startWindowSize.height + deltaY)
+          );
+          newLeft = startWindowPos.left + (startWindowSize.width - newWidth);
+          break;
+        case "se": // Southeast corner
+          newWidth = Math.max(
+            minWidth,
+            Math.min(maxWidth, startWindowSize.width + deltaX)
+          );
+          newHeight = Math.max(
+            minHeight,
+            Math.min(maxHeight, startWindowSize.height + deltaY)
+          );
+          break;
+        case "n": // North edge
+          newHeight = Math.max(
+            minHeight,
+            Math.min(maxHeight, startWindowSize.height - deltaY)
+          );
+          newTop = startWindowPos.top + (startWindowSize.height - newHeight);
+          break;
+        case "s": // South edge
+          newHeight = Math.max(
+            minHeight,
+            Math.min(maxHeight, startWindowSize.height + deltaY)
+          );
+          break;
+        case "w": // West edge
+          newWidth = Math.max(
+            minWidth,
+            Math.min(maxWidth, startWindowSize.width - deltaX)
+          );
+          newLeft = startWindowPos.left + (startWindowSize.width - newWidth);
+          break;
+        case "e": // East edge
+          newWidth = Math.max(
+            minWidth,
+            Math.min(maxWidth, startWindowSize.width + deltaX)
+          );
+          break;
+      }
+
+      // Ensure window stays within screen bounds with improved logic
+      // Calculate safe boundaries
+      const minLeft = 20;
+      const minTop = 0; // Allow touching the top edge
+      const maxLeft = Math.max(minLeft, window.innerWidth - newWidth - 20);
+      const maxTop = Math.max(minTop, window.innerHeight - newHeight - 40); // Leave more space at bottom
+
+      // Apply boundary constraints more carefully
+      // Only constrain if the new position is significantly out of bounds
+      if (newLeft < minLeft) {
+        newLeft = minLeft;
+      } else if (newLeft > maxLeft) {
+        newLeft = maxLeft;
+      }
+
+      if (newTop < minTop) {
+        newTop = minTop;
+      } else if (newTop > maxTop) {
+        newTop = maxTop;
+      }
+
+      setWindowSize({ width: newWidth, height: newHeight });
+      setWindowPosition({ top: newTop, left: newLeft });
+    },
+    [
+      isResizing,
+      resizeHandle,
+      startMousePos.x,
+      startMousePos.y,
+      startWindowSize.width,
+      startWindowSize.height,
+      startWindowPos.top,
+      startWindowPos.left,
+    ]
+  );
 
   const handleResizeEnd = useCallback(() => {
     setIsResizing(false);
     setResizeHandle(null);
-    document.body.style.cursor = '';
-    document.body.style.userSelect = '';
+    document.body.style.cursor = "";
+    document.body.style.userSelect = "";
   }, []);
 
   const getCursor = (handle: string) => {
     switch (handle) {
-      case 'nw': return 'nw-resize';
-      case 'ne': return 'ne-resize';
-      case 'sw': return 'sw-resize';
-      case 'se': return 'se-resize';
-      case 'n': return 'n-resize';
-      case 's': return 's-resize';
-      case 'w': return 'w-resize';
-      case 'e': return 'e-resize';
-      default: return 'default';
+      case "nw":
+        return "nw-resize";
+      case "ne":
+        return "ne-resize";
+      case "sw":
+        return "sw-resize";
+      case "se":
+        return "se-resize";
+      case "n":
+        return "n-resize";
+      case "s":
+        return "s-resize";
+      case "w":
+        return "w-resize";
+      case "e":
+        return "e-resize";
+      default:
+        return "default";
     }
   };
 
@@ -1015,67 +1211,82 @@ ${contextForUser}`;
   const handleDragStart = (e: React.MouseEvent) => {
     // Don't start drag if clicking on buttons or interactive elements
     const target = e.target as Element;
-    if (target.closest('button') || target.closest('.bp4-button') || target.closest('input') || target.closest('textarea')) {
+    if (
+      target.closest("button") ||
+      target.closest(".bp4-button") ||
+      target.closest("input") ||
+      target.closest("textarea")
+    ) {
       return;
     }
-    
+
     e.preventDefault();
     e.stopPropagation();
-    
+
     setIsDragging(true);
     setDragStartPos({ x: e.clientX, y: e.clientY });
-    setDragStartWindowPos({ 
-      top: windowPosition?.top || 0, 
-      left: windowPosition?.left || 0 
+    setDragStartWindowPos({
+      top: windowPosition?.top || 0,
+      left: windowPosition?.left || 0,
     });
-    
-    document.body.style.cursor = 'move';
-    document.body.style.userSelect = 'none';
+
+    document.body.style.cursor = "move";
+    document.body.style.userSelect = "none";
   };
 
-  const handleDragMove = useCallback((e: MouseEvent) => {
-    if (!isDragging) return;
-    
-    const deltaX = e.clientX - dragStartPos.x;
-    const deltaY = e.clientY - dragStartPos.y;
-    
-    const newLeft = dragStartWindowPos.left + deltaX;
-    const newTop = dragStartWindowPos.top + deltaY;
-    
-    // Ensure window doesn't go completely off-screen but allow free movement
-    const minVisible = 50; // Keep at least 50px visible
-    const maxLeft = window.innerWidth - minVisible; // Can go mostly off right edge
-    const maxTop = window.innerHeight - minVisible; // Can go mostly off bottom edge  
-    const minLeft = -windowSize.width + minVisible; // Can go mostly off left edge
-    const minTop = -windowSize.height + minVisible; // Can go mostly off top edge (this is key!)
-    
-    const finalLeft = Math.max(minLeft, Math.min(newLeft, maxLeft));
-    const finalTop = Math.max(minTop, Math.min(newTop, maxTop));
-    
-    setWindowPosition({ top: finalTop, left: finalLeft });
-  }, [isDragging, dragStartPos.x, dragStartPos.y, dragStartWindowPos.left, dragStartWindowPos.top, windowSize.width]);
+  const handleDragMove = useCallback(
+    (e: MouseEvent) => {
+      if (!isDragging) return;
+
+      const deltaX = e.clientX - dragStartPos.x;
+      const deltaY = e.clientY - dragStartPos.y;
+
+      const newLeft = dragStartWindowPos.left + deltaX;
+      const newTop = dragStartWindowPos.top + deltaY;
+
+      // Ensure window doesn't go completely off-screen but allow free movement
+      const minVisible = 50; // Keep at least 50px visible
+      const maxLeft = window.innerWidth - minVisible; // Can go mostly off right edge
+      const maxTop = window.innerHeight - minVisible; // Can go mostly off bottom edge
+      const minLeft = -windowSize.width + minVisible; // Can go mostly off left edge
+      const minTop = -windowSize.height + minVisible; // Can go mostly off top edge (this is key!)
+
+      const finalLeft = Math.max(minLeft, Math.min(newLeft, maxLeft));
+      const finalTop = Math.max(minTop, Math.min(newTop, maxTop));
+
+      setWindowPosition({ top: finalTop, left: finalLeft });
+    },
+    [
+      isDragging,
+      dragStartPos.x,
+      dragStartPos.y,
+      dragStartWindowPos.left,
+      dragStartWindowPos.top,
+      windowSize.width,
+    ]
+  );
 
   const handleDragEnd = useCallback(() => {
     setIsDragging(false);
-    document.body.style.cursor = '';
-    document.body.style.userSelect = '';
+    document.body.style.cursor = "";
+    document.body.style.userSelect = "";
   }, []);
 
   // Manage resize event listeners
   useEffect(() => {
     if (isResizing) {
-      document.addEventListener('mousemove', handleResizeMove);
-      document.addEventListener('mouseup', handleResizeEnd);
+      document.addEventListener("mousemove", handleResizeMove);
+      document.addEventListener("mouseup", handleResizeEnd);
       // Add mouseleave to handle cases where mouse exits window during resize
-      document.addEventListener('mouseleave', handleResizeEnd);
+      document.addEventListener("mouseleave", handleResizeEnd);
       // Add window blur to reset state if user switches windows
-      window.addEventListener('blur', handleResizeEnd);
-      
+      window.addEventListener("blur", handleResizeEnd);
+
       return () => {
-        document.removeEventListener('mousemove', handleResizeMove);
-        document.removeEventListener('mouseup', handleResizeEnd);
-        document.removeEventListener('mouseleave', handleResizeEnd);
-        window.removeEventListener('blur', handleResizeEnd);
+        document.removeEventListener("mousemove", handleResizeMove);
+        document.removeEventListener("mouseup", handleResizeEnd);
+        document.removeEventListener("mouseleave", handleResizeEnd);
+        window.removeEventListener("blur", handleResizeEnd);
       };
     }
   }, [isResizing, handleResizeMove, handleResizeEnd]);
@@ -1083,18 +1294,18 @@ ${contextForUser}`;
   // Manage drag event listeners
   useEffect(() => {
     if (isDragging) {
-      document.addEventListener('mousemove', handleDragMove);
-      document.addEventListener('mouseup', handleDragEnd);
+      document.addEventListener("mousemove", handleDragMove);
+      document.addEventListener("mouseup", handleDragEnd);
       // Add mouseleave to handle cases where mouse exits window during drag
-      document.addEventListener('mouseleave', handleDragEnd);
+      document.addEventListener("mouseleave", handleDragEnd);
       // Add window blur to reset state if user switches windows
-      window.addEventListener('blur', handleDragEnd);
-      
+      window.addEventListener("blur", handleDragEnd);
+
       return () => {
-        document.removeEventListener('mousemove', handleDragMove);
-        document.removeEventListener('mouseup', handleDragEnd);
-        document.removeEventListener('mouseleave', handleDragEnd);
-        window.removeEventListener('blur', handleDragEnd);
+        document.removeEventListener("mousemove", handleDragMove);
+        document.removeEventListener("mouseup", handleDragEnd);
+        document.removeEventListener("mouseleave", handleDragEnd);
+        window.removeEventListener("blur", handleDragEnd);
       };
     }
   }, [isDragging, handleDragMove, handleDragEnd]);
@@ -1103,21 +1314,21 @@ ${contextForUser}`;
   useEffect(() => {
     return () => {
       setIsUnmounting(true);
-      
+
       // Clear any pending timeouts
       if (saveTimeoutRef.current) {
         clearTimeout(saveTimeoutRef.current);
         saveTimeoutRef.current = null;
       }
-      
+
       if (updateContextTimeoutRef.current) {
         clearTimeout(updateContextTimeoutRef.current);
         updateContextTimeoutRef.current = null;
       }
-      
+
       // Cleanup resize state
-      document.body.style.cursor = '';
-      document.body.style.userSelect = '';
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
     };
   }, []); // Empty dependency array - only runs on actual mount/unmount
 
@@ -1131,13 +1342,13 @@ ${contextForUser}`;
           <div
             onClick={onToggle}
             title="Open Roam Copilot"
-            style={{ 
+            style={{
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
               width: "60px",
               height: "60px",
-              cursor: "pointer"
+              cursor: "pointer",
             }}
           >
             <Icon icon={IconNames.LIGHTBULB} size={24} color="white" />
@@ -1163,7 +1374,7 @@ ${contextForUser}`;
               minWidth: "20px",
               minHeight: "20px",
               padding: "0",
-              boxShadow: "0 2px 4px rgba(0,0,0,0.2)"
+              boxShadow: "0 2px 4px rgba(0,0,0,0.2)",
             }}
           />
         </div>
@@ -1172,121 +1383,136 @@ ${contextForUser}`;
   }
 
   return (
-    <div 
-      className="roam-copilot-expanded" 
-      style={{ 
-        top: windowPosition?.top || '50%',
-        left: windowPosition?.left || '50%',
-        transform: windowPosition ? 'none' : 'translate(-50%, -50%)',
+    <div
+      className="roam-copilot-expanded"
+      style={{
+        top: windowPosition?.top || "50%",
+        left: windowPosition?.left || "50%",
+        transform: windowPosition ? "none" : "translate(-50%, -50%)",
         width: windowSize.width,
-        height: windowSize.height
+        height: windowSize.height,
       }}
     >
-        {/* Resize Handles - 8 directions */}
-        {/* Corner handles */}
-        <div 
-          className="rr-copilot-resize-handle rr-copilot-resize-nw" 
-          onMouseDown={(e) => handleResizeStart(e, 'nw')}
-        />
-        <div 
-          className="rr-copilot-resize-handle rr-copilot-resize-ne" 
-          onMouseDown={(e) => handleResizeStart(e, 'ne')}
-        />
-        <div 
-          className="rr-copilot-resize-handle rr-copilot-resize-sw" 
-          onMouseDown={(e) => handleResizeStart(e, 'sw')}
-        />
-        <div 
-          className="rr-copilot-resize-handle rr-copilot-resize-se" 
-          onMouseDown={(e) => handleResizeStart(e, 'se')}
-        />
-        
-        {/* Edge handles */}
-        <div 
-          className="rr-copilot-resize-handle rr-copilot-resize-n" 
-          onMouseDown={(e) => handleResizeStart(e, 'n')}
-        />
-        <div 
-          className="rr-copilot-resize-handle rr-copilot-resize-s" 
-          onMouseDown={(e) => handleResizeStart(e, 's')}
-        />
-        <div 
-          className="rr-copilot-resize-handle rr-copilot-resize-w" 
-          onMouseDown={(e) => handleResizeStart(e, 'w')}
-        />
-        <div 
-          className="rr-copilot-resize-handle rr-copilot-resize-e" 
-          onMouseDown={(e) => handleResizeStart(e, 'e')}
-        />
-        
-        {/* Conversation List Panel */}
-        <ConversationList
-          isVisible={showConversationList}
-          onToggle={toggleConversationList}
-          currentConversationId={currentConversationId}
-          onConversationSelect={handleConversationSelect}
-          onNewConversation={handleNewConversation}
-        />
+      {/* Resize Handles - 8 directions */}
+      {/* Corner handles */}
+      <div
+        className="rr-copilot-resize-handle rr-copilot-resize-nw"
+        onMouseDown={(e) => handleResizeStart(e, "nw")}
+      />
+      <div
+        className="rr-copilot-resize-handle rr-copilot-resize-ne"
+        onMouseDown={(e) => handleResizeStart(e, "ne")}
+      />
+      <div
+        className="rr-copilot-resize-handle rr-copilot-resize-sw"
+        onMouseDown={(e) => handleResizeStart(e, "sw")}
+      />
+      <div
+        className="rr-copilot-resize-handle rr-copilot-resize-se"
+        onMouseDown={(e) => handleResizeStart(e, "se")}
+      />
 
-        {/* Main Chat Area */}
-        <div 
-          style={{ 
-            height: "100%",
+      {/* Edge handles */}
+      <div
+        className="rr-copilot-resize-handle rr-copilot-resize-n"
+        onMouseDown={(e) => handleResizeStart(e, "n")}
+      />
+      <div
+        className="rr-copilot-resize-handle rr-copilot-resize-s"
+        onMouseDown={(e) => handleResizeStart(e, "s")}
+      />
+      <div
+        className="rr-copilot-resize-handle rr-copilot-resize-w"
+        onMouseDown={(e) => handleResizeStart(e, "w")}
+      />
+      <div
+        className="rr-copilot-resize-handle rr-copilot-resize-e"
+        onMouseDown={(e) => handleResizeStart(e, "e")}
+      />
+
+      {/* Conversation List Panel */}
+      <ConversationList
+        isVisible={showConversationList}
+        onToggle={toggleConversationList}
+        currentConversationId={currentConversationId}
+        onConversationSelect={handleConversationSelect}
+        onNewConversation={handleNewConversation}
+      />
+
+      {/* Main Chat Area */}
+      <div
+        style={{
+          height: "100%",
+          display: "flex",
+          flexDirection: "column",
+        }}
+      >
+        <div
+          className="roam-copilot-header"
+          style={{
             display: "flex",
-            flexDirection: "column"
+            justifyContent: "space-between",
+            alignItems: "center",
+            width: "100%",
+            cursor: isDragging ? "move" : "default",
           }}
+          onMouseDown={handleDragStart}
         >
-          <div 
-            className="roam-copilot-header" 
-            style={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%", cursor: isDragging ? 'move' : 'default' }}
-            onMouseDown={handleDragStart}
-          >
-            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-              <Button
-                minimal
-                small
-                icon="menu"
-                onClick={toggleConversationList}
-                title={showConversationList ? "Hide chat list" : "Show chat list"}
-                style={{ marginRight: "4px" }}
-              />
-              <Button
-                minimal
-                small
-                icon="plus"
-                onClick={handleNewConversation}
-                title="New Chat"
-                style={{ marginRight: "4px" }}
-              />
-              <Icon icon={IconNames.LIGHTBULB} size={16} />
-              <span>Roam Copilot</span>
-              {currentConversationId && (
-                <span style={{ fontSize: "12px", color: "#666", marginLeft: "8px", display: "flex", alignItems: "center", gap: "4px" }}>
-                  <span 
-                    style={{ 
-                      width: "8px", 
-                      height: "8px", 
-                      borderRadius: "50%", 
-                      backgroundColor: "#69B58E",
-                      display: "inline-block"
-                    }}
-                  ></span>
-                  Saved
-                </span>
-              )}
-            </div>
+          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
             <Button
               minimal
               small
-              icon="minimize"
-              onClick={handleMinimize}
-              title="Minimize Copilot"
-              style={{
-                transition: "all 0.2s ease",
-                borderRadius: "4px"
-              }}
+              icon="menu"
+              onClick={toggleConversationList}
+              title={showConversationList ? "Hide chat list" : "Show chat list"}
+              style={{ marginRight: "4px" }}
             />
+            <Button
+              minimal
+              small
+              icon="plus"
+              onClick={handleNewConversation}
+              title="New Chat"
+              style={{ marginRight: "4px" }}
+            />
+            <Icon icon={IconNames.LIGHTBULB} size={16} />
+            <span>Roam Copilot</span>
+            {currentConversationId && (
+              <span
+                style={{
+                  fontSize: "12px",
+                  color: "#666",
+                  marginLeft: "8px",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "4px",
+                }}
+              >
+                <span
+                  style={{
+                    width: "8px",
+                    height: "8px",
+                    borderRadius: "50%",
+                    backgroundColor: "#69B58E",
+                    display: "inline-block",
+                  }}
+                ></span>
+                Saved
+              </span>
+            )}
           </div>
+          <Button
+            minimal
+            small
+            icon="minimize"
+            onClick={handleMinimize}
+            title="Minimize Copilot"
+            style={{
+              transition: "all 0.2s ease",
+              borderRadius: "4px",
+            }}
+          />
+        </div>
 
         <div
           style={{
@@ -1298,25 +1524,33 @@ ${contextForUser}`;
           }}
         >
           <div style={{ flex: 1, overflow: "hidden", position: "relative" }}>
-            {(state.messages.length === 0 || showTemplates) ? (
-              <div style={{ height: "100%", overflow: "auto", position: "relative" }}>
+            {state.messages.length === 0 || showTemplates ? (
+              <div
+                style={{
+                  height: "100%",
+                  overflow: "auto",
+                  position: "relative",
+                }}
+              >
                 {/* Close button for templates when in overlay mode */}
                 {state.messages.length > 0 && showTemplates && (
-                  <div style={{ 
-                    position: "absolute", 
-                    top: "8px", 
-                    right: "8px", 
-                    zIndex: 10 
-                  }}>
+                  <div
+                    style={{
+                      position: "absolute",
+                      top: "8px",
+                      right: "8px",
+                      zIndex: 10,
+                    }}
+                  >
                     <Button
                       minimal
                       small
                       icon="cross"
                       onClick={() => setShowTemplates(false)}
                       title="Hide prompt templates"
-                      style={{ 
+                      style={{
                         backgroundColor: "rgba(255, 255, 255, 0.9)",
-                        border: "1px solid #e1e4e8"
+                        border: "1px solid #e1e4e8",
                       }}
                     />
                   </div>
@@ -1331,33 +1565,54 @@ ${contextForUser}`;
                   onCopyMessage={handleCopyMessage}
                   copiedMessageIndex={copiedMessageIndex}
                   currentModel={multiProviderSettings.currentModel}
-                currentProvider={(() => {
-                  // First check if the model is in any provider's static models list
-                  const staticProvider = AI_PROVIDERS.find(p => 
-                    p.models.includes(multiProviderSettings.currentModel)
-                  );
-                  if (staticProvider) {
-                    return staticProvider.id;
-                  }
-                  // If not found in static models, assume it's an Ollama model
-                  return 'ollama';
-                })()}
+                  currentProvider={(() => {
+                    const currentModel = multiProviderSettings.currentModel;
+
+                    // First check if the model is in any provider's static models list
+                    const staticProvider = AI_PROVIDERS.find((p) =>
+                      p.models.includes(currentModel)
+                    );
+                    if (staticProvider) {
+                      return staticProvider.id;
+                    }
+
+                    // Use pattern matching to determine provider
+                    const modelLower = currentModel.toLowerCase();
+
+                    if (modelLower.includes("gpt")) return "openai";
+                    if (modelLower.includes("claude")) return "anthropic";
+                    if (
+                      modelLower.includes("llama") &&
+                      !modelLower.includes("meta-llama")
+                    )
+                      return "groq";
+                    if (modelLower.includes("grok")) return "xai";
+                    if (
+                      modelLower.includes("phi") ||
+                      modelLower.includes("meta-llama")
+                    )
+                      return "github";
+                    if (modelLower.includes("gemini")) return "gemini";
+
+                    // Default to ollama for unrecognized models (likely local)
+                    return "ollama";
+                  })()}
                 />
               </>
             )}
           </div>
 
-                        <ChatInput
-                placeholder={UI_CONSTANTS.CHAT_INPUT.PLACEHOLDER_TEXT}
-                onSend={handleSendMessage}
-                disabled={false} // Don't disable input while loading
-                onModelChange={handleModelChange}
-                value={inputValue}
-                onChange={setInputValue}
-                onDateSelect={handleDateSelect}
-                onTemplateSelect={handleTemplateSelect}
-                isLoading={state.isLoading} // Pass loading state for send button
-              />
+          <ChatInput
+            placeholder={UI_CONSTANTS.CHAT_INPUT.PLACEHOLDER_TEXT}
+            onSend={handleSendMessage}
+            disabled={false} // Don't disable input while loading
+            onModelChange={handleModelChange}
+            value={inputValue}
+            onChange={setInputValue}
+            onDateSelect={handleDateSelect}
+            onTemplateSelect={handleTemplateSelect}
+            isLoading={state.isLoading} // Pass loading state for send button
+          />
         </div>
       </div>
     </div>

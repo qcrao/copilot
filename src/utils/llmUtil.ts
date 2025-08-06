@@ -33,39 +33,55 @@ export class LLMUtil {
   static convertToRoamDateFormat(isoDate: string): string {
     try {
       // Parse date in local timezone to avoid UTC conversion issues
-      const [year, month, day] = isoDate.split('-').map(Number);
+      const [year, month, day] = isoDate.split("-").map(Number);
       const date = new Date(year, month - 1, day); // month is 0-indexed
-      
+
       const months = [
-        'January', 'February', 'March', 'April', 'May', 'June',
-        'July', 'August', 'September', 'October', 'November', 'December'
+        "January",
+        "February",
+        "March",
+        "April",
+        "May",
+        "June",
+        "July",
+        "August",
+        "September",
+        "October",
+        "November",
+        "December",
       ];
-      
+
       const dayNum = date.getDate();
       const monthName = months[date.getMonth()];
       const yearNum = date.getFullYear();
-      
+
       // Add ordinal suffix (st, nd, rd, th)
       const getOrdinalSuffix = (day: number): string => {
-        if (day > 3 && day < 21) return 'th';
+        if (day > 3 && day < 21) return "th";
         switch (day % 10) {
-          case 1: return 'st';
-          case 2: return 'nd';
-          case 3: return 'rd';
-          default: return 'th';
+          case 1:
+            return "st";
+          case 2:
+            return "nd";
+          case 3:
+            return "rd";
+          default:
+            return "th";
         }
       };
-      
-      const roamFormat = `${monthName} ${dayNum}${getOrdinalSuffix(dayNum)}, ${yearNum}`;
+
+      const roamFormat = `${monthName} ${dayNum}${getOrdinalSuffix(
+        dayNum
+      )}, ${yearNum}`;
       console.log(`🗓️ Date format conversion: ${isoDate} → ${roamFormat}`);
-      
+
       return roamFormat;
     } catch (error) {
-      console.error('❌ Error converting date to Roam format:', error);
+      console.error("❌ Error converting date to Roam format:", error);
       return isoDate; // Return original if conversion fails
     }
   }
-  
+
   /**
    * Generate all possible Roam date formats for a given ISO date
    * @param isoDate - Date in YYYY-MM-DD format
@@ -73,36 +89,49 @@ export class LLMUtil {
    */
   static generateRoamDateFormats(isoDate: string): string[] {
     try {
-      const [year, month, day] = isoDate.split('-').map(Number);
+      const [year, month, day] = isoDate.split("-").map(Number);
       const date = new Date(year, month - 1, day);
-      
+
       const formats = [
         // Standard Roam format: "July 8th, 2025"
         this.convertToRoamDateFormat(isoDate),
-        
+
         // MM-dd-yyyy format
-        `${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}-${year}`,
-        
+        `${String(month).padStart(2, "0")}-${String(day).padStart(
+          2,
+          "0"
+        )}-${year}`,
+
         // yyyy-mm-dd format
         isoDate,
-        
+
         // dd-mm-yyyy format
-        `${String(day).padStart(2, '0')}-${String(month).padStart(2, '0')}-${year}`,
-        
+        `${String(day).padStart(2, "0")}-${String(month).padStart(
+          2,
+          "0"
+        )}-${year}`,
+
         // Month dd, yyyy (without ordinal)
-        `${date.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}`,
-        
+        `${date.toLocaleDateString("en-US", {
+          month: "long",
+          day: "numeric",
+          year: "numeric",
+        })}`,
+
         // Just year-month-day without leading zeros
         `${year}-${month}-${day}`,
       ];
-      
+
       // Remove duplicates
       const uniqueFormats = [...new Set(formats)];
-      console.log(`🗓️ Generated ${uniqueFormats.length} date formats for ${isoDate}:`, uniqueFormats);
-      
+      console.log(
+        `🗓️ Generated ${uniqueFormats.length} date formats for ${isoDate}:`,
+        uniqueFormats
+      );
+
       return uniqueFormats;
     } catch (error) {
-      console.error('❌ Error generating Roam date formats:', error);
+      console.error("❌ Error generating Roam date formats:", error);
       return [isoDate];
     }
   }
@@ -115,27 +144,30 @@ export class LLMUtil {
   private static getLocalDateString(daysOffset: number = 0): string {
     // Create date in local timezone to avoid UTC conversion issues
     const now = new Date();
-    const localDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    
+    const localDate = new Date(
+      now.getFullYear(),
+      now.getMonth(),
+      now.getDate()
+    );
+
     // Add the offset days
     localDate.setDate(localDate.getDate() + daysOffset);
-    
+
     const year = localDate.getFullYear();
-    const month = String(localDate.getMonth() + 1).padStart(2, '0');
-    const day = String(localDate.getDate()).padStart(2, '0');
-    
+    const month = String(localDate.getMonth() + 1).padStart(2, "0");
+    const day = String(localDate.getDate()).padStart(2, "0");
+
     const result = `${year}-${month}-${day}`;
-    
+
     // Add debug logging for date calculations (only in debug mode)
-    if (process.env.NODE_ENV === 'development') {
-      console.log(`🗓️ Date calculation: today=${now.toDateString()}, offset=${daysOffset}, result=${result}`);
+    if (process.env.NODE_ENV === "development") {
+      console.log(
+        `🗓️ Date calculation: today=${now.toDateString()}, offset=${daysOffset}, result=${result}`
+      );
     }
-    
+
     return result;
   }
-
-
-
 
   private static getProviderClient(config: LLMConfig): LanguageModel {
     const { provider, model, apiKey, baseUrl } = config;
@@ -196,8 +228,9 @@ export class LLMUtil {
         return xai(model);
 
       case "ollama":
-        const ollamaBaseUrl = baseUrl || 
-          multiProviderSettings.ollamaBaseUrl || 
+        const ollamaBaseUrl =
+          baseUrl ||
+          multiProviderSettings.ollamaBaseUrl ||
           "http://localhost:11434";
         const ollama = createOpenAI({
           baseURL: `${ollamaBaseUrl}/v1`,
@@ -208,7 +241,8 @@ export class LLMUtil {
       case "gemini":
         const gemini = createGoogleGenerativeAI({
           apiKey: apiKey,
-          baseURL: baseUrl || "https://generativelanguage.googleapis.com/v1beta",
+          baseURL:
+            baseUrl || "https://generativelanguage.googleapis.com/v1beta",
         });
         return gemini(model);
 
@@ -263,10 +297,15 @@ export class LLMUtil {
     }
   }
 
-  static async* generateStreamResponse(
+  static async *generateStreamResponse(
     config: LLMConfig,
     messages: any[]
-  ): AsyncGenerator<{ text: string; isComplete: boolean; usage?: any; error?: string }> {
+  ): AsyncGenerator<{
+    text: string;
+    isComplete: boolean;
+    usage?: any;
+    error?: string;
+  }> {
     const { temperature = 0.7, maxTokens = 8000 } = config;
 
     try {
@@ -292,13 +331,13 @@ export class LLMUtil {
         // Use fullStream to handle error parts properly
         for await (const part of result.fullStream) {
           switch (part.type) {
-            case 'text-delta':
+            case "text-delta":
               yield {
                 text: part.textDelta,
                 isComplete: false,
               };
               break;
-            case 'finish':
+            case "finish":
               yield {
                 text: "",
                 isComplete: true,
@@ -309,12 +348,13 @@ export class LLMUtil {
                 },
               };
               break;
-            case 'error':
+            case "error":
               console.error("❌ Stream error part:", part.error);
               yield {
                 text: "",
                 isComplete: true,
-                error: (part.error as any)?.message || "Streaming error occurred",
+                error:
+                  (part.error as any)?.message || "Streaming error occurred",
               };
               return;
           }
@@ -329,7 +369,6 @@ export class LLMUtil {
           };
           return;
         }
-
       } catch (streamError: any) {
         console.error("❌ Stream processing error:", streamError);
         yield {
@@ -384,9 +423,6 @@ export class LLMUtil {
     return this.generateResponse(config, messages);
   }
 
-
-
-
   static async getProviderForModel(
     model: string
   ): Promise<{ provider: any; apiKey: string } | null> {
@@ -404,96 +440,109 @@ export class LLMUtil {
       }
     }
 
-    // If no exact match, try model name pattern matching to determine provider
-    const modelLower = model.toLowerCase();
-    
-    // Check for OpenAI models
-    if (modelLower.includes('gpt')) {
-      const openaiProvider = AI_PROVIDERS.find((p) => p.id === "openai");
-      if (openaiProvider) {
-        const apiKey = multiProviderSettings.apiKeys[openaiProvider.id];
-        if (apiKey && apiKey.trim() !== "") {
-          return { provider: openaiProvider, apiKey };
-        }
-      }
-    }
-    
-    // Check for Anthropic models
-    if (modelLower.includes('claude')) {
-      const anthropicProvider = AI_PROVIDERS.find((p) => p.id === "anthropic");
-      if (anthropicProvider) {
-        const apiKey = multiProviderSettings.apiKeys[anthropicProvider.id];
-        if (apiKey && apiKey.trim() !== "") {
-          return { provider: anthropicProvider, apiKey };
-        }
-      }
-    }
-    
-    // Check for Groq models
-    if (modelLower.includes('llama') && !modelLower.includes('meta-llama')) {
-      const groqProvider = AI_PROVIDERS.find((p) => p.id === "groq");
-      if (groqProvider) {
-        const apiKey = multiProviderSettings.apiKeys[groqProvider.id];
-        if (apiKey && apiKey.trim() !== "") {
-          return { provider: groqProvider, apiKey };
-        }
-      }
-    }
-    
-    // Check for xAI models
-    if (modelLower.includes('grok')) {
-      const xaiProvider = AI_PROVIDERS.find((p) => p.id === "xai");
-      if (xaiProvider) {
-        const apiKey = multiProviderSettings.apiKeys[xaiProvider.id];
-        if (apiKey && apiKey.trim() !== "") {
-          return { provider: xaiProvider, apiKey };
-        }
-      }
-    }
-    
-    // Check for GitHub models
-    if (modelLower.includes('phi') || modelLower.includes('meta-llama')) {
-      const githubProvider = AI_PROVIDERS.find((p) => p.id === "github");
-      if (githubProvider) {
-        const apiKey = multiProviderSettings.apiKeys[githubProvider.id];
-        if (apiKey && apiKey.trim() !== "") {
-          return { provider: githubProvider, apiKey };
-        }
-      }
-    }
-    
-    // Check for Google Gemini models
-    if (modelLower.includes('gemini')) {
-      const geminiProvider = AI_PROVIDERS.find((p) => p.id === "gemini");
-      if (geminiProvider) {
-        const apiKey = multiProviderSettings.apiKeys[geminiProvider.id];
-        if (apiKey && apiKey.trim() !== "") {
-          return { provider: geminiProvider, apiKey };
-        }
-      }
-    }
-
-    // Finally, check Ollama for local models
+    // IMPORTANT: Check Ollama dynamic models FIRST before pattern matching
+    // This prevents models like "gpt-oss:20b" from being misidentified as OpenAI models
     const ollamaProvider = AI_PROVIDERS.find((p) => p.id === "ollama");
     if (ollamaProvider?.supportsDynamicModels) {
       try {
         const dynamicModels = await this.getOllamaModels();
         if (dynamicModels.includes(model)) {
+          console.log(
+            `✅ Found model "${model}" in Ollama dynamic models list`
+          );
           return { provider: ollamaProvider, apiKey: "" };
         }
       } catch (error) {
-        console.log("Failed to check Ollama dynamic models:", error);
-      }
-
-      // Only assume Ollama for models that look like local models
-      if (modelLower.includes(':latest') || modelLower.includes(':') || 
-          modelLower.includes('qwen') || modelLower.includes('deepseek') ||
-          modelLower.includes('mistral') || modelLower.includes('phi3')) {
-        console.log(`Assuming model "${model}" is a local Ollama model`);
-        return { provider: ollamaProvider, apiKey: "" };
+        console.log("⚠️ Failed to check Ollama dynamic models:", error);
+        // Continue to pattern matching if Ollama is not available
       }
     }
 
+    // If no exact match and not in Ollama, try model name pattern matching to determine provider
+    const modelLower = model.toLowerCase();
+
+    // Check for OpenAI models
+    if (modelLower.includes("gpt")) {
+      const openaiProvider = AI_PROVIDERS.find((p) => p.id === "openai");
+      if (openaiProvider) {
+        const apiKey = multiProviderSettings.apiKeys[openaiProvider.id];
+        if (apiKey && apiKey.trim() !== "") {
+          console.log(
+            `🔍 Pattern match: "${model}" identified as OpenAI model`
+          );
+          return { provider: openaiProvider, apiKey };
+        }
+      }
+    }
+
+    // Check for Anthropic models
+    if (modelLower.includes("claude")) {
+      const anthropicProvider = AI_PROVIDERS.find((p) => p.id === "anthropic");
+      if (anthropicProvider) {
+        const apiKey = multiProviderSettings.apiKeys[anthropicProvider.id];
+        if (apiKey && apiKey.trim() !== "") {
+          console.log(
+            `🔍 Pattern match: "${model}" identified as Anthropic model`
+          );
+          return { provider: anthropicProvider, apiKey };
+        }
+      }
+    }
+
+    // Check for Groq models
+    if (modelLower.includes("llama") && !modelLower.includes("meta-llama")) {
+      const groqProvider = AI_PROVIDERS.find((p) => p.id === "groq");
+      if (groqProvider) {
+        const apiKey = multiProviderSettings.apiKeys[groqProvider.id];
+        if (apiKey && apiKey.trim() !== "") {
+          console.log(`🔍 Pattern match: "${model}" identified as Groq model`);
+          return { provider: groqProvider, apiKey };
+        }
+      }
+    }
+
+    // Check for xAI models
+    if (modelLower.includes("grok")) {
+      const xaiProvider = AI_PROVIDERS.find((p) => p.id === "xai");
+      if (xaiProvider) {
+        const apiKey = multiProviderSettings.apiKeys[xaiProvider.id];
+        if (apiKey && apiKey.trim() !== "") {
+          console.log(`🔍 Pattern match: "${model}" identified as xAI model`);
+          return { provider: xaiProvider, apiKey };
+        }
+      }
+    }
+
+    // Check for GitHub models
+    if (modelLower.includes("phi") || modelLower.includes("meta-llama")) {
+      const githubProvider = AI_PROVIDERS.find((p) => p.id === "github");
+      if (githubProvider) {
+        const apiKey = multiProviderSettings.apiKeys[githubProvider.id];
+        if (apiKey && apiKey.trim() !== "") {
+          console.log(
+            `🔍 Pattern match: "${model}" identified as GitHub model`
+          );
+          return { provider: githubProvider, apiKey };
+        }
+      }
+    }
+
+    // Check for Google Gemini models
+    if (modelLower.includes("gemini")) {
+      const geminiProvider = AI_PROVIDERS.find((p) => p.id === "gemini");
+      if (geminiProvider) {
+        const apiKey = multiProviderSettings.apiKeys[geminiProvider.id];
+        if (apiKey && apiKey.trim() !== "") {
+          console.log(
+            `🔍 Pattern match: "${model}" identified as Gemini model`
+          );
+          return { provider: geminiProvider, apiKey };
+        }
+      }
+    }
+
+    // If no provider found, model is not supported
+    console.log(`❌ Model "${model}" not found in any provider`);
     return null;
   }
 
@@ -523,11 +572,13 @@ export class LLMUtil {
     } catch (error: any) {
       // Check if this is a CORS error
       if (this.isCorsError(error)) {
-        console.warn("CORS error detected when fetching Ollama models. Please configure CORS on your Ollama instance.");
+        console.warn(
+          "CORS error detected when fetching Ollama models. Please configure CORS on your Ollama instance."
+        );
         // Throw a specific error that can be caught upstream
         throw new Error("CORS_ERROR");
       }
-      
+
       console.warn("Failed to fetch Ollama models:", error.message);
       return [];
     }
@@ -535,14 +586,14 @@ export class LLMUtil {
 
   // Helper method to detect CORS errors
   private static isCorsError(error: any): boolean {
-    const errorMessage = error.message?.toLowerCase() || '';
-    
+    const errorMessage = error.message?.toLowerCase() || "";
+
     // Common CORS error patterns
     return (
-      errorMessage.includes('cors') ||
-      errorMessage.includes('cross-origin') ||
-      errorMessage.includes('failed to fetch') ||
-      error.name === 'TypeError' && errorMessage.includes('fetch')
+      errorMessage.includes("cors") ||
+      errorMessage.includes("cross-origin") ||
+      errorMessage.includes("failed to fetch") ||
+      (error.name === "TypeError" && errorMessage.includes("fetch"))
     );
   }
 
@@ -599,7 +650,7 @@ export class LLMUtil {
     }
   }
 
-  static async* handleOllamaStreamRequest(
+  static async *handleOllamaStreamRequest(
     config: LLMConfig,
     messages: any[]
   ): AsyncGenerator<{ text: string; isComplete: boolean; usage?: any }> {
@@ -633,7 +684,7 @@ export class LLMUtil {
 
       const reader = response.body?.getReader();
       const decoder = new TextDecoder();
-      
+
       if (!reader) {
         throw new Error("No response body available");
       }
@@ -644,12 +695,12 @@ export class LLMUtil {
           if (done) break;
 
           const chunk = decoder.decode(value, { stream: true });
-          const lines = chunk.split('\n').filter(line => line.trim());
+          const lines = chunk.split("\n").filter((line) => line.trim());
 
           for (const line of lines) {
             try {
               const data = JSON.parse(line);
-              
+
               if (data.message?.content) {
                 yield {
                   text: data.message.content,
@@ -725,5 +776,4 @@ export class LLMUtil {
       };
     }
   }
-
 }
