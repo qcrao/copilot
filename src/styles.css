@@ -11,15 +11,14 @@
 
 /* Optimized streaming cursor for message content */
 .rr-copilot-streaming-cursor {
-  display: inline;
-  font-size: 14px;
-  line-height: 1.5;
-  height: 1.5em;
-  color: #666;
-  vertical-align: baseline;
+  display: inline-block;
+  width: 8px;
+  height: 1.2em;
+  background-color: #666;
+  vertical-align: text-bottom;
   animation: blink 1.4s infinite both;
-  font-family: inherit;
-  /* Ensure cursor matches text metrics */
+  margin-left: 2px;
+  border-radius: 1px;
   position: relative;
   top: 0;
 }
@@ -1795,25 +1794,6 @@ details[style*="thinking"][open] {
   transition: all 0.2s ease;
 }
 
-/* Enhanced streaming cursor */
-.rr-copilot-streaming-cursor {
-  display: inline-block;
-  width: 2px;
-  background: linear-gradient(to bottom, transparent, #666, transparent);
-  animation: streamingBlink 1.2s ease-in-out infinite;
-  margin-left: 1px;
-}
-
-@keyframes streamingBlink {
-  0%, 50% { 
-    opacity: 1; 
-    background: linear-gradient(to bottom, transparent, #666, transparent);
-  }
-  51%, 100% { 
-    opacity: 0.3; 
-    background: linear-gradient(to bottom, transparent, #999, transparent);
-  }
-}
 
 /* Loading indicator enhancements */
 .rr-copilot-message-list .rr-copilot-loading-container {

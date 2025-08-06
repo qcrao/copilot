@@ -307,7 +307,7 @@ const MessageItem: React.FC<MessageItemProps> = React.memo(({ message, index, on
             isStreaming={isStreaming}
           />
           {isStreaming && !isUser && (
-            <span className="rr-copilot-streaming-cursor" style={{ marginLeft: '2px' }}>▊</span>
+            <span className="rr-copilot-streaming-cursor"></span>
           )}
         </div>
 
