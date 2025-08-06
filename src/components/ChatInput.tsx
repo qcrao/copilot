@@ -34,6 +34,7 @@ interface ChatInputProps {
   value?: string;
   onChange?: (value: string) => void;
   onDateSelect?: (date: string, notes: string) => void;
+  onTemplateSelect?: (templateId: string, prompt: string) => void;
   isLoading?: boolean;
 }
 
@@ -45,6 +46,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   value: controlledValue,
   onChange,
   onDateSelect,
+  onTemplateSelect,
   isLoading = false,
 }) => {
   const [availableModels, setAvailableModels] = useState<
@@ -666,6 +668,11 @@ const insertUniversalSearchResult = (result: UniversalSearchResult) => {
       const newContent = beforeCommand + processedPrompt;
       editor.commands.setContent(newContent);
       editor.commands.focus("end");
+      
+      // Notify parent component about template selection
+      if (onTemplateSelect) {
+        onTemplateSelect(template.id, processedPrompt);
+      }
     }
 
     closePromptMenu();

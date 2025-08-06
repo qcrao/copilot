@@ -53,6 +53,7 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
   const [inputValue, setInputValue] = useState("");
   const [showTemplates, setShowTemplates] = useState(false);
   const [dateNotesCache, setDateNotesCache] = useState<{[date: string]: string}>({});
+  const [selectedTemplate, setSelectedTemplate] = useState<{id: string, prompt: string} | null>(null);
   const [windowPosition, setWindowPosition] = useState<{top: number, left: number} | null>(null);
   const [windowSize, setWindowSize] = useState<{width: number, height: number}>({
     width: Math.min(window.innerWidth * 0.5, 1200),
@@ -208,7 +209,7 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
     return [...new Set(matches)]; // Remove duplicates
   };
 
-  const handleSendMessage = async (messageInput: string | any) => {
+  const handleSendMessage = async (messageInput: string | any, templateInfo?: {id: string, prompt: string}) => {
     if (state.isLoading) return;
 
     let userMessage: string;
@@ -255,58 +256,25 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
       }
     }
 
-    // Check if the user message is a prompt template BEFORE context enhancement
+    // Check if we're using a selected template
     let customPrompt: string | undefined = undefined;
     let actualUserMessage = finalUserMessage;
     
-    console.log("🔍 Template detection:", {
-      originalUserMessage: userMessage,
-      availableTemplates: PROMPT_TEMPLATES.length
-    });
+    // Check if we have template info passed directly or from state
+    const currentTemplate = templateInfo || selectedTemplate;
     
-    // Find matching prompt template using the original user message (before context enhancement)
-    // Template might have language instructions appended, so we check if message starts with the base template
-    const matchingTemplate = PROMPT_TEMPLATES.find(template => {
-      const basePrompt = template.prompt.trim();
-      const userMsg = userMessage.trim();
-      
-      console.log("🔍 Checking template:", {
-        templateId: template.id,
-        templateTitle: template.title,
-        basePromptLength: basePrompt.length,
-        userMsgLength: userMsg.length,
-        startsWithTemplate: userMsg.startsWith(basePrompt)
-      });
-      
-      // Check if user message starts with the template prompt
-      if (userMsg.startsWith(basePrompt)) {
-        // Additional check: make sure it's not just a partial match
-        // Either it's exact match or followed by language instruction
-        const remainingText = userMsg.substring(basePrompt.length).trim();
-        console.log("🔍 Remaining text after template:", remainingText);
-        return remainingText === "" || remainingText.startsWith("IMPORTANT: Please respond");
-      }
-      
-      // Also check if the template content appears at the beginning with slight variations
-      // This handles cases where there might be slight formatting differences
-      const normalizedUserMsg = userMsg.replace(/\s+/g, ' ').toLowerCase();
-      const normalizedTemplate = basePrompt.replace(/\s+/g, ' ').toLowerCase();
-      
-      if (normalizedUserMsg.startsWith(normalizedTemplate)) {
-        console.log("🔍 Template detected with normalization:", template.title);
-        return true;
-      }
-      
-      return false;
-    });
-    
-    if (matchingTemplate) {
-      customPrompt = matchingTemplate.prompt;
+    if (currentTemplate) {
+      customPrompt = currentTemplate.prompt;
       actualUserMessage = ""; // Clear user message since we're using the template as system prompt
-      console.log("🎯 Detected prompt template:", matchingTemplate.title, "- using as custom system prompt");
+      console.log("🎯 Using template:", currentTemplate.id, "- using as custom system prompt");
       console.log("🎯 Custom prompt set to:", customPrompt.substring(0, 100) + "...");
+      
+      // Clear the selected template state if it was used
+      if (selectedTemplate) {
+        setSelectedTemplate(null);
+      }
     } else {
-      console.log("❌ No template detected. User message will be sent as-is.");
+      console.log("📝 No template selected. User message will be sent as-is.");
       console.log("📝 First 100 chars of user message:", userMessage.substring(0, 100));
     }
     
@@ -339,7 +307,7 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
     // Add user message (display the template content if using template, otherwise original message)
     addMessage({
       role: "user",
-      content: matchingTemplate ? matchingTemplate.prompt : userMessage,
+      content: customPrompt ? customPrompt : userMessage,
     });
 
     setState((prev) => ({ ...prev, isLoading: true }));
@@ -834,13 +802,42 @@ ${contextForUser}`;
   };
 
   const handlePromptSelect = (prompt: string) => {
-    console.log("📝 Template selected, sending directly:", prompt.substring(0, 100) + "...");
+    console.log("📝 Template selected:", prompt.substring(0, 100) + "...");
     
-    // Hide templates since we're sending a message
-    setShowTemplates(false);
+    // Find the template that matches this prompt (try exact match first)
+    let template = PROMPT_TEMPLATES.find(t => t.prompt === prompt);
     
-    // Send the prompt directly
-    handleSendMessage(prompt);
+    // If no exact match, try to find by base prompt (before language instructions)
+    if (!template) {
+      template = PROMPT_TEMPLATES.find(t => {
+        // Check if the prompt starts with the template's base prompt
+        const basePrompt = t.prompt.trim();
+        const normalizedPrompt = prompt.trim();
+        
+        if (normalizedPrompt.startsWith(basePrompt)) {
+          // Check if the remaining part is just language instruction
+          const remainingText = normalizedPrompt.substring(basePrompt.length).trim();
+          return remainingText === "" || remainingText.startsWith("IMPORTANT: Please respond");
+        }
+        return false;
+      });
+    }
+    
+    if (template) {
+      console.log("🎯 Found matching template:", template.id, template.title);
+      
+      // Hide templates since we're sending a message
+      setShowTemplates(false);
+      
+      // Send the prompt directly with template info
+      handleSendMessage(prompt, {
+        id: template.id,
+        prompt: template.prompt // Use the original template prompt, not the modified one
+      });
+    } else {
+      console.error("❌ No matching template found for prompt:", prompt.substring(0, 100) + "...");
+      console.log("Available templates:", PROMPT_TEMPLATES.map(t => ({id: t.id, title: t.title})));
+    }
   };
 
   const handleDateSelect = (date: string, notes: string) => {
@@ -852,6 +849,16 @@ ${contextForUser}`;
     
     // Update input value with new date
     setInputValue(prev => prev.replace(/\[\d{4}-\d{2}-\d{2}\]/, `[${date}]`));
+  };
+
+  const handleTemplateSelect = (templateId: string, prompt: string) => {
+    console.log("📝 Template selected from slash command:", templateId);
+    // Note: For slash commands, the template content is already in the input
+    // We just need to set the template state so it's detected when sent
+    setSelectedTemplate({
+      id: templateId,
+      prompt: prompt
+    });
   };
 
   // Handle clicks outside conversation list to close it
@@ -1348,6 +1355,7 @@ ${contextForUser}`;
                 value={inputValue}
                 onChange={setInputValue}
                 onDateSelect={handleDateSelect}
+                onTemplateSelect={handleTemplateSelect}
                 isLoading={state.isLoading} // Pass loading state for send button
               />
         </div>
