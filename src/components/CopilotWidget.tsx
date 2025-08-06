@@ -834,14 +834,13 @@ ${contextForUser}`;
   };
 
   const handlePromptSelect = (prompt: string) => {
-    console.log("📝 Template selected, setting input value:", prompt.substring(0, 100) + "...");
-    setInputValue(prompt);
+    console.log("📝 Template selected, sending directly:", prompt.substring(0, 100) + "...");
     
-    // Only hide templates if we're in an existing conversation (has messages)
-    // Keep templates visible for new conversations (no messages)
-    if (state.messages.length > 0) {
-      setShowTemplates(false);
-    }
+    // Hide templates since we're sending a message
+    setShowTemplates(false);
+    
+    // Send the prompt directly
+    handleSendMessage(prompt);
   };
 
   const handleDateSelect = (date: string, notes: string) => {
