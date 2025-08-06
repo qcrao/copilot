@@ -1691,3 +1691,191 @@ details[style*="thinking"][open] {
 .rr-copilot-delete-confirm:hover .bp3-icon {
   color: #d32f2f !important;
 }
+
+/* Scroll to Bottom Button Animations */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px) scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes fadeOutDown {
+  from {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(20px) scale(0.9);
+  }
+}
+
+/* Scroll to bottom button styling */
+.rr-copilot-scroll-to-bottom {
+  animation: fadeInUp 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+/* New message indicator pulse animation */
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.7;
+    transform: scale(1.2);
+  }
+}
+
+.rr-copilot-new-message-indicator {
+  animation: pulse 2s ease-in-out infinite;
+}
+
+/* Smooth scroll behavior enhancements */
+.rr-copilot-message-list {
+  /* Enhanced scrollbar with smoother transitions */
+  scrollbar-width: thin;
+  scrollbar-color: rgba(57, 58, 61, 0.6) rgba(0, 0, 0, 0.02);
+  /* Add scroll snap for better UX */
+  scroll-padding-bottom: 20px;
+}
+
+.rr-copilot-message-list::-webkit-scrollbar {
+  width: 8px;
+}
+
+.rr-copilot-message-list::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.02);
+  border-radius: 4px;
+  margin: 4px 0;
+}
+
+.rr-copilot-message-list::-webkit-scrollbar-thumb {
+  background: rgba(57, 58, 61, 0.6);
+  border-radius: 4px;
+  transition: background-color 0.3s ease, transform 0.2s ease;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.rr-copilot-message-list::-webkit-scrollbar-thumb:hover {
+  background: rgba(42, 43, 45, 0.8);
+  transform: scale(1.1);
+}
+
+/* Smooth scroll animations for message list */
+@media (prefers-reduced-motion: no-preference) {
+  .rr-copilot-message-list {
+    scroll-behavior: smooth;
+  }
+  
+  /* Message entrance animations */
+  .rr-copilot-message-item {
+    animation: messageSlideIn 0.3s ease-out;
+  }
+}
+
+@keyframes messageSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Streaming message enhancements */
+.rr-copilot-message-item .rr-copilot-message-container {
+  transition: all 0.2s ease;
+}
+
+/* Enhanced streaming cursor */
+.rr-copilot-streaming-cursor {
+  display: inline-block;
+  width: 2px;
+  background: linear-gradient(to bottom, transparent, #666, transparent);
+  animation: streamingBlink 1.2s ease-in-out infinite;
+  margin-left: 1px;
+}
+
+@keyframes streamingBlink {
+  0%, 50% { 
+    opacity: 1; 
+    background: linear-gradient(to bottom, transparent, #666, transparent);
+  }
+  51%, 100% { 
+    opacity: 0.3; 
+    background: linear-gradient(to bottom, transparent, #999, transparent);
+  }
+}
+
+/* Loading indicator enhancements */
+.rr-copilot-message-list .rr-copilot-loading-container {
+  animation: messageSlideIn 0.3s ease-out;
+}
+
+/* Copy button smooth transitions */
+.rr-copilot-copy-button-container {
+  transition: opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1), 
+              visibility 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+              transform 0.2s ease;
+}
+
+.rr-copilot-copy-icon {
+  transition: opacity 0.2s ease, 
+              transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275),
+              color 0.2s ease;
+}
+
+.rr-copilot-copy-icon:hover {
+  transform: scale(1.15) !important;
+}
+
+/* Avatar hover effects */
+.rr-copilot-message-item .rr-copilot-avatar {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.rr-copilot-message-item .rr-copilot-avatar:hover {
+  transform: scale(1.05);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+}
+
+/* Message container hover effects */
+.rr-copilot-message-container:hover {
+  transition: background-color 0.2s ease;
+}
+
+/* Smart scroll bottom marker - invisible but functional */
+.smart-scroll-bottom {
+  height: 1px !important;
+  width: 100% !important;
+  position: absolute !important;
+  bottom: 0 !important;
+  left: 0 !important;
+  pointer-events: none !important;
+  visibility: hidden !important;
+  z-index: -1 !important;
+}
+
+/* Accessibility: Respect reduced motion preferences */
+@media (prefers-reduced-motion: reduce) {
+  .rr-copilot-scroll-to-bottom,
+  .rr-copilot-message-item,
+  .rr-copilot-message-list,
+  .rr-copilot-streaming-cursor,
+  .rr-copilot-new-message-indicator {
+    animation: none !important;
+    transition: none !important;
+  }
+  
+  .rr-copilot-message-list {
+    scroll-behavior: auto !important;
+  }
+}

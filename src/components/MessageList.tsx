@@ -6,6 +6,8 @@ import { ChatMessage } from '../types';
 import { EnhancedMessageRenderer } from './EnhancedMessageRenderer';
 import { UserService } from '../services/userService';
 import { getModelDisplayInfo } from '../utils/iconUtils';
+import { useSmartScroll } from '../hooks/useSmartScroll';
+import { ScrollToBottomButton } from './ScrollToBottomButton';
 
 interface MessageListProps {
   messages: ChatMessage[];
@@ -365,49 +367,36 @@ export const MessageList: React.FC<MessageListProps> = ({
   currentModel,
   currentProvider
 }) => {
-  const messagesEndRef = useRef<HTMLDivElement>(null);
-  const containerRef = useRef<HTMLDivElement>(null);
+  // Create dependencies for smart scroll
+  const scrollDependencies = [
+    messages.length, // New messages
+    isLoading, // Loading state changes
+    messages.filter(msg => msg.isStreaming).map(msg => msg.content.length).join(','), // Streaming content
+  ];
+  
+  // Use smart scroll hook with optimized settings
+  const [containerRefCallback, scrollState, scrollActions] = useSmartScroll(scrollDependencies, {
+    threshold: 100, // Consider "at bottom" when within 100px
+    smoothBehavior: !messages.some(msg => msg.isStreaming), // Disable smooth scroll during streaming for better performance
+    debounceMs: 50, // Debounce scroll updates
+    respectUserIntent: true // Respect when user manually scrolls up
+  });
 
-  // Unified scrolling logic - only one effect to prevent conflicts
-  useEffect(() => {
-    const container = containerRef.current;
-    const endElement = messagesEndRef.current;
-    
-    if (!container || !endElement) return;
-
-    const hasStreamingMessage = messages.some(msg => msg.isStreaming);
-    
-    // For streaming content, use immediate scroll without animation to reduce flicker
-    if (hasStreamingMessage) {
-      // Use direct scroll for streaming to avoid visual conflicts
-      const scrollToBottom = () => {
-        container.scrollTop = container.scrollHeight;
-      };
-      
-      // Use requestAnimationFrame to ensure DOM has updated
-      requestAnimationFrame(scrollToBottom);
-    } else {
-      // For new messages or loading states, use smooth scroll
-      endElement.scrollIntoView({ 
-        behavior: 'smooth',
-        block: 'end'
-      });
-    }
-  }, [
-    messages.length, // Trigger on new messages
-    isLoading, // Trigger on loading state changes
-    messages.map(msg => msg.isStreaming ? msg.content.length : 0).join(',') // Trigger on streaming content changes (using length to reduce frequency)
-  ]);
+  // Handle scroll to bottom button click
+  const handleScrollToBottom = () => {
+    scrollActions.scrollToBottom(true); // Force scroll
+  };
 
   return (
     <div 
-      ref={containerRef}
+      ref={containerRefCallback}
       className="rr-copilot-message-list" 
       style={{
         height: '100%',
         overflowY: 'auto',
         padding: '12px 14px',
-        scrollBehavior: 'smooth'
+        scrollBehavior: scrollState.shouldAutoScroll ? 'smooth' : 'auto',
+        position: 'relative' // For scroll button positioning
       }}
     >
       {/* Render Messages */}
@@ -426,8 +415,22 @@ export const MessageList: React.FC<MessageListProps> = ({
         <LoadingIndicator currentModel={currentModel} currentProvider={currentProvider} />
       )}
       
-      {/* Invisible div to scroll to */}
-      <div ref={messagesEndRef} />
+      {/* Scroll to bottom button - show when not at bottom and has content */}
+      <ScrollToBottomButton
+        visible={!scrollState.isAtBottom && messages.length > 0}
+        hasNewMessages={scrollState.hasNewContent}
+        onClick={handleScrollToBottom}
+      />
+      
+      {/* Bottom marker for intersection observer */}
+      <div className="smart-scroll-bottom" style={{
+        height: '1px', 
+        width: '1px', 
+        position: 'absolute', 
+        bottom: '0', 
+        pointerEvents: 'none', 
+        visibility: 'hidden'
+      }} />
     </div>
   );
 };
