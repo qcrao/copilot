@@ -163,6 +163,17 @@ export const getModelDisplayInfo = (model?: string, provider?: string) => {
       };
     }
     
+    if (normalizedModel.includes('gpt')) {
+      return { 
+        iconUrl: ICON_URLS.openai,
+        fallbackIcon: '🤖', 
+        name: displayName, 
+        color: '#10A37F',
+        isLocal: true,
+        blueprintIcon: null
+      };
+    }
+    
     if (normalizedModel.includes('llama')) {
       return { 
         iconUrl: ICON_URLS.groq,
