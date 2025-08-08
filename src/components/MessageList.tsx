@@ -4,6 +4,7 @@ import { Button, Icon } from "@blueprintjs/core";
 import { IconNames } from "@blueprintjs/icons";
 import { ChatMessage } from '../types';
 import { EnhancedMessageRenderer } from './EnhancedMessageRenderer';
+import { CollapsibleMessage } from './CollapsibleMessage';
 import { UserService } from '../services/userService';
 import { getModelDisplayInfo } from '../utils/iconUtils';
 import { useSmartScroll } from '../hooks/useSmartScroll';
@@ -301,7 +302,7 @@ const MessageItem: React.FC<MessageItemProps> = React.memo(({ message, index, on
           color: isUser ? '#374151' : '#374151',
           paddingRight: '32px' // Make room for copy button
         }}>
-          <EnhancedMessageRenderer 
+          <CollapsibleMessage 
             content={message.content} 
             isUser={isUser}
             isStreaming={isStreaming}
