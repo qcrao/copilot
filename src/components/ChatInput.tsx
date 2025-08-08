@@ -191,24 +191,38 @@ export const ChatInput: React.FC<ChatInputProps> = ({
     const commandMatch = text.match(/\/[^\/\s]*$/);
 
     if (commandMatch) {
-      const beforeCommand = text.slice(0, commandMatch.index);
+      const beforeCommand = text.slice(0, commandMatch.index).trim();
       let processedPrompt = template.prompt;
 
       // Replace date placeholders
       const today = new Date().toISOString().split("T")[0];
       processedPrompt = processedPrompt.replace(/\[DATE\]/g, today);
 
-      const newContent = beforeCommand + processedPrompt;
-      editor.commands.setContent(newContent);
-      editor.commands.focus("end");
+      // Combine any existing content before the command with the processed prompt
+      const finalContent = beforeCommand ? `${beforeCommand} ${processedPrompt}` : processedPrompt;
+
+      // Clear the input field first
+      editor.commands.clearContent();
+      if (onChange) {
+        onChange("");
+      }
       
-      // Notify parent component about template selection
+      // Notify parent component about template selection and send directly
       if (onTemplateSelect) {
         onTemplateSelect(template.id, processedPrompt);
       }
-    }
 
-    closePromptMenu();
+      // Close prompt menu
+      closePromptMenu();
+
+      // Send the template content directly without showing in input
+      onSend(finalContent);
+      
+      // Update content version to trigger canSend recalculation
+      setEditorContentVersion(prev => prev + 1);
+    } else {
+      closePromptMenu();
+    }
   };
 
   const closePromptMenu = () => {
