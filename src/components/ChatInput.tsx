@@ -84,6 +84,10 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   const searchCache = useRef<Map<string, UniversalSearchResult[]>>(new Map());
   const debounceTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // Create refs for functions that need to be called from TipTap handleKeyDown
+  const handlePromptSelectRef = useRef<(template: PromptTemplate) => void>();
+  const closePromptMenuRef = useRef<() => void>();
+
   // TipTap editor
   const editor = useEditor({
     extensions: [
@@ -115,6 +119,17 @@ export const ChatInput: React.FC<ChatInputProps> = ({
           }
           return true; // Prevent TipTap's default handling
         }
+        
+        // Handle prompt template Enter key at TipTap level to prevent default paragraph creation
+        if (showPromptMenu && filteredPrompts.length > 0 && event.key === 'Enter') {
+          event.preventDefault();
+          event.stopPropagation();
+          if (filteredPrompts[selectedPromptIndex] && handlePromptSelectRef.current) {
+            handlePromptSelectRef.current(filteredPrompts[selectedPromptIndex]);
+          }
+          return true; // Prevent TipTap's default handling
+        }
+        
         return false; // Allow normal TipTap handling
       },
       attributes: {
@@ -167,6 +182,45 @@ export const ChatInput: React.FC<ChatInputProps> = ({
       // Keep caret color but allow natural blur
     },
   });
+
+  // Define prompt menu functions and assign to refs
+  const handlePromptSelect = (template: PromptTemplate) => {
+    if (!editor) return;
+
+    const text = editor.getText();
+    const commandMatch = text.match(/\/[^\/\s]*$/);
+
+    if (commandMatch) {
+      const beforeCommand = text.slice(0, commandMatch.index);
+      let processedPrompt = template.prompt;
+
+      // Replace date placeholders
+      const today = new Date().toISOString().split("T")[0];
+      processedPrompt = processedPrompt.replace(/\[DATE\]/g, today);
+
+      const newContent = beforeCommand + processedPrompt;
+      editor.commands.setContent(newContent);
+      editor.commands.focus("end");
+      
+      // Notify parent component about template selection
+      if (onTemplateSelect) {
+        onTemplateSelect(template.id, processedPrompt);
+      }
+    }
+
+    closePromptMenu();
+  };
+
+  const closePromptMenu = () => {
+    setShowPromptMenu(false);
+    setPromptFilter("");
+    setSelectedPromptIndex(0);
+    setFilteredPrompts([]);
+  };
+
+  // Assign functions to refs
+  handlePromptSelectRef.current = handlePromptSelect;
+  closePromptMenuRef.current = closePromptMenu;
 
   // Handle controlled value changes (e.g., when widget reopens)
   const [lastInitializedValue, setLastInitializedValue] = useState<string>("");
@@ -433,14 +487,6 @@ export const ChatInput: React.FC<ChatInputProps> = ({
     };
   };
 
-  const closePromptMenu = () => {
-    setShowPromptMenu(false);
-    setPromptFilter("");
-    setSelectedPromptIndex(0);
-    setFilteredPrompts([]);
-  };
-
-
   // Universal search functions for @ symbol triggered search
   const closeUniversalSearch = () => {
     setShowUniversalSearch(false);
@@ -649,33 +695,6 @@ const insertUniversalSearchResult = (result: UniversalSearchResult) => {
         closeUniversalSearch();
       }
     }
-  };
-
-  const handlePromptSelect = (template: PromptTemplate) => {
-    if (!editor) return;
-
-    const text = editor.getText();
-    const commandMatch = text.match(/\/[^\/\s]*$/);
-
-    if (commandMatch) {
-      const beforeCommand = text.slice(0, commandMatch.index);
-      let processedPrompt = template.prompt;
-
-      // Replace date placeholders
-      const today = new Date().toISOString().split("T")[0];
-      processedPrompt = processedPrompt.replace(/\[DATE\]/g, today);
-
-      const newContent = beforeCommand + processedPrompt;
-      editor.commands.setContent(newContent);
-      editor.commands.focus("end");
-      
-      // Notify parent component about template selection
-      if (onTemplateSelect) {
-        onTemplateSelect(template.id, processedPrompt);
-      }
-    }
-
-    closePromptMenu();
   };
 
   // Handle date changes
