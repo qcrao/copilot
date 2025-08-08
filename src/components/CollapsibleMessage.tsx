@@ -23,23 +23,51 @@ export const CollapsibleMessage: React.FC<CollapsibleMessageProps> = ({
       return { shouldCollapse: false, truncatedContent: content };
     }
 
-    // Find a good break point near maxLength (end of sentence or line)
+    // Find a good break point near maxLength
     let breakPoint = maxLength;
-    const nearBreakPoint = content.slice(0, maxLength + 100);
+    const searchRange = content.slice(0, maxLength + 200); // Expanded search range
     
-    // Look for sentence end
-    const sentenceEnd = nearBreakPoint.lastIndexOf('.');
-    const lineEnd = nearBreakPoint.lastIndexOf('\n');
-    
-    if (sentenceEnd > maxLength - 50) {
-      breakPoint = sentenceEnd + 1;
-    } else if (lineEnd > maxLength - 50) {
-      breakPoint = lineEnd;
+    // Priority order for finding good break points
+    const breakPatterns = [
+      // End of complete numbered list item (e.g., "...insights\n2. ")
+      /\n\d+\.\s/g,
+      // End of complete bullet list item  
+      /\n[-*]\s/g,
+      // End of paragraph (double newline)
+      /\n\n/g,
+      // End of sentence
+      /\.\s+/g,
+      // End of line
+      /\n/g
+    ];
+
+    for (const pattern of breakPatterns) {
+      const matches = Array.from(searchRange.matchAll(pattern));
+      if (matches.length > 0) {
+        // Find the last good match that's not too close to maxLength
+        const validMatches = matches.filter(match => 
+          match.index! > maxLength - 100 && match.index! <= maxLength + 100
+        );
+        
+        if (validMatches.length > 0) {
+          const lastMatch = validMatches[validMatches.length - 1];
+          // For list items, break before the number/bullet, not after
+          if (pattern.source.includes('\\d+\\.\\s') || pattern.source.includes('[-*]\\s')) {
+            breakPoint = lastMatch.index!;
+          } else {
+            breakPoint = lastMatch.index! + lastMatch[0].length;
+          }
+          break;
+        }
+      }
     }
 
+    // Ensure we don't cut off in the middle of important formatting
+    const truncated = content.slice(0, breakPoint).trim();
+    
     return {
       shouldCollapse: true,
-      truncatedContent: content.slice(0, breakPoint).trim()
+      truncatedContent: truncated
     };
   }, [content, maxLength, isStreaming]);
 

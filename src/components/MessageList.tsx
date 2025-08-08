@@ -1,9 +1,7 @@
 // src/components/MessageList.tsx
-import React, { useState, useEffect, useRef } from 'react';
-import { Button, Icon } from "@blueprintjs/core";
-import { IconNames } from "@blueprintjs/icons";
+import React, { useState, useEffect } from 'react';
+import { Icon } from "@blueprintjs/core";
 import { ChatMessage } from '../types';
-import { EnhancedMessageRenderer } from './EnhancedMessageRenderer';
 import { CollapsibleMessage } from './CollapsibleMessage';
 import { UserService } from '../services/userService';
 import { getModelDisplayInfo } from '../utils/iconUtils';
