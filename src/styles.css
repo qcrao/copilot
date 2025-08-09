@@ -152,6 +152,7 @@
   min-height: 0 !important;
   border-radius: 0 !important;
   box-shadow: none !important;
+  border: none !important;
 }
 
 @keyframes slideUp {
@@ -166,13 +167,15 @@
 }
 
 .roam-copilot-header {
-  padding: 16px 20px;
+  height: 45px;
+  padding: 0 20px;
   background: #393a3d;
   color: white;
   display: flex;
   justify-content: space-between;
   align-items: center;
   flex-shrink: 0;
+  box-sizing: border-box;
 }
 
 /* Override chatscope styles to match our theme */
