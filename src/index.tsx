@@ -2,32 +2,36 @@
 import React from "react";
 import { createRoot } from "react-dom/client";
 import { CopilotWidget } from "./components/CopilotWidget";
+import { CopilotSidebar } from "./components/CopilotSidebar";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { loadInitialSettings, initPanelConfig } from "./settings";
 import { loadRoamExtensionCommands } from "./commands";
 import "./styles.css";
 
 let copilotState = {
-  isOpen: false,
+  // Sidebar mode: we control visibility, widget is always open when visible
+  isOpen: true,
   isVisible: true,
   container: null as HTMLDivElement | null,
   root: null as any,
 };
 
 const toggleCopilot = () => {
-  copilotState.isOpen = !copilotState.isOpen;
+  copilotState.isVisible = !copilotState.isVisible;
+  // keep widget logically open in sidebar mode when visible
+  copilotState.isOpen = copilotState.isVisible;
   renderCopilot();
 };
 
 const openCopilot = () => {
-  copilotState.isOpen = true;
   copilotState.isVisible = true;
+  copilotState.isOpen = true;
   renderCopilot();
 };
 
 const closeCopilot = () => {
-  copilotState.isOpen = false;
   copilotState.isVisible = false;
+  copilotState.isOpen = false;
   renderCopilot();
 };
 
@@ -39,13 +43,18 @@ const renderCopilot = () => {
     return;
   }
 
+  // Render as right-side sidebar; disable minimize in sidebar mode by keeping isOpen true
+  const noop = () => {};
   copilotState.root.render(
     <ErrorBoundary>
-      <CopilotWidget
-        isOpen={copilotState.isOpen}
-        onToggle={toggleCopilot}
-        onClose={closeCopilot}
-      />
+      <CopilotSidebar isVisible={copilotState.isVisible}>
+        <CopilotWidget
+          isOpen={true}
+          onToggle={closeCopilot}
+          onClose={closeCopilot}
+          embedMode="sidebar"
+        />
+      </CopilotSidebar>
     </ErrorBoundary>
   );
 };
@@ -60,20 +69,13 @@ const createCopilotContainer = () => {
   // Create new container
   const container = document.createElement("div");
   container.id = "roam-copilot-root";
+  // No full-screen overlay; sidebar component positions itself
   container.style.cssText = `
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    pointer-events: none;
+    position: static;
     z-index: 99999;
   `;
 
-  // Make sure we can interact with the copilot widget
-  container.addEventListener("click", (e) => {
-    e.stopPropagation();
-  });
+  // No need to capture clicks at the root in sidebar mode
 
   document.body.appendChild(container);
   copilotState.container = container;
@@ -121,6 +123,13 @@ const onunload = () => {
   if (copilotState.container) {
     copilotState.container.remove();
     copilotState.container = null;
+  }
+
+  // Reset any page-level layout changes
+  try {
+    (document.body.style as any).marginRight = "";
+  } catch (e) {
+    // ignore
   }
 
   // Remove any added styles

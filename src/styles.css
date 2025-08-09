@@ -110,6 +110,56 @@
   overflow: hidden;
 }
 
+/* Sidebar container and resizer */
+.roam-copilot-sidebar-container {
+  position: fixed;
+  top: 0;
+  right: 0;
+  height: 100vh;
+  display: flex;
+  flex-direction: row;
+  z-index: 9999;
+}
+
+.roam-copilot-sidebar-resizer {
+  width: 6px;
+  cursor: col-resize;
+  background: transparent;
+  border-left: 1px solid rgba(0,0,0,0.06);
+  border-right: 1px solid rgba(0,0,0,0.06);
+  pointer-events: auto;
+}
+
+.roam-copilot-sidebar-resizer:hover {
+  background: rgba(0,0,0,0.04);
+}
+
+.roam-copilot-sidebar {
+  width: 100%;
+  height: 100vh;
+  background: #ffffff;
+  box-shadow: -6px 0 24px rgba(0, 0, 0, 0.08);
+  pointer-events: auto; /* allow interaction */
+  display: flex;
+  flex-direction: column;
+}
+
+/* In sidebar mode, allow the widget to fully fill the sidebar panel */
+.roam-copilot-sidebar .roam-copilot-expanded {
+  position: relative !important;
+  top: auto !important;
+  left: auto !important;
+  transform: none !important;
+  width: 100% !important;
+  height: 100% !important;
+  max-width: none !important;
+  max-height: none !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+}
+
 @keyframes slideUp {
   from {
     opacity: 0;

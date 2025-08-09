@@ -29,18 +29,21 @@ interface CopilotWidgetProps {
   isOpen: boolean;
   onToggle: () => void;
   onClose: () => void;
+  embedMode?: "overlay" | "sidebar";
 }
 
 export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
   isOpen,
   onToggle,
   onClose,
+  embedMode = "overlay",
 }) => {
+  const isSidebar = embedMode === "sidebar";
   const { registerCleanup, createManagedTimeout } = useMemoryManager();
 
   const [state, setState] = useState<CopilotState>({
     isOpen,
-    isMinimized: !isOpen,
+    isMinimized: isSidebar ? false : !isOpen,
     messages: [],
     isLoading: false,
   });
@@ -118,7 +121,7 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
         return {
           ...prev,
           isOpen,
-          isMinimized: !isOpen,
+          isMinimized: isSidebar ? false : !isOpen,
         };
       }
       return prev;
@@ -1332,7 +1335,7 @@ ${contextForUser}`;
     };
   }, []); // Empty dependency array - only runs on actual mount/unmount
 
-  if (state.isMinimized) {
+  if (state.isMinimized && !isSidebar) {
     return (
       <div className="roam-copilot-minimized-container">
         <div
@@ -1385,50 +1388,64 @@ ${contextForUser}`;
   return (
     <div
       className="roam-copilot-expanded"
-      style={{
-        top: windowPosition?.top || "50%",
-        left: windowPosition?.left || "50%",
-        transform: windowPosition ? "none" : "translate(-50%, -50%)",
-        width: windowSize.width,
-        height: windowSize.height,
-      }}
+      style={
+        isSidebar
+          ? {
+              position: "relative",
+              top: "auto",
+              left: "auto",
+              transform: "none",
+              width: "100%",
+              height: "100%",
+            }
+          : {
+              top: windowPosition?.top || "50%",
+              left: windowPosition?.left || "50%",
+              transform: windowPosition ? "none" : "translate(-50%, -50%)",
+              width: windowSize.width,
+              height: windowSize.height,
+            }
+      }
     >
-      {/* Resize Handles - 8 directions */}
-      {/* Corner handles */}
-      <div
-        className="rr-copilot-resize-handle rr-copilot-resize-nw"
-        onMouseDown={(e) => handleResizeStart(e, "nw")}
-      />
-      <div
-        className="rr-copilot-resize-handle rr-copilot-resize-ne"
-        onMouseDown={(e) => handleResizeStart(e, "ne")}
-      />
-      <div
-        className="rr-copilot-resize-handle rr-copilot-resize-sw"
-        onMouseDown={(e) => handleResizeStart(e, "sw")}
-      />
-      <div
-        className="rr-copilot-resize-handle rr-copilot-resize-se"
-        onMouseDown={(e) => handleResizeStart(e, "se")}
-      />
-
-      {/* Edge handles */}
-      <div
-        className="rr-copilot-resize-handle rr-copilot-resize-n"
-        onMouseDown={(e) => handleResizeStart(e, "n")}
-      />
-      <div
-        className="rr-copilot-resize-handle rr-copilot-resize-s"
-        onMouseDown={(e) => handleResizeStart(e, "s")}
-      />
-      <div
-        className="rr-copilot-resize-handle rr-copilot-resize-w"
-        onMouseDown={(e) => handleResizeStart(e, "w")}
-      />
-      <div
-        className="rr-copilot-resize-handle rr-copilot-resize-e"
-        onMouseDown={(e) => handleResizeStart(e, "e")}
-      />
+      {/* Resize Handles - disabled in sidebar mode */}
+      {!isSidebar && (
+        <>
+          {/* Corner handles */}
+          <div
+            className="rr-copilot-resize-handle rr-copilot-resize-nw"
+            onMouseDown={(e) => handleResizeStart(e, "nw")}
+          />
+          <div
+            className="rr-copilot-resize-handle rr-copilot-resize-ne"
+            onMouseDown={(e) => handleResizeStart(e, "ne")}
+          />
+          <div
+            className="rr-copilot-resize-handle rr-copilot-resize-sw"
+            onMouseDown={(e) => handleResizeStart(e, "sw")}
+          />
+          <div
+            className="rr-copilot-resize-handle rr-copilot-resize-se"
+            onMouseDown={(e) => handleResizeStart(e, "se")}
+          />
+          {/* Edge handles */}
+          <div
+            className="rr-copilot-resize-handle rr-copilot-resize-n"
+            onMouseDown={(e) => handleResizeStart(e, "n")}
+          />
+          <div
+            className="rr-copilot-resize-handle rr-copilot-resize-s"
+            onMouseDown={(e) => handleResizeStart(e, "s")}
+          />
+          <div
+            className="rr-copilot-resize-handle rr-copilot-resize-w"
+            onMouseDown={(e) => handleResizeStart(e, "w")}
+          />
+          <div
+            className="rr-copilot-resize-handle rr-copilot-resize-e"
+            onMouseDown={(e) => handleResizeStart(e, "e")}
+          />
+        </>
+      )}
 
       {/* Conversation List Panel */}
       <ConversationList
@@ -1456,7 +1473,7 @@ ${contextForUser}`;
             width: "100%",
             cursor: isDragging ? "move" : "default",
           }}
-          onMouseDown={handleDragStart}
+          onMouseDown={isSidebar ? undefined : handleDragStart}
         >
           <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
             <Button
@@ -1501,17 +1518,19 @@ ${contextForUser}`;
               </span>
             )}
           </div>
-          <Button
-            minimal
-            small
-            icon="minimize"
-            onClick={handleMinimize}
-            title="Minimize Copilot"
-            style={{
-              transition: "all 0.2s ease",
-              borderRadius: "4px",
-            }}
-          />
+          {!isSidebar && (
+            <Button
+              minimal
+              small
+              icon="minimize"
+              onClick={handleMinimize}
+              title="Minimize Copilot"
+              style={{
+                transition: "all 0.2s ease",
+                borderRadius: "4px",
+              }}
+            />
+          )}
         </div>
 
         <div
