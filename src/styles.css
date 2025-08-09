@@ -178,7 +178,6 @@
   justify-content: space-between;
   align-items: center;
   flex-shrink: 0;
-  box-sizing: border-box;
 }
 
 /* Override chatscope styles to match our theme */
@@ -255,7 +254,7 @@
 .rr-copilot-input-container {
   padding: 20px;
   background: #ffffff;
-  border-top: 1px solid #f1f3f4;
+  border-top: 1px solid #e1e5e9;
   flex-shrink: 0;
 }
 
