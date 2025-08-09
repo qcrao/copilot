@@ -81,10 +81,22 @@ export const CopilotSidebar: React.FC<CopilotSidebarProps> = ({
 
   return (
     <div className="roam-copilot-sidebar-container" style={{ width }}>
+      {/* Left border resize handle - outside the sidebar content */}
       <div
-        className="roam-copilot-sidebar-resizer"
+        className="roam-copilot-sidebar-left-resize"
         title="Drag to resize"
         onMouseDown={startResizing}
+        style={{
+          position: 'absolute',
+          left: 0,
+          top: 0,
+          bottom: 0,
+          width: '8px',
+          cursor: 'col-resize',
+          background: 'transparent',
+          zIndex: 10001,
+          pointerEvents: 'auto',
+        }}
       />
       <div className="roam-copilot-sidebar">
         {children}

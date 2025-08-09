@@ -110,27 +110,21 @@
   overflow: hidden;
 }
 
-/* Sidebar container and resizer */
+/* Sidebar container */
 .roam-copilot-sidebar-container {
   position: fixed;
   top: 0;
   right: 0;
   height: 100vh;
-  display: flex;
-  flex-direction: row;
   z-index: 9999;
 }
 
-.roam-copilot-sidebar-resizer {
-  width: 6px;
-  cursor: col-resize;
-  background: transparent;
-  border-left: 1px solid rgba(0,0,0,0.06);
-  border-right: 1px solid rgba(0,0,0,0.06);
-  pointer-events: auto;
+/* Left border resize handle for sidebar */
+.roam-copilot-sidebar-left-resize {
+  transition: background-color 0.2s ease;
 }
 
-.roam-copilot-sidebar-resizer:hover {
+.roam-copilot-sidebar-left-resize:hover {
   background: rgba(0,0,0,0.04);
 }
 
