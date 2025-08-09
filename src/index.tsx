@@ -9,7 +9,7 @@ import { loadRoamExtensionCommands } from "./commands";
 import "./styles.css";
 
 let copilotState = {
-  // Sidebar mode: we control visibility, widget is always open when visible
+  // Sidebar mode: we control visibility and open state
   isOpen: true,
   isVisible: true,
   container: null as HTMLDivElement | null,
@@ -20,6 +20,12 @@ const toggleCopilot = () => {
   copilotState.isVisible = !copilotState.isVisible;
   // keep widget logically open in sidebar mode when visible
   copilotState.isOpen = copilotState.isVisible;
+  renderCopilot();
+};
+
+const toggleMinimize = () => {
+  copilotState.isOpen = !copilotState.isOpen;
+  // keep visible but toggle open state for minimize/expand
   renderCopilot();
 };
 
@@ -43,14 +49,30 @@ const renderCopilot = () => {
     return;
   }
 
-  // Render as right-side sidebar; disable minimize in sidebar mode by keeping isOpen true
-  const noop = () => {};
+  // If minimized, render just the widget without sidebar wrapper
+  if (!copilotState.isOpen) {
+    // Reset body margin when minimized to show icon in correct position
+    document.body.style.marginRight = "";
+    copilotState.root.render(
+      <ErrorBoundary>
+        <CopilotWidget
+          isOpen={copilotState.isOpen}
+          onToggle={toggleMinimize}
+          onClose={closeCopilot}
+          embedMode="sidebar"
+        />
+      </ErrorBoundary>
+    );
+    return;
+  }
+
+  // Render as right-side sidebar when expanded
   copilotState.root.render(
     <ErrorBoundary>
       <CopilotSidebar isVisible={copilotState.isVisible}>
         <CopilotWidget
-          isOpen={true}
-          onToggle={closeCopilot}
+          isOpen={copilotState.isOpen}
+          onToggle={toggleMinimize}
           onClose={closeCopilot}
           embedMode="sidebar"
         />

@@ -43,7 +43,7 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
 
   const [state, setState] = useState<CopilotState>({
     isOpen,
-    isMinimized: isSidebar ? false : !isOpen,
+    isMinimized: !isOpen,
     messages: [],
     isLoading: false,
   });
@@ -121,7 +121,7 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
         return {
           ...prev,
           isOpen,
-          isMinimized: isSidebar ? false : !isOpen,
+          isMinimized: !isOpen,
         };
       }
       return prev;
@@ -1335,7 +1335,7 @@ ${contextForUser}`;
     };
   }, []); // Empty dependency array - only runs on actual mount/unmount
 
-  if (state.isMinimized && !isSidebar) {
+  if (state.isMinimized) {
     return (
       <div className="roam-copilot-minimized-container">
         <div
@@ -1458,6 +1458,7 @@ ${contextForUser}`;
 
       {/* Main Chat Area */}
       <div
+        className="roam-copilot-content-wrapper"
         style={{
           height: "100%",
           display: "flex",
@@ -1518,22 +1519,21 @@ ${contextForUser}`;
               </span>
             )}
           </div>
-          {!isSidebar && (
-            <Button
-              minimal
-              small
-              icon="minimize"
-              onClick={handleMinimize}
-              title="Minimize Copilot"
-              style={{
-                transition: "all 0.2s ease",
-                borderRadius: "4px",
-              }}
-            />
-          )}
+          <Button
+            minimal
+            small
+            icon="minimize"
+            onClick={handleMinimize}
+            title="Minimize Copilot"
+            style={{
+              transition: "all 0.2s ease",
+              borderRadius: "4px",
+            }}
+          />
         </div>
 
         <div
+          className="roam-copilot-content"
           style={{
             position: "relative",
             height: "100%",
