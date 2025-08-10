@@ -110,43 +110,6 @@
   overflow: hidden;
 }
 
-/* Multiple approaches to lower z-index when Roam command palette is open */
-
-/* Approach 1: Target bp3-overlay-open class */
-body.bp3-overlay-open .roam-copilot-expanded {
-  z-index: 1 !important;
-}
-
-body.bp3-overlay-open .roam-copilot-sidebar-container {
-  z-index: 1 !important;
-}
-
-/* Approach 2: Target bp4-overlay-open (in case it's Blueprint 4) */
-body.bp4-overlay-open .roam-copilot-expanded {
-  z-index: 1 !important;
-}
-
-body.bp4-overlay-open .roam-copilot-sidebar-container {
-  z-index: 1 !important;
-}
-
-/* Approach 3: Target any overlay-open class */
-body[class*="overlay-open"] .roam-copilot-expanded {
-  z-index: 1 !important;
-}
-
-body[class*="overlay-open"] .roam-copilot-sidebar-container {
-  z-index: 1 !important;
-}
-
-/* Approach 4: Detect when .bp3-portal exists anywhere */
-body:has(.bp3-portal) .roam-copilot-expanded {
-  z-index: 1 !important;
-}
-
-body:has(.bp3-portal) .roam-copilot-sidebar-container {
-  z-index: 1 !important;
-}
 
 /* Sidebar container */
 .roam-copilot-sidebar-container {

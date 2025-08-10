@@ -99,7 +99,14 @@ const createCopilotContainer = () => {
 
   // No need to capture clicks at the root in sidebar mode
 
-  document.body.appendChild(container);
+  // Insert as child of #app div 
+  const appDiv = document.getElementById("app");
+  if (appDiv) {
+    appDiv.appendChild(container);
+  } else {
+    // Fallback to body if #app not found
+    document.body.appendChild(container);
+  }
   copilotState.container = container;
   copilotState.root = createRoot(container);
 
