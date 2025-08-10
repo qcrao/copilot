@@ -18,8 +18,8 @@ export const CollapsibleMessage: React.FC<CollapsibleMessageProps> = ({
   const [isExpanded, setIsExpanded] = useState(false);
 
   const { shouldCollapse, truncatedContent } = useMemo(() => {
-    // Don't collapse if content is short or currently streaming
-    if (content.length <= maxLength || isStreaming) {
+    // Don't collapse if content is short, currently streaming, or if it's an AI message
+    if (content.length <= maxLength || isStreaming || !isUser) {
       return { shouldCollapse: false, truncatedContent: content };
     }
 
