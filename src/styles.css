@@ -601,10 +601,10 @@ details[style*="thinking"][open] {
 }
 
 .rr-copilot-send-button {
-  width: 44px;
-  height: 44px;
+  width: 40px;
+  height: 40px;
   border: none;
-  border-radius: 12px;
+  border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -672,10 +672,10 @@ details[style*="thinking"][open] {
 
 /* Cancel button styles */
 .rr-copilot-cancel-button {
-  width: 44px;
-  height: 44px;
+  width: 40px;
+  height: 40px;
   border: none;
-  border-radius: 12px;
+  border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
