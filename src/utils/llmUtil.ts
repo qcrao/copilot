@@ -299,7 +299,8 @@ export class LLMUtil {
 
   static async *generateStreamResponse(
     config: LLMConfig,
-    messages: any[]
+    messages: any[],
+    signal?: AbortSignal
   ): AsyncGenerator<{
     text: string;
     isComplete: boolean;
@@ -321,6 +322,7 @@ export class LLMUtil {
         messages: this.convertToAISDKMessages(conversationMessages),
         temperature,
         maxTokens,
+        abortSignal: signal,
         onError({ error }) {
           console.error("❌ AI SDK onError callback:", error);
           streamError = (error as any)?.message || "Unknown streaming error";
@@ -652,7 +654,8 @@ export class LLMUtil {
 
   static async *handleOllamaStreamRequest(
     config: LLMConfig,
-    messages: any[]
+    messages: any[],
+    signal?: AbortSignal
   ): AsyncGenerator<{ text: string; isComplete: boolean; usage?: any }> {
     const baseUrl =
       multiProviderSettings.ollamaBaseUrl || "http://localhost:11434";
@@ -673,6 +676,7 @@ export class LLMUtil {
             num_predict: maxTokens,
           },
         }),
+        signal: signal,
       });
 
       if (!response.ok) {
@@ -691,6 +695,15 @@ export class LLMUtil {
 
       try {
         while (true) {
+          // Check if request was cancelled
+          if (signal?.aborted) {
+            yield {
+              text: "",
+              isComplete: true,
+            };
+            return;
+          }
+
           const { done, value } = await reader.read();
           if (done) break;
 

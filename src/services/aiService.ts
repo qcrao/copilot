@@ -124,7 +124,8 @@ export class AIService {
     userMessage: string,
     context: string,
     conversationHistory: ChatMessage[] = [],
-    customPrompt?: string
+    customPrompt?: string,
+    signal?: AbortSignal
   ): AsyncGenerator<{
     text: string;
     isComplete: boolean;
@@ -199,9 +200,9 @@ export class AIService {
 
       // Handle Ollama separately for streaming
       if (providerInfo.provider.id === "ollama") {
-        yield* LLMUtil.handleOllamaStreamRequest(config, messagesWithHistory);
+        yield* LLMUtil.handleOllamaStreamRequest(config, messagesWithHistory, signal);
       } else {
-        yield* LLMUtil.generateStreamResponse(config, messagesWithHistory);
+        yield* LLMUtil.generateStreamResponse(config, messagesWithHistory, signal);
       }
     } catch (error: any) {
       console.error("❌ AI Service streaming error:", {

@@ -111,6 +111,7 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
   const updateContextTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
     null
   );
+  const currentRequestAbortController = useRef<AbortController | null>(null);
 
   useEffect(() => {
     if (isUnmounting) return;
@@ -553,6 +554,10 @@ ${contextForUser}`;
       });
 
       try {
+        // Create a new AbortController for this request
+        const abortController = new AbortController();
+        currentRequestAbortController.current = abortController;
+
         // Use streaming response
         console.log("🚀 Calling AI service with:", {
           userMessage: enhancedUserMessage,
@@ -571,7 +576,8 @@ ${contextForUser}`;
             enhancedUserMessage,
             contextString,
             state.messages,
-            customPrompt
+            customPrompt,
+            abortController.signal
           );
         } catch (initError: any) {
           // Handle immediate errors (like invalid API key) before streaming starts
@@ -581,6 +587,13 @@ ${contextForUser}`;
 
         try {
           for await (const chunk of streamGenerator) {
+            // Check if request was cancelled - just exit without changing content
+            // The handleCancelRequest already updated the message state
+            if (abortController.signal.aborted) {
+              console.log("🛑 Stream processing cancelled, exiting gracefully");
+              return;
+            }
+
             if (chunk.isComplete) {
               // Check if there's an error in the chunk
               if ("error" in chunk && chunk.error) {
@@ -653,7 +666,20 @@ ${contextForUser}`;
             "❌ Error during stream iteration:",
             streamIterationError
           );
-          // Immediately stop streaming and show error
+          
+          // Check if this is an abort error (user cancellation)
+          const isAbortError = streamIterationError.name === 'AbortError' || 
+                              streamIterationError.message.includes('aborted') ||
+                              streamIterationError.message.includes('BodyStreamBuffer was aborted') ||
+                              (currentRequestAbortController.current?.signal.aborted || false);
+          
+          if (isAbortError) {
+            console.log("🛑 Stream iteration stopped due to user cancellation");
+            // Don't update the message content - handleCancelRequest already did
+            return;
+          }
+          
+          // Handle real errors
           setState((prev) => {
             const updatedMessages = prev.messages.map((msg) =>
               msg.id === streamingMessageId
@@ -698,8 +724,20 @@ ${contextForUser}`;
       } catch (streamingError: any) {
         console.error("❌ Streaming error caught:", streamingError);
 
-        // Immediately stop the streaming cursor and show error
-        // Use synchronous state update to ensure immediate UI change
+        // Check if the error is due to cancellation
+        const isAbortError = streamingError.name === 'AbortError' || 
+                            streamingError.message.includes('aborted') ||
+                            streamingError.message.includes('BodyStreamBuffer was aborted') ||
+                            (currentRequestAbortController.current?.signal.aborted || false);
+
+        if (isAbortError) {
+          console.log("🛑 Request was cancelled - preserving partial content");
+          // Don't update the message content - handleCancelRequest already did
+          return;
+        }
+
+        // Handle real errors
+        console.log("🔧 Handling real streaming error:", streamingError.message);
         setState((prev) => {
           const updatedMessages = prev.messages.map((msg) =>
             msg.id === streamingMessageId
@@ -728,6 +766,42 @@ ${contextForUser}`;
       }
     } finally {
       setState((prev) => ({ ...prev, isLoading: false }));
+      // Clear the abort controller if it still exists
+      currentRequestAbortController.current = null;
+    }
+  };
+
+  const handleCancelRequest = () => {
+    if (currentRequestAbortController.current) {
+      console.log("🛑 User requested cancellation");
+      currentRequestAbortController.current.abort();
+      
+      // Find the currently streaming message and mark it as cancelled but keep content
+      setState((prev) => {
+        const updatedMessages = prev.messages.map((msg) => {
+          if (msg.isStreaming) {
+            const currentContent = msg.content || "";
+            return {
+              ...msg,
+              content: currentContent + (currentContent ? "\n\n" : "") + "*[Request cancelled by user]*",
+              isStreaming: false,
+            };
+          }
+          return msg;
+        });
+
+        // Save conversation with current state
+        requestAnimationFrame(() => {
+          saveConversationDebounced(updatedMessages);
+        });
+
+        return {
+          ...prev,
+          messages: updatedMessages,
+        };
+      });
+      
+      currentRequestAbortController.current = null;
     }
   };
 
@@ -856,9 +930,16 @@ ${contextForUser}`;
   };
 
   const handleNewConversation = () => {
+    // Cancel any ongoing request first
+    if (currentRequestAbortController.current) {
+      currentRequestAbortController.current.abort();
+      currentRequestAbortController.current = null;
+    }
+
     setState((prev) => ({
       ...prev,
       messages: [],
+      isLoading: false,
     }));
     conversationIdRef.current = null;
     setCurrentConversationId(null);
@@ -1330,6 +1411,12 @@ ${contextForUser}`;
         updateContextTimeoutRef.current = null;
       }
 
+      // Cancel any ongoing requests
+      if (currentRequestAbortController.current) {
+        currentRequestAbortController.current.abort();
+        currentRequestAbortController.current = null;
+      }
+
       // Cleanup resize state
       document.body.style.cursor = "";
       document.body.style.userSelect = "";
@@ -1632,6 +1719,7 @@ ${contextForUser}`;
             onDateSelect={handleDateSelect}
             onTemplateSelect={handleTemplateSelect}
             isLoading={state.isLoading} // Pass loading state for send button
+            onCancel={handleCancelRequest} // Pass cancel handler
           />
         </div>
       </div>

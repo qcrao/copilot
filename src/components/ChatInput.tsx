@@ -36,6 +36,7 @@ interface ChatInputProps {
   onDateSelect?: (date: string, notes: string) => void;
   onTemplateSelect?: (templateId: string, prompt: string) => void;
   isLoading?: boolean;
+  onCancel?: () => void;
 }
 
 export const ChatInput: React.FC<ChatInputProps> = ({
@@ -48,6 +49,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   onDateSelect,
   onTemplateSelect,
   isLoading = false,
+  onCancel,
 }) => {
   const [availableModels, setAvailableModels] = useState<
     Array<{ model: string; provider: string; providerName: string }>
@@ -976,31 +978,60 @@ const insertUniversalSearchResult = (result: UniversalSearchResult) => {
             />
           </div>
 
-          <button
-            className={`rr-copilot-send-button ${
-              canSend ? "active" : "inactive"
-            }`}
-            onClick={handleSend}
-            disabled={!canSend}
-            type="button"
-            title="Send message"
-          >
-            <svg
-              width="16"
-              height="16"
-              viewBox="0 0 16 16"
-              fill="none"
-              xmlns="http://www.w3.org/2000/svg"
+          {isLoading ? (
+            <button
+              className="rr-copilot-cancel-button"
+              onClick={onCancel}
+              disabled={!onCancel}
+              type="button"
+              title="Cancel request"
             >
-              <path
-                d="M8 2L8 14M8 2L3 7M8 2L13 7"
-                stroke="currentColor"
-                strokeWidth="1.5"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </svg>
-          </button>
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 16 16"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <rect
+                  x="4"
+                  y="4"
+                  width="8"
+                  height="8"
+                  rx="1"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                  fill="currentColor"
+                />
+              </svg>
+            </button>
+          ) : (
+            <button
+              className={`rr-copilot-send-button ${
+                canSend ? "active" : "inactive"
+              }`}
+              onClick={handleSend}
+              disabled={!canSend}
+              type="button"
+              title="Send message"
+            >
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 16 16"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <path
+                  d="M8 2L8 14M8 2L3 7M8 2L13 7"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            </button>
+          )}
         </div>
       </div>
 

@@ -670,6 +670,66 @@ details[style*="thinking"][open] {
   transform: translateY(-1px);
 }
 
+/* Cancel button styles */
+.rr-copilot-cancel-button {
+  width: 44px;
+  height: 44px;
+  border: none;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.2, 0, 0, 1);
+  outline: none;
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+  color: white;
+  box-shadow: 0 2px 8px rgba(220, 53, 69, 0.2), 0 1px 3px rgba(220, 53, 69, 0.3);
+}
+
+.rr-copilot-cancel-button::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  border-radius: inherit;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  background: linear-gradient(45deg, rgba(255, 255, 255, 0.3), rgba(255, 255, 255, 0));
+}
+
+.rr-copilot-cancel-button:hover {
+  background: linear-gradient(135deg, #c82333 0%, #a71e2a 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 16px rgba(220, 53, 69, 0.3), 0 2px 6px rgba(220, 53, 69, 0.4);
+}
+
+.rr-copilot-cancel-button:hover::before {
+  opacity: 1;
+}
+
+.rr-copilot-cancel-button:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 8px rgba(220, 53, 69, 0.2), 0 1px 3px rgba(220, 53, 69, 0.3);
+}
+
+.rr-copilot-cancel-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.rr-copilot-cancel-button svg {
+  transition: transform 0.2s ease;
+}
+
+.rr-copilot-cancel-button:hover svg {
+  transform: translateY(-1px);
+}
+
 /* Message styling - no avatars for AI messages */
 .roam-copilot-expanded .cs-message--incoming {
   display: flex !important;
