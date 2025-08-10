@@ -9,13 +9,15 @@ interface ConversationItemProps {
   isActive: boolean;
   onClick: () => void;
   onDelete: (id: string) => void;
+  disabled?: boolean;
 }
 
 export const ConversationItem: React.FC<ConversationItemProps> = ({
   conversation,
   isActive,
   onClick,
-  onDelete
+  onDelete,
+  disabled = false
 }) => {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -68,12 +70,12 @@ export const ConversationItem: React.FC<ConversationItemProps> = ({
 
   return (
     <div
-      className={`rr-copilot-conversation-item ${isActive ? 'active' : ''}`}
-      onClick={onClick}
+      className={`rr-copilot-conversation-item ${isActive ? 'active' : ''} ${disabled ? 'disabled' : ''}`}
+      onClick={disabled ? undefined : onClick}
       style={{
         padding: "8px 12px",
         borderRadius: "8px",
-        cursor: "pointer",
+        cursor: disabled ? "not-allowed" : "pointer",
         backgroundColor: isActive ? "#f0f4ff" : "transparent",
         border: isActive ? "1px solid #e0ebff" : "1px solid transparent",
         margin: "1px 0",
@@ -81,9 +83,11 @@ export const ConversationItem: React.FC<ConversationItemProps> = ({
         position: "relative",
         display: "flex",
         flexDirection: "column",
-        gap: "4px"
+        gap: "4px",
+        opacity: disabled ? 0.5 : 1
       }}
       onMouseEnter={(e) => {
+        if (disabled) return;
         if (!isActive) {
           e.currentTarget.style.backgroundColor = "#f9fafb";
           e.currentTarget.style.border = "1px solid #f3f4f6";
@@ -95,6 +99,7 @@ export const ConversationItem: React.FC<ConversationItemProps> = ({
         }
       }}
       onMouseLeave={(e) => {
+        if (disabled) return;
         if (!isActive) {
           e.currentTarget.style.backgroundColor = "transparent";
           e.currentTarget.style.border = "1px solid transparent";

@@ -899,6 +899,8 @@ ${contextForUser}`;
   );
 
   const handleConversationSelect = async (conversationId: string) => {
+    if (state.isLoading) return;
+    
     try {
       setState((prev) => ({ ...prev, isLoading: true }));
 
@@ -1542,6 +1544,7 @@ ${contextForUser}`;
         currentConversationId={currentConversationId}
         onConversationSelect={handleConversationSelect}
         onNewConversation={handleNewConversation}
+        isLoading={state.isLoading}
       />
 
       {/* Main Chat Area */}
@@ -1579,6 +1582,7 @@ ${contextForUser}`;
               icon="plus"
               onClick={handleNewConversation}
               title="New Chat"
+              disabled={state.isLoading}
               style={{ marginRight: "4px" }}
             />
             <Icon icon={IconNames.LIGHTBULB} size={16} />

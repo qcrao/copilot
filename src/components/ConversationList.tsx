@@ -20,6 +20,7 @@ interface ConversationListProps {
   currentConversationId: string | null;
   onConversationSelect: (conversationId: string) => void;
   onNewConversation: () => void;
+  isLoading: boolean;
 }
 
 export const ConversationList: React.FC<ConversationListProps> = ({
@@ -28,6 +29,7 @@ export const ConversationList: React.FC<ConversationListProps> = ({
   currentConversationId,
   onConversationSelect,
   onNewConversation,
+  isLoading,
 }) => {
   const [state, setState] = useState<ConversationListState>({
     conversations: [],
@@ -212,6 +214,7 @@ export const ConversationList: React.FC<ConversationListProps> = ({
             icon="plus"
             onClick={onNewConversation}
             title="New Chat"
+            disabled={isLoading}
             style={{ color: "#393a3d" }}
           />
           <Button
@@ -360,6 +363,7 @@ export const ConversationList: React.FC<ConversationListProps> = ({
                 isActive={conversation.id === currentConversationId}
                 onClick={() => handleConversationClick(conversation.id)}
                 onDelete={handleDeleteConversation}
+                disabled={isLoading}
               />
             ))}
           </div>
