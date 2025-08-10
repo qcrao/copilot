@@ -4,21 +4,22 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 interface CopilotSidebarProps {
   isVisible: boolean;
   children: React.ReactNode;
+  width?: number;
+  onWidthChange?: (width: number) => void;
 }
 
-const DEFAULT_WIDTH_PX = 480;
+const DEFAULT_WIDTH_PX = 380;
 const MIN_WIDTH_PX = 360;
 const MAX_WIDTH_RATIO = 0.66; // at most 66% of viewport width
 
 export const CopilotSidebar: React.FC<CopilotSidebarProps> = ({
   isVisible,
   children,
+  width: initialWidth,
+  onWidthChange,
 }) => {
-  const [width, setWidth] = useState<number>(() => {
-    const saved = window.localStorage.getItem("roamCopilotSidebarWidth");
-    const parsed = saved ? parseInt(saved, 10) : DEFAULT_WIDTH_PX;
-    return Number.isFinite(parsed) ? parsed : DEFAULT_WIDTH_PX;
-  });
+  // Use provided width or fallback to default
+  const width = initialWidth ?? DEFAULT_WIDTH_PX;
 
 
   const isResizingRef = useRef<boolean>(false);
@@ -41,7 +42,7 @@ export const CopilotSidebar: React.FC<CopilotSidebarProps> = ({
 
 
   const handleMouseMove = useCallback((e: MouseEvent) => {
-    if (!isResizingRef.current) return;
+    if (!isResizingRef.current || !onWidthChange) return;
     const deltaX = startXRef.current - e.clientX; // dragging left increases width
     const nextWidthRaw = Math.max(
       MIN_WIDTH_PX,
@@ -50,20 +51,19 @@ export const CopilotSidebar: React.FC<CopilotSidebarProps> = ({
         Math.floor(window.innerWidth * MAX_WIDTH_RATIO)
       )
     );
-    setWidth(nextWidthRaw);
-  }, []);
+    onWidthChange(nextWidthRaw);
+  }, [onWidthChange]);
 
   const stopResizing = useCallback(() => {
     if (!isResizingRef.current) return;
     isResizingRef.current = false;
     document.body.style.cursor = "";
     document.body.style.userSelect = "";
-    window.localStorage.setItem("roamCopilotSidebarWidth", String(width));
     window.removeEventListener("mousemove", handleMouseMove);
     window.removeEventListener("mouseup", stopResizing);
     window.removeEventListener("mouseleave", stopResizing);
     window.removeEventListener("blur", stopResizing);
-  }, [handleMouseMove, width]);
+  }, [handleMouseMove]);
 
   const startResizing = useCallback((e: React.MouseEvent) => {
     e.preventDefault();

@@ -8,12 +8,16 @@ import { loadInitialSettings, initPanelConfig } from "./settings";
 import { loadRoamExtensionCommands } from "./commands";
 import "./styles.css";
 
+// Sidebar width management  
+const DEFAULT_WIDTH_PX = 380;
+
 let copilotState = {
   // Sidebar mode: we control visibility and open state
   isOpen: true,
   isVisible: true,
   container: null as HTMLDivElement | null,
   root: null as any,
+  sidebarWidth: DEFAULT_WIDTH_PX,
 };
 
 const toggleCopilot = () => {
@@ -38,6 +42,12 @@ const openCopilot = () => {
 const closeCopilot = () => {
   copilotState.isVisible = false;
   copilotState.isOpen = false;
+  renderCopilot();
+};
+
+const onSidebarWidthChange = (newWidth: number) => {
+  copilotState.sidebarWidth = newWidth;
+  // Trigger re-render with updated width
   renderCopilot();
 };
 
@@ -69,7 +79,11 @@ const renderCopilot = () => {
   // Render as right-side sidebar when expanded
   copilotState.root.render(
     <ErrorBoundary>
-      <CopilotSidebar isVisible={copilotState.isVisible}>
+      <CopilotSidebar 
+        isVisible={copilotState.isVisible}
+        width={copilotState.sidebarWidth}
+        onWidthChange={onSidebarWidthChange}
+      >
         <CopilotWidget
           isOpen={copilotState.isOpen}
           onToggle={toggleMinimize}
