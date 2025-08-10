@@ -71,6 +71,7 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
     id: string;
     prompt: string;
   } | null>(null);
+  const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
   const [windowPosition, setWindowPosition] = useState<{
     top: number;
     left: number;
@@ -184,6 +185,64 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
       updatePageContext();
     }
   }, [isOpen, updatePageContext]);
+
+  // Comprehensive overlay detection and debugging
+  useEffect(() => {
+    const observer = new MutationObserver((mutations) => {
+      mutations.forEach((mutation) => {
+        if (mutation.type === 'attributes' && mutation.attributeName === 'class') {
+          const bodyClasses = document.body.className;
+          console.log('🔍 Body classes changed:', bodyClasses);
+          
+          const hasOverlayOpen = bodyClasses.includes('bp3-overlay-open') || 
+                                bodyClasses.includes('bp4-overlay-open') ||
+                                bodyClasses.includes('overlay-open');
+          
+          if (hasOverlayOpen !== isCommandPaletteOpen) {
+            setIsCommandPaletteOpen(hasOverlayOpen);
+            console.log('🎯 Command palette state changed:', hasOverlayOpen ? 'OPEN' : 'CLOSED');
+            
+            // Debug: Log all dialogs and portals in DOM
+            const dialogs = document.querySelectorAll('[class*="dialog"], dialog, [role="dialog"]');
+            const portals = document.querySelectorAll('[class*="portal"], [class*="overlay"]');
+            console.log('📱 Found dialogs:', dialogs.length, Array.from(dialogs).map(d => d.className));
+            console.log('🌐 Found portals/overlays:', portals.length, Array.from(portals).map(p => p.className));
+            
+            // Check z-index values
+            Array.from(dialogs).forEach((dialog, i) => {
+              const styles = window.getComputedStyle(dialog);
+              console.log(`📱 Dialog ${i} z-index:`, styles.zIndex, 'position:', styles.position);
+            });
+          }
+        }
+        
+        // Also check for DOM additions/removals
+        if (mutation.type === 'childList') {
+          mutation.addedNodes.forEach(node => {
+            if (node.nodeType === Node.ELEMENT_NODE) {
+              const element = node as Element;
+              if (element.className && (element.className.includes('dialog') || element.className.includes('portal'))) {
+                console.log('➕ Added dialog/portal element:', element.className);
+              }
+            }
+          });
+        }
+      });
+    });
+
+    // Observe both body class changes and document-wide DOM changes
+    observer.observe(document.body, {
+      attributes: true,
+      attributeFilter: ['class']
+    });
+    
+    observer.observe(document.documentElement, {
+      childList: true,
+      subtree: true
+    });
+
+    return () => observer.disconnect();
+  }, [isCommandPaletteOpen]);
 
   // Remove all page change listeners - context should only update on widget open or new conversation
   // This prevents context from changing while user is in the middle of a conversation
@@ -1397,6 +1456,9 @@ ${contextForUser}`;
               transform: "none",
               width: "100%",
               height: "100%",
+              zIndex: isCommandPaletteOpen ? 1 : undefined,
+              // Backup plan: completely hide if z-index doesn't work  
+              display: isCommandPaletteOpen ? 'none' : 'flex',
             }
           : {
               top: windowPosition?.top || "50%",
@@ -1404,6 +1466,9 @@ ${contextForUser}`;
               transform: windowPosition ? "none" : "translate(-50%, -50%)",
               width: windowSize.width,
               height: windowSize.height,
+              zIndex: isCommandPaletteOpen ? 1 : undefined,
+              // Backup plan: completely hide if z-index doesn't work  
+              display: isCommandPaletteOpen ? 'none' : 'flex',
             }
       }
     >

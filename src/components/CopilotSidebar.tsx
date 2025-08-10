@@ -20,6 +20,9 @@ export const CopilotSidebar: React.FC<CopilotSidebarProps> = ({
     return Number.isFinite(parsed) ? parsed : DEFAULT_WIDTH_PX;
   });
 
+  const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
+
+
   const isResizingRef = useRef<boolean>(false);
   const startXRef = useRef<number>(0);
   const startWidthRef = useRef<number>(width);
@@ -37,6 +40,33 @@ export const CopilotSidebar: React.FC<CopilotSidebarProps> = ({
       document.body.style.marginRight = "";
     };
   }, [isVisible, width]);
+
+  // Monitor body class changes to detect command palette state
+  useEffect(() => {
+    const observer = new MutationObserver((mutations) => {
+      mutations.forEach((mutation) => {
+        if (mutation.type === 'attributes' && mutation.attributeName === 'class') {
+          const bodyClasses = document.body.className;
+          const hasOverlayOpen = bodyClasses.includes('bp3-overlay-open') || 
+                                bodyClasses.includes('bp4-overlay-open') ||
+                                bodyClasses.includes('overlay-open');
+          
+          if (hasOverlayOpen !== isCommandPaletteOpen) {
+            setIsCommandPaletteOpen(hasOverlayOpen);
+            console.log('CopilotSidebar: Command palette state changed:', hasOverlayOpen ? 'OPEN' : 'CLOSED');
+          }
+        }
+      });
+    });
+
+    observer.observe(document.body, {
+      attributes: true,
+      attributeFilter: ['class']
+    });
+
+    return () => observer.disconnect();
+  }, [isCommandPaletteOpen]);
+
 
   const handleMouseMove = useCallback((e: MouseEvent) => {
     if (!isResizingRef.current) return;
@@ -80,7 +110,15 @@ export const CopilotSidebar: React.FC<CopilotSidebarProps> = ({
   if (!isVisible) return null;
 
   return (
-    <div className="roam-copilot-sidebar-container" style={{ width }}>
+    <div 
+      className="roam-copilot-sidebar-container" 
+      style={{ 
+        width,
+        zIndex: isCommandPaletteOpen ? 1 : undefined,
+        // Backup plan: completely hide if z-index doesn't work
+        display: isCommandPaletteOpen ? 'none' : 'block',
+      }}
+    >
       {/* Left border resize handle - outside the sidebar content */}
       <div
         className="roam-copilot-sidebar-left-resize"
