@@ -5,7 +5,7 @@ import { ChatMessage } from '../types';
 import { CollapsibleMessage } from './CollapsibleMessage';
 import { UserService } from '../services/userService';
 import { getModelDisplayInfo } from '../utils/iconUtils';
-import { useSmartScroll } from '../hooks/useSmartScroll';
+import { useSimpleScroll } from '../hooks/useSimpleScroll';
 import { ScrollToBottomButton } from './ScrollToBottomButton';
 
 interface MessageListProps {
@@ -366,18 +366,17 @@ export const MessageList: React.FC<MessageListProps> = ({
   currentModel,
   currentProvider
 }) => {
-  // Create dependencies for smart scroll
+  // Create dependencies for scroll tracking
   const scrollDependencies = [
     messages.length, // New messages
-    isLoading, // Loading state changes
+    isLoading, // Loading state changes  
     messages.filter(msg => msg.isStreaming).map(msg => msg.content.length).join(','), // Streaming content
+    messages.map(msg => msg.content.length).join(','), // All content changes (for show more/less)
   ];
   
-  // Use smart scroll hook with optimized settings
-  const [containerRefCallback, scrollState, scrollActions] = useSmartScroll(scrollDependencies, {
-    threshold: 100, // Consider "at bottom" when within 100px
-    smoothBehavior: !messages.some(msg => msg.isStreaming), // Disable smooth scroll during streaming for better performance
-    debounceMs: 50, // Debounce scroll updates
+  // Use simplified scroll hook
+  const [containerRefCallback, scrollActions] = useSimpleScroll(scrollDependencies, {
+    threshold: 50, // Consider "at bottom" when within 50px
     respectUserIntent: true // Respect when user manually scrolls up
   });
 
@@ -385,6 +384,9 @@ export const MessageList: React.FC<MessageListProps> = ({
   const handleScrollToBottom = () => {
     scrollActions.scrollToBottom(true); // Force scroll
   };
+  
+  // Check if user is near bottom for scroll button visibility
+  const isNearBottom = scrollActions.isNearBottom();
 
   return (
     <div 
@@ -394,7 +396,7 @@ export const MessageList: React.FC<MessageListProps> = ({
         height: '100%',
         overflowY: 'auto',
         padding: '12px 14px',
-        scrollBehavior: scrollState.shouldAutoScroll ? 'smooth' : 'auto',
+        scrollBehavior: 'auto',
         position: 'relative' // For scroll button positioning
       }}
     >
@@ -416,20 +418,11 @@ export const MessageList: React.FC<MessageListProps> = ({
       
       {/* Scroll to bottom button - show when not at bottom and has content */}
       <ScrollToBottomButton
-        visible={!scrollState.isAtBottom && messages.length > 0}
-        hasNewMessages={scrollState.hasNewContent}
+        visible={!isNearBottom && messages.length > 0}
+        hasNewMessages={false} // Simplified - no complex new message detection
         onClick={handleScrollToBottom}
       />
       
-      {/* Bottom marker for intersection observer */}
-      <div className="smart-scroll-bottom" style={{
-        height: '1px', 
-        width: '1px', 
-        position: 'absolute', 
-        bottom: '0', 
-        pointerEvents: 'none', 
-        visibility: 'hidden'
-      }} />
     </div>
   );
 };

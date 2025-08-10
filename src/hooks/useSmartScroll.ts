@@ -66,16 +66,21 @@ export const useSmartScroll = (
     }));
   }, [checkIsAtBottom]);
 
-  // Debounced scroll state update
+  // Debounced scroll state update with improved timing
   const debouncedUpdateScrollState = useCallback(() => {
     if (debounceTimer.current) {
       clearTimeout(debounceTimer.current);
     }
     
-    debounceTimer.current = setTimeout(updateScrollState, debounceMs);
-  }, [updateScrollState, debounceMs]);
+    // Use shorter debounce during active streaming for more responsive scrolling
+    const activeDebounceDuration = dependencies.some(dep => 
+      typeof dep === 'string' && dep.includes(',') // streaming content indicator
+    ) ? 10 : debounceMs;
+    
+    debounceTimer.current = setTimeout(updateScrollState, activeDebounceDuration);
+  }, [updateScrollState, debounceMs, dependencies]);
 
-  // Handle scroll events to detect user scrolling
+  // Handle scroll events to detect user scrolling with improved detection
   const handleScroll = useCallback(() => {
     const container = containerRef.current;
     if (!container) return;
@@ -83,8 +88,13 @@ export const useSmartScroll = (
     const currentScrollTop = container.scrollTop;
     const scrollDelta = Math.abs(currentScrollTop - lastScrollTop.current);
     
-    // Detect if this was a user-initiated scroll (significant movement)
-    if (scrollDelta > 5 && respectUserIntent) {
+    // More sensitive detection for user scrolling vs auto-scroll
+    // Only mark as user scrolling if it's a significant upward scroll or non-bottom scroll
+    const isScrollingUp = currentScrollTop < lastScrollTop.current;
+    const isSignificantScroll = scrollDelta > 10; // Increased threshold
+    const isAtBottom = checkIsAtBottom();
+    
+    if (isSignificantScroll && respectUserIntent && (isScrollingUp || !isAtBottom)) {
       setState(prev => ({ 
         ...prev, 
         isUserScrolling: true,
@@ -98,12 +108,12 @@ export const useSmartScroll = (
       
       userScrollTimer.current = setTimeout(() => {
         setState(prev => ({ ...prev, isUserScrolling: false }));
-      }, 1000);
+      }, 1500); // Slightly longer timeout
     }
 
     lastScrollTop.current = currentScrollTop;
     debouncedUpdateScrollState();
-  }, [respectUserIntent, debouncedUpdateScrollState]);
+  }, [respectUserIntent, debouncedUpdateScrollState, checkIsAtBottom]);
 
   // Scroll to bottom function
   const scrollToBottom = useCallback((force = false) => {
@@ -201,7 +211,7 @@ export const useSmartScroll = (
     };
   }, [handleScroll]);
 
-  // Main auto-scroll effect
+  // Main auto-scroll effect with improved handling
   useEffect(() => {
     if (!state.shouldAutoScroll) return;
 
@@ -210,13 +220,18 @@ export const useSmartScroll = (
       setState(prev => ({ ...prev, hasNewContent: true }));
     }
 
-    // Only auto-scroll if we should and we're at bottom
+    // Auto-scroll logic with better conditions
     if (state.isAtBottom || !respectUserIntent) {
-      const timeoutId = setTimeout(() => {
-        scrollToBottom(false);
-      }, 16); // Next frame
+      // Use requestAnimationFrame for smoother scrolling
+      const frameId = requestAnimationFrame(() => {
+        const container = containerRef.current;
+        if (container && !state.isUserScrolling) {
+          // Force scroll to bottom for streaming content
+          container.scrollTop = container.scrollHeight;
+        }
+      });
 
-      return () => clearTimeout(timeoutId);
+      return () => cancelAnimationFrame(frameId);
     }
   }, [...dependencies, state.shouldAutoScroll, state.isAtBottom]);
 

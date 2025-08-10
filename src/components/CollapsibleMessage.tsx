@@ -1,5 +1,5 @@
 // src/components/CollapsibleMessage.tsx
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { EnhancedMessageRenderer } from './EnhancedMessageRenderer';
 
 interface CollapsibleMessageProps {
@@ -16,6 +16,23 @@ export const CollapsibleMessage: React.FC<CollapsibleMessageProps> = ({
   maxLength = 300
 }) => {
   const [isExpanded, setIsExpanded] = useState(false);
+  
+  // Force scroll to bottom after content expansion/collapse
+  const handleToggleExpanded = (expanded: boolean) => {
+    setIsExpanded(expanded);
+    
+    // Force scroll after DOM update with more reliable timing
+    setTimeout(() => {
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          const container = document.querySelector('.rr-copilot-message-list');
+          if (container) {
+            container.scrollTop = container.scrollHeight;
+          }
+        });
+      });
+    }, 50); // Small delay to ensure DOM is fully updated
+  };
 
   const { shouldCollapse, truncatedContent } = useMemo(() => {
     // Don't collapse if content is short, currently streaming, or if it's an AI message
@@ -93,7 +110,7 @@ export const CollapsibleMessage: React.FC<CollapsibleMessageProps> = ({
       {!isExpanded && (
         <div style={{ marginTop: '8px' }}>
           <button
-            onClick={() => setIsExpanded(true)}
+            onClick={() => handleToggleExpanded(true)}
             style={{
               backgroundColor: 'transparent',
               border: '1px solid #d1d5db',
@@ -124,7 +141,7 @@ export const CollapsibleMessage: React.FC<CollapsibleMessageProps> = ({
       {isExpanded && (
         <div style={{ marginTop: '8px' }}>
           <button
-            onClick={() => setIsExpanded(false)}
+            onClick={() => handleToggleExpanded(false)}
             style={{
               backgroundColor: 'transparent',
               border: '1px solid #d1d5db',
