@@ -6,7 +6,13 @@
         "hooks": [
           {
             "type": "command",
-            "command": "sh ~/copilot/.claude/hooks/notify_done.sh"
+            "command": "sh ~/copilot/.claude/hooks/notify_done.sh",
+            "timeout": 30
+          },
+          {
+            "type": "command",
+            "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/notify_done.sh \"Claude 需要你回来确认一下\"",
+            "timeout": 30
           }
         ]
       }
