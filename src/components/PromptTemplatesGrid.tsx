@@ -57,22 +57,41 @@ export const PromptTemplatesGrid: React.FC<PromptTemplatesGridProps> = ({
         });
       }
 
-      // Handle special context types that require fetching historical data
-      if (template.contextType === "date-range" && variables.date) {
-        try {
-          const dateNotes = await RoamService.getNotesFromDate(variables.date);
-          if (dateNotes && dateNotes.blocks.length > 0) {
-            const notesContent = RoamService.formatBlocksForAI(
-              dateNotes.blocks,
-              0
-            );
-            prompt += `\n\nHere are my notes from ${variables.date}:\n${notesContent}`;
-          } else {
-            prompt += `\n\nNote: No notes found for ${variables.date}. Please let me know that no notes were found for this date.`;
+      // Handle context types that require real-time data fetching
+      if (template.requiresContext) {
+        if (template.contextType === "current-page") {
+          // Get fresh current page context when template is used
+          console.log("🔄 Fetching fresh current page context for template:", template.id);
+          try {
+            const freshContext = await RoamService.getPageContext();
+            if (freshContext?.currentPage) {
+              console.log("✅ Got fresh context for page:", freshContext.currentPage.title);
+              const contextString = RoamService.formatContextForAI(freshContext, 8000);
+              // The context will be handled by the AI service system message
+              // Template prompt itself doesn't need to be modified
+            } else {
+              console.log("⚠️ No current page found in fresh context");
+            }
+          } catch (error) {
+            console.error("❌ Error fetching fresh context:", error);
           }
-        } catch (error) {
-          console.error("Error fetching date notes:", error);
-          prompt += `\n\nNote: Could not retrieve notes for ${variables.date}.`;
+        } else if (template.contextType === "date-range" && variables.date) {
+          // Handle date range context (existing logic)
+          try {
+            const dateNotes = await RoamService.getNotesFromDate(variables.date);
+            if (dateNotes && dateNotes.blocks.length > 0) {
+              const notesContent = RoamService.formatBlocksForAI(
+                dateNotes.blocks,
+                0
+              );
+              prompt += `\n\nHere are my notes from ${variables.date}:\n${notesContent}`;
+            } else {
+              prompt += `\n\nNote: No notes found for ${variables.date}. Please let me know that no notes were found for this date.`;
+            }
+          } catch (error) {
+            console.error("Error fetching date notes:", error);
+            prompt += `\n\nNote: Could not retrieve notes for ${variables.date}.`;
+          }
         }
       }
 

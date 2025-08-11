@@ -134,19 +134,21 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
     }
   }, [isOpen, windowPosition, windowSize, isUnmounting]);
 
-  const updatePageContext = useCallback(async () => {
+  const updatePageContext = useCallback(async (forceUpdate: boolean = false) => {
     if (isUnmounting || isUpdatingContext) return;
 
-    // Prevent rapid successive updates that could cause infinite loops
-    const now = Date.now();
-    const timeSinceLastUpdate = now - lastContextUpdate;
-    const MIN_UPDATE_INTERVAL = 1000; // 1 second minimum between updates
+    // Prevent rapid successive updates that could cause infinite loops (unless forced)
+    if (!forceUpdate) {
+      const now = Date.now();
+      const timeSinceLastUpdate = now - lastContextUpdate;
+      const MIN_UPDATE_INTERVAL = 1000; // 1 second minimum between updates
 
-    if (timeSinceLastUpdate < MIN_UPDATE_INTERVAL) {
-      console.log(
-        `⏳ Context update throttled (${timeSinceLastUpdate}ms since last update)`
-      );
-      return;
+      if (timeSinceLastUpdate < MIN_UPDATE_INTERVAL) {
+        console.log(
+          `⏳ Context update throttled (${timeSinceLastUpdate}ms since last update)`
+        );
+        return;
+      }
     }
 
     // Clear any pending timeout
@@ -157,6 +159,7 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
 
     try {
       setIsUpdatingContext(true);
+      const now = Date.now();
       setLastContextUpdate(now);
       console.log("🔄 Updating page context...");
 
@@ -325,6 +328,7 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
     // Check if we're using a selected template
     let customPrompt: string | undefined = undefined;
     let actualUserMessage = finalUserMessage;
+    let templateRequiresCurrentPage = false;
 
     // Check if we have template info passed directly or from state
     const currentTemplate = templateInfo || selectedTemplate;
@@ -341,6 +345,14 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
         "🎯 Custom prompt set to:",
         customPrompt.substring(0, 100) + "..."
       );
+
+      // Check if this template requires current page context
+      const template = PROMPT_TEMPLATES.find(t => t.id === currentTemplate.id);
+      templateRequiresCurrentPage = template?.requiresContext === true && template?.contextType === "current-page";
+      
+      if (templateRequiresCurrentPage) {
+        console.log("🔄 Template requires current page context, will refresh context");
+      }
 
       // Clear the selected template state if it was used
       if (selectedTemplate) {
@@ -390,6 +402,22 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
     setState((prev) => ({ ...prev, isLoading: true }));
 
     try {
+      // If template requires current page context, refresh it
+      let currentContext = pageContext;
+      if (templateRequiresCurrentPage) {
+        console.log("🔄 Refreshing page context for template");
+        try {
+          await updatePageContext(true); // Force update for template
+          // updatePageContext updates the state, but we need immediate access
+          const latestContext = await RoamService.getPageContext();
+          currentContext = latestContext;
+          console.log("✅ Got fresh context for template, current page:", latestContext?.currentPage?.title || "None");
+        } catch (error) {
+          console.error("❌ Failed to refresh context for template:", error);
+          // Continue with existing context
+        }
+      }
+
       // Extract page references and block references from the message
       const pageReferences = extractPageReferences(actualUserMessage);
       const blockReferences = extractBlockReferences(actualUserMessage);
@@ -414,9 +442,6 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
       }
 
       const hasSpecificIntent = hasExplicitReferences || hasEditorReferences;
-
-      // Use existing pageContext but filter based on user intent
-      const currentContext = pageContext;
 
       // Create filtered context based on user intent
       let filteredContext = currentContext;
