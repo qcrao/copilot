@@ -1921,6 +1921,89 @@ details[style*="thinking"][open] {
               transform 0.2s ease;
 }
 
+/* Context Preview Button Styles */
+.rr-copilot-context-button {
+  width: 36px;
+  height: 36px;
+  border: 1px solid #e1e4e8;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+  color: #5f6368;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  position: relative;
+  overflow: hidden;
+  margin-right: 8px;
+}
+
+.rr-copilot-context-button::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(135deg, rgba(26, 115, 232, 0.1) 0%, rgba(26, 115, 232, 0.05) 100%);
+  opacity: 0;
+  transition: opacity 0.2s ease;
+  border-radius: 8px;
+}
+
+.rr-copilot-context-button:hover {
+  border-color: #1a73e8;
+  background: linear-gradient(135deg, #f8f9ff 0%, #f0f4ff 100%);
+  color: #1a73e8;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(26, 115, 232, 0.15), 0 1px 3px rgba(26, 115, 232, 0.1);
+}
+
+.rr-copilot-context-button:hover::before {
+  opacity: 1;
+}
+
+.rr-copilot-context-button:active {
+  transform: translateY(0);
+  box-shadow: 0 1px 4px rgba(26, 115, 232, 0.1);
+}
+
+.rr-copilot-context-button.active {
+  background: linear-gradient(135deg, #1a73e8 0%, #1557b0 100%);
+  color: white;
+  border-color: #1557b0;
+  box-shadow: 0 2px 8px rgba(26, 115, 232, 0.3), 0 1px 3px rgba(26, 115, 232, 0.2);
+}
+
+.rr-copilot-context-button.active:hover {
+  background: linear-gradient(135deg, #1557b0 0%, #0d47a1 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(26, 115, 232, 0.4), 0 2px 6px rgba(26, 115, 232, 0.3);
+}
+
+.rr-copilot-context-button.active:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 8px rgba(26, 115, 232, 0.3), 0 1px 3px rgba(26, 115, 232, 0.2);
+}
+
+.rr-copilot-context-button svg {
+  transition: transform 0.2s ease;
+  z-index: 1;
+  position: relative;
+}
+
+.rr-copilot-context-button:hover svg {
+  transform: translateY(-1px);
+}
+
+.rr-copilot-context-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+  transform: none !important;
+  box-shadow: none !important;
+}
+
 .rr-copilot-copy-icon {
   transition: opacity 0.2s ease, 
               transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275),

@@ -978,6 +978,7 @@ const insertUniversalSearchResult = (result: UniversalSearchResult) => {
             />
           </div>
 
+
           {isLoading ? (
             <button
               className="rr-copilot-cancel-button"

@@ -20,6 +20,7 @@ import { ChatInput } from "./ChatInput";
 import { ConversationList } from "./ConversationList";
 import { PromptTemplatesGrid } from "./PromptTemplatesGrid";
 import { MessageList } from "./MessageList";
+import { ContextPreview } from "./ContextPreview";
 import { PromptBuilder } from "../utils/promptBuilder";
 import { useMemoryManager } from "../utils/memoryManager";
 import { PerformanceMonitor } from "../utils/performance";
@@ -189,9 +190,92 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
     }
   }, [isOpen, updatePageContext]);
 
+  // Monitor page changes to update context for preview
+  useEffect(() => {
+    if (!isOpen) return; // Only monitor when widget is open
 
-  // Remove all page change listeners - context should only update on widget open or new conversation
-  // This prevents context from changing while user is in the middle of a conversation
+    let lastUrl = window.location.href;
+    let lastTitle = document.title;
+    
+    const checkForPageChange = () => {
+      const currentUrl = window.location.href;
+      const currentTitle = document.title;
+      
+      if (currentUrl !== lastUrl || currentTitle !== lastTitle) {
+        console.log("📄 Page change detected, updating context...");
+        lastUrl = currentUrl;
+        lastTitle = currentTitle;
+        
+        // Debounce the update to avoid too frequent calls
+        if (updateContextTimeoutRef.current) {
+          clearTimeout(updateContextTimeoutRef.current);
+        }
+        
+        updateContextTimeoutRef.current = setTimeout(() => {
+          updatePageContext();
+        }, 500); // 500ms delay
+      }
+    };
+
+    // Check for URL changes (hash changes, etc.)
+    const handleHashChange = () => {
+      console.log("🔗 Hash change detected");
+      checkForPageChange();
+    };
+
+    // Use MutationObserver to watch for DOM changes that might indicate page navigation
+    const observer = new MutationObserver((mutations) => {
+      // Check if the main content area has changed significantly
+      const hasSignificantChange = mutations.some(mutation => {
+        // Check if new nodes were added to the main content area
+        if (mutation.type === 'childList' && mutation.addedNodes.length > 0) {
+          for (let node of mutation.addedNodes) {
+            if (node.nodeType === Node.ELEMENT_NODE) {
+              const element = node as Element;
+              // Look for Roam's main content indicators
+              if (element.classList?.contains('roam-article') || 
+                  element.classList?.contains('rm-article-wrapper') ||
+                  element.querySelector?.('.roam-article, .rm-article-wrapper')) {
+                return true;
+              }
+            }
+          }
+        }
+        return false;
+      });
+
+      if (hasSignificantChange) {
+        console.log("🔄 DOM content change detected");
+        checkForPageChange();
+      }
+    });
+
+    // Observe the main Roam content area
+    const roamApp = document.querySelector('#app, .roam-app, .rm-app');
+    if (roamApp) {
+      observer.observe(roamApp, {
+        childList: true,
+        subtree: true,
+        attributes: false
+      });
+    }
+
+    // Listen for hash changes
+    window.addEventListener('hashchange', handleHashChange);
+    
+    // Also check periodically as a fallback
+    const intervalId = setInterval(checkForPageChange, 2000); // Check every 2 seconds
+
+    return () => {
+      if (updateContextTimeoutRef.current) {
+        clearTimeout(updateContextTimeoutRef.current);
+        updateContextTimeoutRef.current = null;
+      }
+      window.removeEventListener('hashchange', handleHashChange);
+      observer.disconnect();
+      clearInterval(intervalId);
+    };
+  }, [isOpen, updatePageContext]);
 
   const addMessage = (
     message: Omit<ChatMessage, "id" | "timestamp"> & { id?: string }
@@ -1737,6 +1821,9 @@ ${contextForUser}`;
               </>
             )}
           </div>
+
+          {/* Context Preview */}
+          <ContextPreview context={pageContext} />
 
           <ChatInput
             placeholder={UI_CONSTANTS.CHAT_INPUT.PLACEHOLDER_TEXT}
