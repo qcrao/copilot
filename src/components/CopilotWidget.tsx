@@ -1188,12 +1188,18 @@ ${contextForUser}`;
   const handlePromptSelect = (prompt: string) => {
     console.log("📝 Template selected:", prompt.substring(0, 100) + "...");
 
+    // Import UserTemplateService dynamically to avoid circular imports
+    const { UserTemplateService } = require("../services/userTemplateService");
+    
+    // Get all templates (official + custom)
+    const allTemplates = UserTemplateService.getAllTemplates();
+    
     // Find the template that matches this prompt (try exact match first)
-    let template = PROMPT_TEMPLATES.find((t) => t.prompt === prompt);
+    let template = allTemplates.find((t: any) => t.prompt === prompt);
 
     // If no exact match, try to find by base prompt (before language instructions)
     if (!template) {
-      template = PROMPT_TEMPLATES.find((t) => {
+      template = allTemplates.find((t: any) => {
         // Check if the prompt starts with the template's base prompt
         const basePrompt = t.prompt.trim();
         const normalizedPrompt = prompt.trim();
@@ -1230,7 +1236,7 @@ ${contextForUser}`;
       );
       console.log(
         "Available templates:",
-        PROMPT_TEMPLATES.map((t) => ({ id: t.id, title: t.title }))
+        allTemplates.map((t: any) => ({ id: t.id, title: t.title }))
       );
     }
   };

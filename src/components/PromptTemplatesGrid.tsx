@@ -9,6 +9,7 @@ import { PROMPT_TEMPLATES } from "../data/promptTemplates";
 import { RoamService } from "../services/roamService";
 import { multiProviderSettings } from "../settings";
 import { TemplateSettingsService } from "../services/templateSettingsService";
+import { UserTemplateService } from "../services/userTemplateService";
 
 interface PromptTemplatesGridProps {
   onPromptSelect: (prompt: string) => void;
@@ -26,14 +27,28 @@ export const PromptTemplatesGrid: React.FC<PromptTemplatesGridProps> = ({
 
   const [isManagementOpen, setIsManagementOpen] = useState(false);
   const [hiddenTemplates, setHiddenTemplates] = useState<string[]>([]);
+  const [hiddenCustomTemplates, setHiddenCustomTemplates] = useState<string[]>([]);
+  const [customTemplates, setCustomTemplates] = useState([]);
+  const [dismissedEmptyMessage, setDismissedEmptyMessage] = useState(false);
 
   useEffect(() => {
-    // Load hidden templates on mount
+    // Load hidden templates and custom templates on mount
     setHiddenTemplates(TemplateSettingsService.getHiddenTemplates());
+    setHiddenCustomTemplates(UserTemplateService.getSettings().hiddenCustomTemplates);
+    setCustomTemplates(UserTemplateService.getCustomTemplates() as any);
+    
+    // Load dismissed message state from localStorage
+    const dismissed = localStorage.getItem("copilot-empty-message-dismissed");
+    setDismissedEmptyMessage(dismissed === "true");
   }, []);
 
   const handleManagementSettingsChanged = () => {
     setHiddenTemplates(TemplateSettingsService.getHiddenTemplates());
+    setHiddenCustomTemplates(UserTemplateService.getSettings().hiddenCustomTemplates);
+    setCustomTemplates(UserTemplateService.getCustomTemplates() as any);
+    // Reset dismissed message when templates visibility changes
+    setDismissedEmptyMessage(false);
+    localStorage.removeItem("copilot-empty-message-dismissed");
   };
 
   const handleTemplateClick = (template: PromptTemplate) => {
@@ -147,25 +162,18 @@ export const PromptTemplatesGrid: React.FC<PromptTemplatesGridProps> = ({
     }));
   };
 
-  // Filter out hidden templates and group by category
-  const groupedTemplates = PROMPT_TEMPLATES.reduce((acc, template) => {
-    // Skip hidden templates
-    if (hiddenTemplates.includes(template.id)) {
-      return acc;
-    }
+  // Combine official and custom templates
+  const allTemplates = [
+    ...PROMPT_TEMPLATES.filter(t => !hiddenTemplates.includes(t.id)),
+    ...(customTemplates as any[]).filter((t: any) => !hiddenCustomTemplates.includes(t.id))
+  ];
 
+  // Group all visible templates by category
+  const visibleGroupedTemplates: Record<string, PromptTemplate[]> = allTemplates.reduce((acc, template) => {
     if (!acc[template.category]) {
       acc[template.category] = [];
     }
     acc[template.category].push(template);
-    return acc;
-  }, {} as Record<string, PromptTemplate[]>);
-
-  // Remove categories that have no visible templates
-  const visibleGroupedTemplates = Object.keys(groupedTemplates).reduce((acc, category) => {
-    if (groupedTemplates[category].length > 0) {
-      acc[category] = groupedTemplates[category];
-    }
     return acc;
   }, {} as Record<string, PromptTemplate[]>);
 
@@ -214,15 +222,32 @@ export const PromptTemplatesGrid: React.FC<PromptTemplatesGridProps> = ({
       </div>
 
       {/* Show message if no templates are visible */}
-      {Object.keys(visibleGroupedTemplates).length === 0 && (
+      {Object.keys(visibleGroupedTemplates).length === 0 && !dismissedEmptyMessage && (
         <div style={{ 
           textAlign: "center", 
           padding: "40px 20px",
           color: "#666",
           backgroundColor: "#f9f9f9",
           borderRadius: "8px",
-          border: "1px solid #e5e7eb"
+          border: "1px solid #e5e7eb",
+          position: "relative"
         }}>
+          <Button
+            minimal
+            small
+            icon="cross"
+            onClick={() => {
+              setDismissedEmptyMessage(true);
+              localStorage.setItem("copilot-empty-message-dismissed", "true");
+            }}
+            style={{
+              position: "absolute",
+              top: "8px",
+              right: "8px",
+              opacity: 0.6,
+            }}
+            title="Dismiss message"
+          />
           <Icon icon="eye-off" size={24} style={{ marginBottom: "12px", opacity: 0.6 }} />
           <p style={{ margin: 0, fontSize: "14px" }}>
             All templates are hidden. Click the settings button above to manage templates.
@@ -254,11 +279,12 @@ export const PromptTemplatesGrid: React.FC<PromptTemplatesGridProps> = ({
               marginBottom: "16px",
             }}
           >
-            {templates.map((template) => (
+            {templates.map((template: PromptTemplate) => (
               <PromptCard
                 key={template.id}
                 template={template}
                 onClick={handleTemplateClick}
+                isCustom={(template as any).isCustom || false}
               />
             ))}
           </div>

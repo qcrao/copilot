@@ -205,6 +205,17 @@ export interface PromptTemplateSettings {
   hiddenTemplates: string[]; // Array of template IDs that are hidden
 }
 
+export interface CustomPromptTemplate extends PromptTemplate {
+  isCustom: true;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface UserTemplateSettings {
+  customTemplates: CustomPromptTemplate[];
+  hiddenCustomTemplates: string[]; // Array of custom template IDs that are hidden
+}
+
 // Universal search interfaces for @ symbol triggered search
 export interface UniversalSearchResult {
   type: "page" | "block" | "daily-note";
