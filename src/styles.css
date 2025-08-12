@@ -617,7 +617,7 @@ details[style*="thinking"][open] {
   width: 36px; /* slightly smaller for more refined look */
   height: 36px;
   border: none;
-  border-radius: 6px; /* rounded square instead of circle */
+  border-radius: 50%; /* rounded square instead of circle */
   display: flex;
   align-items: center;
   justify-content: center;
@@ -693,7 +693,7 @@ details[style*="thinking"][open] {
   width: 36px; /* match send button size */
   height: 36px;
   border: none;
-  border-radius: 6px; /* match send button style */
+  border-radius: 50%; /* match send button style */
   display: flex;
   align-items: center;
   justify-content: center;
