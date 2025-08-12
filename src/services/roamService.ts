@@ -18,14 +18,14 @@ export class RoamService {
     }
     
     try {
-      console.log("Getting graph name from URL:", window.location.href);
-      console.log("Pathname:", window.location.pathname);
-      console.log("Hash:", window.location.hash);
+      // Getting graph name from URL (only log in development)
+      if (process.env.NODE_ENV === 'development') {
+        console.log("Getting graph name from URL:", window.location.href);
+      }
 
       // Try to get graph name from URL - check both href and hash
       const urlMatch = window.location.href.match(/\/app\/([^\/\?#]+)/);
       if (urlMatch) {
-        console.log("Graph name from href:", urlMatch[1]);
         const graphName = decodeURIComponent(urlMatch[1]);
         // Cache the result
         this.graphNameCache = { value: graphName, timestamp: Date.now() };
@@ -35,7 +35,6 @@ export class RoamService {
       // Try to get from hash (Roam often uses hash routing)
       const hashMatch = window.location.hash.match(/\/app\/([^\/\?#]+)/);
       if (hashMatch) {
-        console.log("Graph name from hash:", hashMatch[1]);
         return decodeURIComponent(hashMatch[1]);
       }
 
@@ -43,7 +42,6 @@ export class RoamService {
       // Some roam installations might have different URL patterns
       const pathMatch = window.location.pathname.match(/\/app\/([^\/\?#]+)/);
       if (pathMatch) {
-        console.log("Graph name from pathname:", pathMatch[1]);
         return decodeURIComponent(pathMatch[1]);
       }
 
@@ -52,14 +50,12 @@ export class RoamService {
         /roam:\/\/#\/app\/([^\/\?#]+)/
       );
       if (roamProtocolMatch) {
-        console.log("Graph name from roam protocol:", roamProtocolMatch[1]);
         return decodeURIComponent(roamProtocolMatch[1]);
       }
 
       // Try alternative patterns for web
       const altMatch = window.location.href.match(/#\/app\/([^\/\?#]+)/);
       if (altMatch) {
-        console.log("Graph name from alt pattern:", altMatch[1]);
         return decodeURIComponent(altMatch[1]);
       }
 
@@ -68,11 +64,10 @@ export class RoamService {
         try {
           const graphName = (window.roamAlphaAPI as any).graph.name;
           if (graphName) {
-            console.log("Graph name from Roam API:", graphName);
             return graphName;
           }
         } catch (apiError) {
-          console.log("Could not get graph name from API:", apiError);
+          // Could not get graph name from API - continue with other methods
         }
       }
 
@@ -211,7 +206,7 @@ export class RoamService {
       // contribute to context via the getSidebarNotes() method in getPageContext()
       const sidebarNotes = await this.getSidebarNotes();
       if (sidebarNotes && sidebarNotes.length > 0) {
-        console.log("🔍 Found", sidebarNotes.length, "sidebar notes - using main window as current page");
+        // Found sidebar notes - using main window as current page
         // Continue to get main window page, sidebar notes will be included in context separately
       }
 
@@ -224,14 +219,13 @@ export class RoamService {
         currentPageUid = apiResult || null;
       }
 
-      console.log("Current page UID from main window API:", currentPageUid);
+      // Got current page UID from main window API
 
       if (!currentPageUid) {
         // Fallback: try to get from URL
         const urlMatch = window.location.href.match(/\/page\/([^/?]+)/);
         if (urlMatch) {
           currentPageUid = decodeURIComponent(urlMatch[1]);
-          console.log("Current page UID from URL:", currentPageUid);
         }
       }
 
@@ -240,7 +234,6 @@ export class RoamService {
         const titleElement = document.querySelector(".rm-title-display");
         if (titleElement) {
           title = titleElement.textContent || "";
-          console.log("Page title from DOM:", title);
 
           // Try to find page by title
           if (title) {
@@ -253,14 +246,13 @@ export class RoamService {
             const titleResult = window.roamAlphaAPI.q(titleQuery);
             if (titleResult && titleResult.length > 0) {
               currentPageUid = titleResult[0][0];
-              console.log("Found UID by title:", currentPageUid);
             }
           }
         }
       }
 
       if (!currentPageUid) {
-        console.log("No current page UID found");
+        // No current page UID found
         return null;
       }
 
@@ -291,7 +283,7 @@ export class RoamService {
         }
       }
 
-      console.log("Final page info:", { title, uid: currentPageUid });
+      // Got final page info
 
       // Get all blocks for this page
       const blocks = await this.getPageBlocks(currentPageUid);
@@ -367,14 +359,13 @@ export class RoamService {
    */
   static async getPageBlocks(pageUid: string): Promise<RoamBlock[]> {
     try {
-      console.log("Getting blocks for page:", pageUid);
+      // Getting blocks for page
 
       // Ensure pageUid is a string, not a Promise
       const resolvedPageUid = await Promise.resolve(pageUid);
-      console.log("Resolved page UID:", resolvedPageUid);
 
       if (!resolvedPageUid) {
-        console.log("No valid page UID provided");
+        // No valid page UID provided
         return [];
       }
 
@@ -417,17 +408,14 @@ export class RoamService {
 
       let result = null;
       for (let i = 0; i < queries.length; i++) {
-        console.log(`Trying query ${i + 1}:`, queries[i]);
         result = window.roamAlphaAPI.q(queries[i]);
-        console.log(`Query ${i + 1} result:`, result);
-
         if (result && result.length > 0) {
           break;
         }
       }
 
       if (!result || result.length === 0) {
-        console.log("No blocks found with any query");
+        // No blocks found with any query
         return [];
       }
 
@@ -439,8 +427,6 @@ export class RoamService {
 
       // Sort by order and get children for each block
       blocks.sort((a, b) => (a.order || 0) - (b.order || 0));
-
-      console.log("Found blocks:", blocks.length);
 
       // Get children for each block recursively
       for (const block of blocks) {
@@ -841,7 +827,7 @@ export class RoamService {
    * Get comprehensive page context for AI
    */
   static async getPageContext(): Promise<PageContext> {
-    console.log("Getting comprehensive page context...");
+    // Getting comprehensive page context
 
     const [currentPage, visibleBlocks, selectedText, dailyNote, sidebarNotes] =
       await Promise.all([
@@ -858,26 +844,18 @@ export class RoamService {
       linkedReferences = await this.getLinkedReferences(currentPage.title);
     }
 
-    console.log("Page context summary:", {
-      currentPage: currentPage?.title || "None",
-      currentPageBlocks: currentPage?.blocks?.length || 0,
-      visibleBlocks: visibleBlocks.length,
-      selectedText: selectedText ? "Yes" : "No",
-      dailyNote: dailyNote?.title || "None",
-      dailyNoteBlocks: dailyNote?.blocks?.length || 0,
-      linkedReferences: linkedReferences.length,
-      sidebarNotes: sidebarNotes.length,
-    });
+    // Log page context summary only in development
+    if (process.env.NODE_ENV === 'development') {
+      console.log("Page context summary:", {
+        currentPage: currentPage?.title || "None",
+        visibleBlocks: visibleBlocks.length,
+        sidebarNotes: sidebarNotes.length,
+      });
+    }
     
-    // 🔍 Debug: Log detailed sidebar notes info
-    if (sidebarNotes && sidebarNotes.length > 0) {
-      console.log("📝 Sidebar notes details:", sidebarNotes.map(note => ({
-        title: note.title,
-        uid: note.uid,
-        blockCount: note.blocks.length
-      })));
-    } else {
-      console.log("❌ No sidebar notes in context - this might be the issue!");
+    // Debug sidebar notes only in development mode
+    if (process.env.NODE_ENV === 'development' && sidebarNotes && sidebarNotes.length === 0) {
+      console.log("❌ No sidebar notes in context");
     }
 
     const contextResult = {
@@ -889,11 +867,7 @@ export class RoamService {
       sidebarNotes,
     };
     
-    // 🔍 Debug: Final context check
-    console.log("🔍 Final context object:", {
-      hasSidebarNotes: contextResult.sidebarNotes?.length > 0,
-      sidebarNotesArray: contextResult.sidebarNotes
-    });
+    // Final context ready
     
     return contextResult;
   }

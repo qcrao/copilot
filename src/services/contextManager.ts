@@ -32,6 +32,25 @@ export class ContextManager {
   private visitedUids: Set<string> = new Set();
   private visitedPageTitles: Set<string> = new Set();
   private options: ContextBuilderOptions;
+  private processStartTime: number = 0;
+  private readonly MAX_PROCESSING_TIME = 30000; // 30 seconds max processing time
+
+  /**
+   * Create a lightweight context manager for performance-critical scenarios
+   */
+  static createLightweight(): ContextManager {
+    return new ContextManager({
+      maxDepth: 1, // Minimal recursion
+      maxItems: 20, // Fewer items
+      includeBacklinks: false, // Skip expensive operations
+      includeBlockRefs: false,
+      includeParentBlocks: false,
+      includeSiblingBlocks: false,
+      includeAncestorPath: false,
+      includeBacklinkChildren: false,
+      autoIncludeMinimalBacklinkChildren: false
+    });
+  }
 
   constructor(options: Partial<ContextBuilderOptions> = {}) {
     this.options = {
@@ -55,11 +74,15 @@ export class ContextManager {
     userSpecifiedPages: string[] = [], 
     userSpecifiedBlocks: string[] = []
   ): Promise<ContextItem[]> {
-    console.log("🔍 Building context with:", {
-      pages: userSpecifiedPages,
-      blocks: userSpecifiedBlocks,
-      options: this.options
-    });
+    // Only log context building if debug mode is enabled
+    if (process.env.NODE_ENV === 'development') {
+      console.log("🔍 Building context with:", {
+        pages: userSpecifiedPages.length,
+        blocks: userSpecifiedBlocks.length,
+        maxDepth: this.options.maxDepth,
+        maxItems: this.options.maxItems
+      });
+    }
 
     // Reset visited records
     this.visitedUids.clear();
@@ -83,11 +106,24 @@ export class ContextManager {
     const sortedItems = this.sortByPriority(contextItems);
     const limitedItems = sortedItems.slice(0, this.options.maxItems);
 
-    console.log("🔍 Context built:", {
-      totalItems: limitedItems.length,
-      levels: this.getLevelDistribution(limitedItems),
-      sources: this.getSourceDistribution(limitedItems)
-    });
+    // Performance monitoring and warnings
+    const processingTime = Date.now() - this.processStartTime;
+    if (processingTime > 10000) { // 10 seconds
+      console.warn(`⚠️ Context building took ${processingTime}ms - consider reducing maxDepth (${this.options.maxDepth}) or maxItems (${this.options.maxItems})`);
+    }
+    
+    if (limitedItems.length >= this.options.maxItems * 0.9) {
+      console.warn(`⚠️ Context approaching maximum items (${limitedItems.length}/${this.options.maxItems}) - some content may be missing`);
+    }
+    
+    // Only log detailed context stats in development
+    if (process.env.NODE_ENV === 'development') {
+      console.log("🔍 Context built:", {
+        totalItems: limitedItems.length,
+        levels: this.getLevelDistribution(limitedItems),
+        processingTime: `${processingTime}ms`
+      });
+    }
 
     return limitedItems;
   }
@@ -105,7 +141,7 @@ export class ContextManager {
     }
 
     if (this.visitedPageTitles.has(pageTitle)) {
-      console.log(`🔄 Skipping already visited page: ${pageTitle}`);
+      // Skip already visited page silently
       return [];
     }
 
@@ -114,7 +150,7 @@ export class ContextManager {
     try {
       const page = await RoamService.getPageByTitle(pageTitle);
       if (!page) {
-        console.log(`❌ Page not found: ${pageTitle}`);
+        // Page not found - continue silently
         return [];
       }
 
@@ -173,7 +209,7 @@ export class ContextManager {
     }
 
     if (this.visitedUids.has(blockUid)) {
-      console.log(`🔄 Skipping already visited block: ${blockUid}`);
+      // Skip already visited block silently
       return [];
     }
 
@@ -182,7 +218,7 @@ export class ContextManager {
 
       if (source === 'user_specified') {
         // For user-specified blocks, use the enhanced recursive resolver
-        console.log(`🔧 Using enhanced recursive resolver for user-specified block: ${blockUid}`);
+        // Using enhanced recursive resolver for user-specified block
         
         const resolved = await this.resolveContentRecursively(blockUid, 'block', currentLevel);
         if (resolved) {
@@ -202,13 +238,13 @@ export class ContextManager {
 
           contextItems.push(blockItem);
           
-          console.log(`✅ Resolved user-specified block with ${resolved.metadata.expandedReferences.length} page references`);
+          // Block resolved successfully
         }
       } else {
         // For non-user-specified blocks, use the simpler approach
         const block = await RoamService.getBlockByUid(blockUid);
         if (!block) {
-          console.log(`❌ Block not found: ${blockUid}`);
+          // Block not found - continue silently
           return [];
         }
 
@@ -441,7 +477,7 @@ export class ContextManager {
   private async getAncestorPath(blockUid: string, maxDepth: number): Promise<RoamBlock[]> {
     const ancestors: RoamBlock[] = [];
     
-    if (maxDepth <= 0) return ancestors;
+    if (maxDepth <= 0 || maxDepth > 10) return ancestors; // Hard limit to prevent deep recursion
     
     try {
       const parentQuery = `
@@ -493,7 +529,7 @@ export class ContextManager {
 
         // Check for circular references using the complete block
         if (await this.containsCircularReference(completeBacklink, pageTitle)) {
-          console.log(`🔄 Skipping circular reference in backlink: ${completeBacklink.string}`);
+          // Skip circular reference silently
           continue;
         }
 
@@ -514,7 +550,7 @@ export class ContextManager {
               if (contentWithoutRefs.length < 10 && this.options.autoIncludeMinimalBacklinkChildren) {
                 // Main content is minimal, include children for context
                 backlinkContent += '\n' + RoamService.formatBlocksForAI(completeBacklink.children, 1);
-                console.log(`📋 Auto-including children for minimal backlink: "${completeBacklink.string}"`);
+                // Auto-including children for minimal backlink content
               }
             }
           }
@@ -587,7 +623,6 @@ export class ContextManager {
     
     if (!isMainContentShort) {
       // Main content has substance, not circular
-      console.log(`✅ Valid backlink with meaningful content: "${backlink.string}"`);
       return false;
     }
     
@@ -600,13 +635,11 @@ export class ContextManager {
         .trim();
       
       if (childContent.length > 20) { // If children have substantial content
-        console.log(`✅ Valid backlink with meaningful child content: "${backlink.string}" + ${backlink.children.length} children`);
         return false;
       }
     }
     
-    // Both main content and children are minimal
-    console.log(`🔄 Detected circular reference: content mostly contains [[${pageTitle}]]: "${backlink.string}"`);
+    // Both main content and children are minimal - this is likely circular
     return true;
   }
 
@@ -816,25 +849,14 @@ export class ContextManager {
 
     const formattedContext = sections.join('\n\n');
     
-    // Add detailed debugging logs
-    console.log("📋 Context formatting detailed breakdown:", {
-      totalItems: items.length,
-      itemsByType: {
-        page: items.filter(i => i.type === 'page').length,
-        block: items.filter(i => i.type === 'block').length,
-        reference: items.filter(i => i.type === 'reference').length
-      },
-      itemsBySource: {
-        user_specified: items.filter(i => i.source === 'user_specified').length,
-        page_content: items.filter(i => i.source === 'page_content').length,
-        backlink: items.filter(i => i.source === 'backlink').length,
-        block_reference: items.filter(i => i.source === 'block_reference').length
-      },
-      totalSections: sections.length,
-      formattedContextLength: formattedContext.length,
-      averageContentLength: Math.round(items.reduce((sum, item) => sum + (item.content?.length || 0), 0) / items.length),
-      contextPreview: formattedContext.substring(0, 500) + "..."
-    });
+    // Only log detailed context stats in development mode
+    if (process.env.NODE_ENV === 'development') {
+      console.log("📋 Context formatting stats:", {
+        totalItems: items.length,
+        totalSections: sections.length,
+        formattedContextLength: formattedContext.length
+      });
+    }
 
     return formattedContext;
   }
@@ -969,8 +991,11 @@ export class ContextManager {
     };
   } | null> {
     
-    // Prevent infinite recursion
-    if (currentDepth > this.options.maxDepth || visitedInThisPath.has(contentId)) {
+    // Prevent infinite recursion with multiple safety checks
+    if (currentDepth > this.options.maxDepth || 
+        visitedInThisPath.has(contentId) ||
+        visitedInThisPath.size > 20 || // Limit path size to prevent circular chains
+        Date.now() - this.processStartTime > this.MAX_PROCESSING_TIME) {
       return null;
     }
 
@@ -1203,7 +1228,7 @@ export class ContextManager {
       currentUid = result[0][0];
     }
 
-    console.warn(`⚠️ Max parent traversal reached for block ${blockUid}`);
+    // Max parent traversal reached - return current UID to prevent infinite recursion
     return currentUid;
   }
 
