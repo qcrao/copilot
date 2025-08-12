@@ -201,6 +201,10 @@ export interface PromptTemplateState {
   isProcessing: boolean;
 }
 
+export interface PromptTemplateSettings {
+  hiddenTemplates: string[]; // Array of template IDs that are hidden
+}
+
 // Universal search interfaces for @ symbol triggered search
 export interface UniversalSearchResult {
   type: "page" | "block" | "daily-note";

@@ -1,12 +1,14 @@
 // src/components/PromptTemplatesGrid.tsx
-import React, { useState } from "react";
-import { Icon } from "@blueprintjs/core";
+import React, { useState, useEffect } from "react";
+import { Button, Icon } from "@blueprintjs/core";
 import { PromptTemplate, PromptTemplateState } from "../types";
 import { PromptCard } from "./PromptCard";
 import { PromptModal } from "./PromptModal";
+import { TemplateManagement } from "./TemplateManagement";
 import { PROMPT_TEMPLATES } from "../data/promptTemplates";
 import { RoamService } from "../services/roamService";
 import { multiProviderSettings } from "../settings";
+import { TemplateSettingsService } from "../services/templateSettingsService";
 
 interface PromptTemplatesGridProps {
   onPromptSelect: (prompt: string) => void;
@@ -21,6 +23,18 @@ export const PromptTemplatesGrid: React.FC<PromptTemplatesGridProps> = ({
     variableValues: {},
     isProcessing: false,
   });
+
+  const [isManagementOpen, setIsManagementOpen] = useState(false);
+  const [hiddenTemplates, setHiddenTemplates] = useState<string[]>([]);
+
+  useEffect(() => {
+    // Load hidden templates on mount
+    setHiddenTemplates(TemplateSettingsService.getHiddenTemplates());
+  }, []);
+
+  const handleManagementSettingsChanged = () => {
+    setHiddenTemplates(TemplateSettingsService.getHiddenTemplates());
+  };
 
   const handleTemplateClick = (template: PromptTemplate) => {
     if (template.id === "daily-summary") {
@@ -133,11 +147,25 @@ export const PromptTemplatesGrid: React.FC<PromptTemplatesGridProps> = ({
     }));
   };
 
+  // Filter out hidden templates and group by category
   const groupedTemplates = PROMPT_TEMPLATES.reduce((acc, template) => {
+    // Skip hidden templates
+    if (hiddenTemplates.includes(template.id)) {
+      return acc;
+    }
+
     if (!acc[template.category]) {
       acc[template.category] = [];
     }
     acc[template.category].push(template);
+    return acc;
+  }, {} as Record<string, PromptTemplate[]>);
+
+  // Remove categories that have no visible templates
+  const visibleGroupedTemplates = Object.keys(groupedTemplates).reduce((acc, category) => {
+    if (groupedTemplates[category].length > 0) {
+      acc[category] = groupedTemplates[category];
+    }
     return acc;
   }, {} as Record<string, PromptTemplate[]>);
 
@@ -152,22 +180,12 @@ export const PromptTemplatesGrid: React.FC<PromptTemplatesGridProps> = ({
   return (
     <div style={{ padding: "24px 20px" }}>
       {/* Header */}
-      <div style={{ textAlign: "center", marginBottom: "24px" }}>
+      <div style={{ textAlign: "center", marginBottom: "24px", position: "relative" }}>
         <Icon
           icon="lightbulb"
           size={32}
           style={{ opacity: 0.6, marginBottom: "12px", color: "#666" }}
         />
-        {/* <h2
-          style={{
-            fontSize: "20px",
-            fontWeight: "600",
-            margin: "0 0 6px 0",
-            color: "#333",
-          }}
-        >
-          Roam Copilot
-        </h2> */}
         <p
           style={{
             fontSize: "14px",
@@ -178,10 +196,42 @@ export const PromptTemplatesGrid: React.FC<PromptTemplatesGridProps> = ({
         >
           Your intelligent note companion
         </p>
+        
+        {/* Management button */}
+        <Button
+          minimal
+          small
+          icon="cog"
+          onClick={() => setIsManagementOpen(true)}
+          style={{
+            position: "absolute",
+            top: "0",
+            right: "0",
+            opacity: 0.6,
+          }}
+          title="Manage Templates"
+        />
       </div>
 
+      {/* Show message if no templates are visible */}
+      {Object.keys(visibleGroupedTemplates).length === 0 && (
+        <div style={{ 
+          textAlign: "center", 
+          padding: "40px 20px",
+          color: "#666",
+          backgroundColor: "#f9f9f9",
+          borderRadius: "8px",
+          border: "1px solid #e5e7eb"
+        }}>
+          <Icon icon="eye-off" size={24} style={{ marginBottom: "12px", opacity: 0.6 }} />
+          <p style={{ margin: 0, fontSize: "14px" }}>
+            All templates are hidden. Click the settings button above to manage templates.
+          </p>
+        </div>
+      )}
+
       {/* Templates by category */}
-      {Object.entries(groupedTemplates).map(([category, templates]) => (
+      {Object.entries(visibleGroupedTemplates).map(([category, templates]) => (
         <div key={category} style={{ marginBottom: "32px" }}>
           <h3
             style={{
@@ -225,6 +275,13 @@ export const PromptTemplatesGrid: React.FC<PromptTemplatesGridProps> = ({
           onClose={handleModalClose}
         />
       )}
+
+      {/* Template Management Modal */}
+      <TemplateManagement
+        isOpen={isManagementOpen}
+        onClose={() => setIsManagementOpen(false)}
+        onSettingsChanged={handleManagementSettingsChanged}
+      />
     </div>
   );
 };
