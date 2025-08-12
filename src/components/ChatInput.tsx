@@ -1,5 +1,11 @@
 // src/components/ChatInput.tsx
-import React, { useState, useRef, useEffect, useCallback, useMemo } from "react";
+import React, {
+  useState,
+  useRef,
+  useEffect,
+  useCallback,
+  useMemo,
+} from "react";
 import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import { Dropcursor } from "@tiptap/extension-dropcursor";
@@ -24,6 +30,8 @@ import {
 } from "../settings";
 import { BLOCK_PREVIEW_LENGTH } from "../constants";
 import { ModelSelector } from "./ModelSelector";
+import { ContextPreview } from "./ContextPreview";
+import { PageContext } from "../types";
 import { UI_CONSTANTS } from "../utils/shared/constants";
 
 interface ChatInputProps {
@@ -37,6 +45,8 @@ interface ChatInputProps {
   onTemplateSelect?: (templateId: string, prompt: string) => void;
   isLoading?: boolean;
   onCancel?: () => void;
+  context?: PageContext | null;
+  onExcludeContextBlock?: (uid: string) => void;
 }
 
 export const ChatInput: React.FC<ChatInputProps> = ({
@@ -50,6 +60,8 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   onTemplateSelect,
   isLoading = false,
   onCancel,
+  context,
+  onExcludeContextBlock,
 }) => {
   const [availableModels, setAvailableModels] = useState<
     Array<{ model: string; provider: string; providerName: string }>
@@ -69,13 +81,17 @@ export const ChatInput: React.FC<ChatInputProps> = ({
     left: 0,
   });
 
-
   // Universal search states for @ symbol triggered search
   const [showUniversalSearch, setShowUniversalSearch] = useState(false);
-  const [universalSearchResults, setUniversalSearchResults] = useState<UniversalSearchResult[]>([]);
+  const [universalSearchResults, setUniversalSearchResults] = useState<
+    UniversalSearchResult[]
+  >([]);
   const [selectedUniversalIndex, setSelectedUniversalIndex] = useState(0);
   const [universalSearchTerm, setUniversalSearchTerm] = useState("");
-  const [universalSearchPosition, setUniversalSearchPosition] = useState({ top: 0, left: 0 });
+  const [universalSearchPosition, setUniversalSearchPosition] = useState({
+    top: 0,
+    left: 0,
+  });
   const [universalSearchLoading, setUniversalSearchLoading] = useState(false);
   const [atSymbolContext, setAtSymbolContext] = useState<{
     isInAtContext: boolean;
@@ -113,25 +129,38 @@ export const ChatInput: React.FC<ChatInputProps> = ({
     editorProps: {
       handleKeyDown: (view, event) => {
         // Handle universal search Enter key at TipTap level to prevent default paragraph creation
-        if (showUniversalSearch && universalSearchResults.length > 0 && event.key === 'Enter') {
+        if (
+          showUniversalSearch &&
+          universalSearchResults.length > 0 &&
+          event.key === "Enter"
+        ) {
           event.preventDefault();
           event.stopPropagation();
           if (universalSearchResults[selectedUniversalIndex]) {
-            insertUniversalSearchResult(universalSearchResults[selectedUniversalIndex]);
+            insertUniversalSearchResult(
+              universalSearchResults[selectedUniversalIndex]
+            );
           }
           return true; // Prevent TipTap's default handling
         }
-        
+
         // Handle prompt template Enter key at TipTap level to prevent default paragraph creation
-        if (showPromptMenu && filteredPrompts.length > 0 && event.key === 'Enter') {
+        if (
+          showPromptMenu &&
+          filteredPrompts.length > 0 &&
+          event.key === "Enter"
+        ) {
           event.preventDefault();
           event.stopPropagation();
-          if (filteredPrompts[selectedPromptIndex] && handlePromptSelectRef.current) {
+          if (
+            filteredPrompts[selectedPromptIndex] &&
+            handlePromptSelectRef.current
+          ) {
             handlePromptSelectRef.current(filteredPrompts[selectedPromptIndex]);
           }
           return true; // Prevent TipTap's default handling
         }
-        
+
         return false; // Allow normal TipTap handling
       },
       attributes: {
@@ -162,7 +191,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
       const text = editor.getText();
       handleContentChange(text);
       // Update content version to trigger canSend recalculation
-      setEditorContentVersion(prev => prev + 1);
+      setEditorContentVersion((prev) => prev + 1);
     },
     onCreate: ({ editor }) => {
       // Initialize with controlled value if provided
@@ -201,14 +230,16 @@ export const ChatInput: React.FC<ChatInputProps> = ({
       processedPrompt = processedPrompt.replace(/\[DATE\]/g, today);
 
       // Combine any existing content before the command with the processed prompt
-      const finalContent = beforeCommand ? `${beforeCommand} ${processedPrompt}` : processedPrompt;
+      const finalContent = beforeCommand
+        ? `${beforeCommand} ${processedPrompt}`
+        : processedPrompt;
 
       // Clear the input field first
       editor.commands.clearContent();
       if (onChange) {
         onChange("");
       }
-      
+
       // Notify parent component about template selection and send directly
       if (onTemplateSelect) {
         onTemplateSelect(template.id, processedPrompt);
@@ -219,9 +250,9 @@ export const ChatInput: React.FC<ChatInputProps> = ({
 
       // Send the template content directly without showing in input
       onSend(finalContent);
-      
+
       // Update content version to trigger canSend recalculation
-      setEditorContentVersion(prev => prev + 1);
+      setEditorContentVersion((prev) => prev + 1);
     } else {
       closePromptMenu();
     }
@@ -322,7 +353,10 @@ export const ChatInput: React.FC<ChatInputProps> = ({
       }
 
       // Create preview text
-      const preview = RoamQuery.formatBlockPreview(blockData.string, BLOCK_PREVIEW_LENGTH);
+      const preview = RoamQuery.formatBlockPreview(
+        blockData.string,
+        BLOCK_PREVIEW_LENGTH
+      );
 
       // Insert the reference chip at drop position
       if (editor) {
@@ -347,7 +381,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
               onChange(serializedContent);
             }
             // Update content version to trigger canSend recalculation
-            setEditorContentVersion(prev => prev + 1);
+            setEditorContentVersion((prev) => prev + 1);
           }
         }, 50);
       }
@@ -397,7 +431,10 @@ export const ChatInput: React.FC<ChatInputProps> = ({
         try {
           const blockData = await RoamQuery.getBlock(ref.uid);
           const preview = blockData
-            ? RoamQuery.formatBlockPreview(blockData.string, BLOCK_PREVIEW_LENGTH)
+            ? RoamQuery.formatBlockPreview(
+                blockData.string,
+                BLOCK_PREVIEW_LENGTH
+              )
             : `Block ${ref.uid}`;
 
           insertReferenceChip(editor, ref.uid, preview);
@@ -420,7 +457,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
     } finally {
       setIsInitializing(false);
       // Trigger canSend recalculation after initialization
-      setEditorContentVersion(prev => prev + 1);
+      setEditorContentVersion((prev) => prev + 1);
     }
   };
 
@@ -434,7 +471,6 @@ export const ChatInput: React.FC<ChatInputProps> = ({
 
     // Get cursor position for bracket context
     const cursorPos = editor?.state.selection.from || 0;
-
 
     // Check for @ symbol context (universal search)
     updateAtSymbolContext(text, cursorPos);
@@ -524,10 +560,10 @@ export const ChatInput: React.FC<ChatInputProps> = ({
         setUniversalSearchLoading(false);
         return;
       }
-      
+
       setUniversalSearchLoading(true);
       const response = await RoamService.universalSearch(searchTerm, 10);
-      
+
       // Cache the results (limit cache size to prevent memory issues)
       if (searchCache.current.size > 50) {
         // Remove oldest entries
@@ -537,7 +573,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
         }
       }
       searchCache.current.set(cacheKey, response.results);
-      
+
       setUniversalSearchResults(response.results);
       setSelectedUniversalIndex(0);
     } catch (error) {
@@ -554,10 +590,10 @@ export const ChatInput: React.FC<ChatInputProps> = ({
     if (debounceTimeoutRef.current) {
       window.clearTimeout(debounceTimeoutRef.current);
     }
-    
+
     // Set loading state immediately for better UX
     setUniversalSearchLoading(true);
-    
+
     // Set new timeout
     debounceTimeoutRef.current = setTimeout(() => {
       searchUniversal(searchTerm);
@@ -579,7 +615,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
     }
 
     const editorRect = (editor.view.dom as HTMLElement).getBoundingClientRect();
-    
+
     // Align bottom with prompt template's bottom
     // Prompt template starts at editorRect.top - 320 and has max height of 300px
     // So its bottom is at editorRect.top - 320 + 300 = editorRect.top - 20
@@ -589,110 +625,111 @@ export const ChatInput: React.FC<ChatInputProps> = ({
     };
   };
 
+  // src/components/ChatInput.tsx
 
-// src/components/ChatInput.tsx
-
-const insertUniversalSearchResult = (result: UniversalSearchResult) => {
-  if (!editor) {
-    return;
-  }
-
-  const searchTermWithAt = `@${universalSearchTerm}`;
-
-  const { state } = editor;
-  const { selection } = state;
-  let start = -1;
-  let end = -1;
-
-  state.doc.nodesBetween(0, selection.from, (node, pos) => {
-    if (node.isText) {
-      const text = node.text || '';
-      const index = text.lastIndexOf(searchTermWithAt);
-      if (index !== -1) {
-        start = pos + index;
-        end = start + searchTermWithAt.length;
-      }
+  const insertUniversalSearchResult = (result: UniversalSearchResult) => {
+    if (!editor) {
+      return;
     }
-    return start === -1;
-  });
 
-  if (start === -1) {
-    console.error("Unable to locate search term in document: ", searchTermWithAt);
-    return;
-  }
-  
-  editor
-    .chain()
-    .focus()
-    .setTextSelection({ from: start, to: end })
-    .deleteSelection()
-    .insertContent({
-      type: 'referenceChip',
-      attrs: {
-        uid: result.uid,
-        preview: (result.type === 'page' || result.type === 'daily-note')
-          ? (result.title || result.preview)
-          : result.preview,
-        type: (result.type === 'page' || result.type === 'daily-note')
-          ? 'page'
-          : 'block',
-      },
-    })
-    .insertContent(' ')
-    .run();
+    const searchTermWithAt = `@${universalSearchTerm}`;
 
-  // Update React state as before
-  closeUniversalSearch();
-  const serializedContent = serializeWithReferences(editor);
-  if (onChange) {
-    onChange(serializedContent);
-  }
-  setEditorContentVersion(prev => prev + 1);
-};
+    const { state } = editor;
+    const { selection } = state;
+    let start = -1;
+    let end = -1;
 
+    state.doc.nodesBetween(0, selection.from, (node, pos) => {
+      if (node.isText) {
+        const text = node.text || "";
+        const index = text.lastIndexOf(searchTermWithAt);
+        if (index !== -1) {
+          start = pos + index;
+          end = start + searchTermWithAt.length;
+        }
+      }
+      return start === -1;
+    });
 
+    if (start === -1) {
+      console.error(
+        "Unable to locate search term in document: ",
+        searchTermWithAt
+      );
+      return;
+    }
 
+    editor
+      .chain()
+      .focus()
+      .setTextSelection({ from: start, to: end })
+      .deleteSelection()
+      .insertContent({
+        type: "referenceChip",
+        attrs: {
+          uid: result.uid,
+          preview:
+            result.type === "page" || result.type === "daily-note"
+              ? result.title || result.preview
+              : result.preview,
+          type:
+            result.type === "page" || result.type === "daily-note"
+              ? "page"
+              : "block",
+        },
+      })
+      .insertContent(" ")
+      .run();
+
+    // Update React state as before
+    closeUniversalSearch();
+    const serializedContent = serializeWithReferences(editor);
+    if (onChange) {
+      onChange(serializedContent);
+    }
+    setEditorContentVersion((prev) => prev + 1);
+  };
 
   // Check for @ symbol context in text
   const updateAtSymbolContext = (text: string, cursorPos: number) => {
     // Look backwards to find @ symbol
     let atSymbolPos = -1;
-    
+
     for (let i = cursorPos - 1; i >= 0; i--) {
-      if (text[i] === '@') {
+      if (text[i] === "@") {
         // Check if this @ symbol is at word boundary (start of line or after space)
-        if (i === 0 || text[i - 1] === ' ' || text[i - 1] === '\n') {
+        if (i === 0 || text[i - 1] === " " || text[i - 1] === "\n") {
           atSymbolPos = i;
           break;
         }
       }
       // For @ context, only stop on space, not newline (allow multiline @ context)
-      if (text[i] === ' ' && i < cursorPos - 1) {
+      if (text[i] === " " && i < cursorPos - 1) {
         break;
       }
     }
 
     // Check if we're in a valid @ context
     const isInAtContext = atSymbolPos !== -1;
-    
+
     if (isInAtContext) {
       // Extract the current search term (everything after @ excluding newlines)
       const searchStart = atSymbolPos + 1;
       let currentSearchTerm = text.substring(searchStart, cursorPos);
-      
+
       // Remove newlines but preserve other whitespace for now
-      currentSearchTerm = currentSearchTerm.replace(/\n/g, '');
+      currentSearchTerm = currentSearchTerm.replace(/\n/g, "");
       const trimmedSearchTerm = currentSearchTerm.trim();
-      
+
       setAtSymbolContext({
         isInAtContext: true,
         startPos: atSymbolPos,
       });
-      
+
       // Use trimmed version for comparison but keep original for context
       if (trimmedSearchTerm !== universalSearchTerm) {
         setUniversalSearchTerm(trimmedSearchTerm);
-        
+
         if (trimmedSearchTerm.length > 0) {
           debouncedSearchUniversal(trimmedSearchTerm);
         } else {
@@ -700,7 +737,7 @@ const insertUniversalSearchResult = (result: UniversalSearchResult) => {
           setUniversalSearchResults([]);
           setUniversalSearchLoading(false);
         }
-        
+
         if (!showUniversalSearch) {
           setShowUniversalSearch(true);
           setUniversalSearchPosition(calculateUniversalSearchPosition());
@@ -766,7 +803,6 @@ const insertUniversalSearchResult = (result: UniversalSearchResult) => {
         }
       }
 
-
       // Handle prompt menu navigation
       if (showPromptMenu) {
         switch (event.key) {
@@ -795,14 +831,22 @@ const insertUniversalSearchResult = (result: UniversalSearchResult) => {
         }
       }
 
-
       // Handle send message
       if (event.key === "Enter" && !event.shiftKey && !isComposing) {
         event.preventDefault();
         handleSend();
       }
     },
-    [editor, showPromptMenu, filteredPrompts, selectedPromptIndex, showUniversalSearch, universalSearchResults, selectedUniversalIndex, isComposing]
+    [
+      editor,
+      showPromptMenu,
+      filteredPrompts,
+      selectedPromptIndex,
+      showUniversalSearch,
+      universalSearchResults,
+      selectedUniversalIndex,
+      isComposing,
+    ]
   );
 
   // Add keyboard event listener and focus management
@@ -856,8 +900,13 @@ const insertUniversalSearchResult = (result: UniversalSearchResult) => {
 
     const text = editor.getText().trim();
     const serializedContent = serializeWithReferences(editor);
-    
-    if ((text || serializedContent.includes('((') || serializedContent.includes('[[')) && !disabled) {
+
+    if (
+      (text ||
+        serializedContent.includes("((") ||
+        serializedContent.includes("[[")) &&
+      !disabled
+    ) {
       // Send the editor JSON for processing references
       const editorJSON = editor.getJSON();
       onSend(editorJSON as any);
@@ -866,7 +915,7 @@ const insertUniversalSearchResult = (result: UniversalSearchResult) => {
         onChange("");
       }
       // Update content version to trigger canSend recalculation
-      setEditorContentVersion(prev => prev + 1);
+      setEditorContentVersion((prev) => prev + 1);
     }
   };
 
@@ -893,14 +942,15 @@ const insertUniversalSearchResult = (result: UniversalSearchResult) => {
 
   const canSend = useMemo(() => {
     if (!editor || disabled || isLoading) return false;
-    
+
     // Check if editor has any text content
     const hasTextContent = (editor.getText()?.trim().length || 0) > 0;
-    
+
     // Check if editor has any reference chips
     const serializedContent = serializeWithReferences(editor);
-    const hasReferences = serializedContent.includes('((') || serializedContent.includes('[[');
-    
+    const hasReferences =
+      serializedContent.includes("((") || serializedContent.includes("[[");
+
     return hasTextContent || hasReferences;
   }, [editor, disabled, isLoading, editorContentVersion]);
 
@@ -957,6 +1007,11 @@ const insertUniversalSearchResult = (result: UniversalSearchResult) => {
       className="rr-copilot-input-container"
       style={{ position: "relative" }}
     >
+      {/* Compact context chips bar right above the input box */}
+      <ContextPreview
+        context={context || null}
+        onExcludeBlock={onExcludeContextBlock}
+      />
       <div className="rr-copilot-input-box">
         <div
           className="rr-copilot-editor-container"
@@ -977,7 +1032,6 @@ const insertUniversalSearchResult = (result: UniversalSearchResult) => {
               isLoading={isLoadingModels}
             />
           </div>
-
 
           {isLoading ? (
             <button
@@ -1046,7 +1100,6 @@ const insertUniversalSearchResult = (result: UniversalSearchResult) => {
         position={promptMenuPosition}
         filter={promptFilter}
       />
-
 
       {/* Universal Search Dropdown */}
       <UniversalSearchDropdown

@@ -5,8 +5,14 @@
 
 /* Streaming cursor animation */
 @keyframes blink {
-  0%, 50% { opacity: 1; }
-  51%, 100% { opacity: 0; }
+  0%,
+  50% {
+    opacity: 1;
+  }
+  51%,
+  100% {
+    opacity: 0;
+  }
 }
 
 /* Optimized streaming cursor for message content */
@@ -110,7 +116,6 @@
   overflow: hidden;
 }
 
-
 /* Sidebar container */
 .roam-copilot-sidebar-container {
   position: fixed;
@@ -172,8 +177,8 @@
 .roam-copilot-header {
   height: 45px;
   padding: 0 20px;
-  background: #F7F8F9;
-  color: #5C7080;
+  background: #f7f8f9;
+  color: #5c7080;
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -257,7 +262,7 @@
 
 /* Simplified Input Component */
 .rr-copilot-input-container {
-  padding: 20px;
+  padding: 6px 20px 20px 20px; /* allow a context bar to sit right above input */
   background: #ffffff;
   border-top: 1px solid #e1e5e9;
   flex-shrink: 0;
@@ -496,7 +501,8 @@ details[style*="thinking"][open] {
 .rr-copilot-input-box:focus-within {
   border-color: #393a3d;
   background: white;
-  box-shadow: 0 0 0 3px rgba(57, 58, 61, 0.12), 0 4px 16px rgba(60, 64, 67, 0.15);
+  box-shadow: 0 0 0 3px rgba(57, 58, 61, 0.12),
+    0 4px 16px rgba(60, 64, 67, 0.15);
 }
 
 .rr-copilot-input-textarea {
@@ -616,7 +622,7 @@ details[style*="thinking"][open] {
 }
 
 .rr-copilot-send-button::before {
-  content: '';
+  content: "";
   position: absolute;
   top: 0;
   left: 0;
@@ -625,7 +631,11 @@ details[style*="thinking"][open] {
   border-radius: inherit;
   opacity: 0;
   transition: opacity 0.3s ease;
-  background: linear-gradient(45deg, rgba(255, 255, 255, 0.3), rgba(255, 255, 255, 0));
+  background: linear-gradient(
+    45deg,
+    rgba(255, 255, 255, 0.3),
+    rgba(255, 255, 255, 0)
+  );
 }
 
 .rr-copilot-send-button.active {
@@ -690,7 +700,7 @@ details[style*="thinking"][open] {
 }
 
 .rr-copilot-cancel-button::before {
-  content: '';
+  content: "";
   position: absolute;
   top: 0;
   left: 0;
@@ -699,13 +709,18 @@ details[style*="thinking"][open] {
   border-radius: inherit;
   opacity: 0;
   transition: opacity 0.3s ease;
-  background: linear-gradient(45deg, rgba(255, 255, 255, 0.3), rgba(255, 255, 255, 0));
+  background: linear-gradient(
+    45deg,
+    rgba(255, 255, 255, 0.3),
+    rgba(255, 255, 255, 0)
+  );
 }
 
 .rr-copilot-cancel-button:hover {
   background: linear-gradient(135deg, #c82333 0%, #a71e2a 100%);
   transform: translateY(-1px);
-  box-shadow: 0 4px 16px rgba(220, 53, 69, 0.3), 0 2px 6px rgba(220, 53, 69, 0.4);
+  box-shadow: 0 4px 16px rgba(220, 53, 69, 0.3),
+    0 2px 6px rgba(220, 53, 69, 0.4);
 }
 
 .rr-copilot-cancel-button:hover::before {
@@ -1280,7 +1295,8 @@ details[style*="thinking"][open] {
   background-color: #f6f8fa !important;
   border: 1px solid #d1d9e0 !important;
   border-radius: 8px !important;
-  font-family: SFMono-Regular, "SF Mono", Monaco, Inconsolata, "Roboto Mono", Consolas, "Droid Sans Mono", monospace !important;
+  font-family: SFMono-Regular, "SF Mono", Monaco, Inconsolata, "Roboto Mono",
+    Consolas, "Droid Sans Mono", monospace !important;
   font-size: 13px !important;
   line-height: 1.45 !important;
   margin: 12px 0 !important;
@@ -1292,7 +1308,8 @@ details[style*="thinking"][open] {
   background-color: #f6f8fa !important;
   border: 1px solid #d1d9e0 !important;
   border-radius: 3px !important;
-  font-family: SFMono-Regular, "SF Mono", Monaco, Inconsolata, "Roboto Mono", Consolas, "Droid Sans Mono", monospace !important;
+  font-family: SFMono-Regular, "SF Mono", Monaco, Inconsolata, "Roboto Mono",
+    Consolas, "Droid Sans Mono", monospace !important;
   font-size: 13px !important;
   padding: 2px 4px !important;
 }
@@ -1330,7 +1347,10 @@ details[style*="thinking"][open] {
   border-right: 1px solid #e1e5e9 !important;
 }
 
-.rr-copilot-message-container .rr-copilot-enhanced-renderer table th:last-child {
+.rr-copilot-message-container
+  .rr-copilot-enhanced-renderer
+  table
+  th:last-child {
   border-right: none !important;
 }
 
@@ -1341,19 +1361,35 @@ details[style*="thinking"][open] {
   vertical-align: top !important;
 }
 
-.rr-copilot-message-container .rr-copilot-enhanced-renderer table td:last-child {
+.rr-copilot-message-container
+  .rr-copilot-enhanced-renderer
+  table
+  td:last-child {
   border-right: none !important;
 }
 
-.rr-copilot-message-container .rr-copilot-enhanced-renderer table tbody tr:nth-child(even) {
+.rr-copilot-message-container
+  .rr-copilot-enhanced-renderer
+  table
+  tbody
+  tr:nth-child(even) {
   background-color: #f9fafb !important;
 }
 
-.rr-copilot-message-container .rr-copilot-enhanced-renderer table tbody tr:hover {
+.rr-copilot-message-container
+  .rr-copilot-enhanced-renderer
+  table
+  tbody
+  tr:hover {
   background-color: #f1f3f4 !important;
 }
 
-.rr-copilot-message-container .rr-copilot-enhanced-renderer table tbody tr:last-child td {
+.rr-copilot-message-container
+  .rr-copilot-enhanced-renderer
+  table
+  tbody
+  tr:last-child
+  td {
   border-bottom: none !important;
 }
 
@@ -1626,8 +1662,12 @@ details[style*="thinking"][open] {
 }
 
 @keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
 }
 
 .rr-universal-search-empty {
@@ -1835,7 +1875,8 @@ details[style*="thinking"][open] {
 
 /* New message indicator pulse animation */
 @keyframes pulse {
-  0%, 100% {
+  0%,
+  100% {
     opacity: 1;
     transform: scale(1);
   }
@@ -1885,7 +1926,7 @@ details[style*="thinking"][open] {
   .rr-copilot-message-list {
     scroll-behavior: smooth;
   }
-  
+
   /* Message entrance animations */
   .rr-copilot-message-item {
     animation: messageSlideIn 0.3s ease-out;
@@ -1908,7 +1949,6 @@ details[style*="thinking"][open] {
   transition: all 0.2s ease;
 }
 
-
 /* Loading indicator enhancements */
 .rr-copilot-message-list .rr-copilot-loading-container {
   animation: messageSlideIn 0.3s ease-out;
@@ -1916,9 +1956,8 @@ details[style*="thinking"][open] {
 
 /* Copy button smooth transitions */
 .rr-copilot-copy-button-container {
-  transition: opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1), 
-              visibility 0.3s cubic-bezier(0.4, 0, 0.2, 1),
-              transform 0.2s ease;
+  transition: opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+    visibility 0.3s cubic-bezier(0.4, 0, 0.2, 1), transform 0.2s ease;
 }
 
 /* Context Preview Button Styles */
@@ -1940,13 +1979,17 @@ details[style*="thinking"][open] {
 }
 
 .rr-copilot-context-button::before {
-  content: '';
+  content: "";
   position: absolute;
   top: 0;
   left: 0;
   right: 0;
   bottom: 0;
-  background: linear-gradient(135deg, rgba(26, 115, 232, 0.1) 0%, rgba(26, 115, 232, 0.05) 100%);
+  background: linear-gradient(
+    135deg,
+    rgba(26, 115, 232, 0.1) 0%,
+    rgba(26, 115, 232, 0.05) 100%
+  );
   opacity: 0;
   transition: opacity 0.2s ease;
   border-radius: 8px;
@@ -1957,7 +2000,8 @@ details[style*="thinking"][open] {
   background: linear-gradient(135deg, #f8f9ff 0%, #f0f4ff 100%);
   color: #1a73e8;
   transform: translateY(-1px);
-  box-shadow: 0 2px 8px rgba(26, 115, 232, 0.15), 0 1px 3px rgba(26, 115, 232, 0.1);
+  box-shadow: 0 2px 8px rgba(26, 115, 232, 0.15),
+    0 1px 3px rgba(26, 115, 232, 0.1);
 }
 
 .rr-copilot-context-button:hover::before {
@@ -1973,18 +2017,21 @@ details[style*="thinking"][open] {
   background: linear-gradient(135deg, #1a73e8 0%, #1557b0 100%);
   color: white;
   border-color: #1557b0;
-  box-shadow: 0 2px 8px rgba(26, 115, 232, 0.3), 0 1px 3px rgba(26, 115, 232, 0.2);
+  box-shadow: 0 2px 8px rgba(26, 115, 232, 0.3),
+    0 1px 3px rgba(26, 115, 232, 0.2);
 }
 
 .rr-copilot-context-button.active:hover {
   background: linear-gradient(135deg, #1557b0 0%, #0d47a1 100%);
   transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(26, 115, 232, 0.4), 0 2px 6px rgba(26, 115, 232, 0.3);
+  box-shadow: 0 4px 12px rgba(26, 115, 232, 0.4),
+    0 2px 6px rgba(26, 115, 232, 0.3);
 }
 
 .rr-copilot-context-button.active:active {
   transform: translateY(0);
-  box-shadow: 0 2px 8px rgba(26, 115, 232, 0.3), 0 1px 3px rgba(26, 115, 232, 0.2);
+  box-shadow: 0 2px 8px rgba(26, 115, 232, 0.3),
+    0 1px 3px rgba(26, 115, 232, 0.2);
 }
 
 .rr-copilot-context-button svg {
@@ -2005,9 +2052,8 @@ details[style*="thinking"][open] {
 }
 
 .rr-copilot-copy-icon {
-  transition: opacity 0.2s ease, 
-              transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275),
-              color 0.2s ease;
+  transition: opacity 0.2s ease,
+    transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275), color 0.2s ease;
 }
 
 .rr-copilot-copy-icon:hover {
@@ -2027,6 +2073,174 @@ details[style*="thinking"][open] {
 /* Message container hover effects */
 .rr-copilot-message-container:hover {
   transition: background-color 0.2s ease;
+}
+
+/* Compact Context Bar (replaces large card) */
+.rr-context-bar-container {
+  padding: 0 0 6px 0;
+  background: transparent;
+}
+
+.rr-context-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  border: 1px solid #e6e8eb;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+  color: #5f6368;
+  cursor: pointer;
+  user-select: none;
+  transition: all 0.2s ease;
+}
+
+.rr-context-bar:hover {
+  border-color: #cfd3d8;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+.rr-context-bar__label {
+  font-size: 12px;
+}
+
+.rr-context-bar__chips {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: 6px;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.rr-context-chip {
+  display: inline-flex !important;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px !important;
+  line-height: 1 !important;
+  padding: 4px 6px !important;
+  border-radius: 8px !important;
+  background: #fff !important;
+  border: 1px solid #e6e8eb !important;
+}
+
+.rr-context-chip__text {
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.rr-context-chip__count {
+  margin-left: 2px;
+  opacity: 0.8;
+}
+
+.rr-context-bar__caret {
+  margin-left: auto;
+  opacity: 0.6;
+}
+
+.rr-context-bar--empty {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  color: #8a9096;
+  font-size: 12px;
+}
+
+/* Popover content for context details */
+.rr-context-popover {
+  max-width: 520px;
+}
+
+.rr-context-popover__header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 10px;
+  border-bottom: 1px solid #eceff1;
+}
+
+.rr-context-popover__body {
+  padding: 8px 10px;
+  max-height: 360px;
+  overflow-y: auto;
+}
+
+/* Hover list rows used for quick removal */
+.rr-context-hover-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 4px;
+  border-bottom: 1px solid #f0f1f2;
+}
+.rr-context-hover-row:last-child {
+  border-bottom: none;
+}
+.rr-context-hover-text {
+  flex: 1;
+  min-width: 0;
+  font-size: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.rr-context-hover-close {
+  border: 1px solid #e6e8eb;
+  background: #fff;
+  border-radius: 6px;
+  width: 22px;
+  height: 22px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: #8a9096;
+}
+.rr-context-hover-close:hover {
+  color: #d32f2f;
+  border-color: #e5aaaa;
+}
+.rr-context-popover__empty {
+  color: #8a9096;
+  font-size: 12px;
+  padding: 6px;
+}
+
+.rr-context-popover__section {
+  border: 1px solid #eef0f2;
+  border-radius: 8px;
+  padding: 8px;
+  background: #fbfcfd;
+  margin-bottom: 8px;
+}
+
+.rr-context-popover__title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+
+.rr-context-popover__title-text {
+  font-weight: 600;
+  font-size: 12px;
+}
+
+.rr-context-popover__content {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+    "Liberation Mono", "Courier New", monospace;
+  font-size: 12px;
+  white-space: pre-wrap;
+  background: #fff;
+  border: 1px solid #eceff1;
+  border-radius: 6px;
+  padding: 6px;
+  max-height: 120px;
+  overflow: auto;
 }
 
 /* Smart scroll bottom marker - invisible but functional */
@@ -2051,7 +2265,7 @@ details[style*="thinking"][open] {
     animation: none !important;
     transition: none !important;
   }
-  
+
   .rr-copilot-message-list {
     scroll-behavior: auto !important;
   }

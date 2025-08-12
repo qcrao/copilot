@@ -50,6 +50,16 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
   });
 
   const [pageContext, setPageContext] = useState<PageContext | null>(null);
+  const [excludedContextUids, setExcludedContextUids] = useState<Set<string>>(
+    new Set()
+  );
+  const handleExcludeFromContext = useCallback((uid: string) => {
+    setExcludedContextUids((prev) => {
+      const next = new Set(prev);
+      next.add(uid);
+      return next;
+    });
+  }, []);
   const [copiedMessageIndex, setCopiedMessageIndex] = useState<number | null>(
     null
   );
@@ -135,54 +145,79 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
     }
   }, [isOpen, windowPosition, windowSize, isUnmounting]);
 
-  const updatePageContext = useCallback(async (forceUpdate: boolean = false) => {
-    if (isUnmounting || isUpdatingContext) return;
+  const updatePageContext = useCallback(
+    async (forceUpdate: boolean = false) => {
+      if (isUnmounting || isUpdatingContext) return;
 
-    // Prevent rapid successive updates that could cause infinite loops (unless forced)
-    if (!forceUpdate) {
-      const now = Date.now();
-      const timeSinceLastUpdate = now - lastContextUpdate;
-      const MIN_UPDATE_INTERVAL = 1000; // 1 second minimum between updates
+      // Prevent rapid successive updates that could cause infinite loops (unless forced)
+      if (!forceUpdate) {
+        const now = Date.now();
+        const timeSinceLastUpdate = now - lastContextUpdate;
+        const MIN_UPDATE_INTERVAL = 1000; // 1 second minimum between updates
 
-      if (timeSinceLastUpdate < MIN_UPDATE_INTERVAL) {
-        console.log(
-          `⏳ Context update throttled (${timeSinceLastUpdate}ms since last update)`
-        );
-        return;
-      }
-    }
-
-    // Clear any pending timeout
-    if (updateContextTimeoutRef.current) {
-      clearTimeout(updateContextTimeoutRef.current);
-      updateContextTimeoutRef.current = null;
-    }
-
-    try {
-      setIsUpdatingContext(true);
-      const now = Date.now();
-      setLastContextUpdate(now);
-      console.log("🔄 Updating page context...");
-
-      const context = await PerformanceMonitor.measure(
-        "updatePageContext",
-        async () => {
-          return await RoamService.getPageContext();
+        if (timeSinceLastUpdate < MIN_UPDATE_INTERVAL) {
+          console.log(
+            `⏳ Context update throttled (${timeSinceLastUpdate}ms since last update)`
+          );
+          return;
         }
-      );
-
-      if (!isUnmounting) {
-        setPageContext(context);
-        console.log("✅ Page context updated successfully");
       }
-    } catch (error) {
-      console.error("❌ Failed to get page context:", error);
-      // Reset throttle on error to allow retry
-      setLastContextUpdate(0);
-    } finally {
-      setIsUpdatingContext(false);
-    }
-  }, [isUnmounting, lastContextUpdate, isUpdatingContext]);
+
+      // Clear any pending timeout
+      if (updateContextTimeoutRef.current) {
+        clearTimeout(updateContextTimeoutRef.current);
+        updateContextTimeoutRef.current = null;
+      }
+
+      try {
+        setIsUpdatingContext(true);
+        const now = Date.now();
+        setLastContextUpdate(now);
+        console.log("🔄 Updating page context...");
+
+        const context = await PerformanceMonitor.measure(
+          "updatePageContext",
+          async () => {
+            return await RoamService.getPageContext();
+          }
+        );
+
+        if (!isUnmounting) {
+          // Filter out excluded items if any
+          const filterBlocks = (blocks: any[] | undefined) =>
+            (blocks || []).filter((b: any) => !excludedContextUids.has(b.uid));
+
+          const filtered: PageContext = {
+            currentPage: context.currentPage
+              ? {
+                  ...context.currentPage,
+                  blocks: filterBlocks(context.currentPage.blocks),
+                }
+              : undefined,
+            visibleBlocks: filterBlocks(context.visibleBlocks),
+            selectedText: context.selectedText,
+            dailyNote: context.dailyNote
+              ? {
+                  ...context.dailyNote,
+                  blocks: filterBlocks(context.dailyNote.blocks),
+                }
+              : undefined,
+            linkedReferences: filterBlocks(context.linkedReferences) as any,
+          } as PageContext;
+
+          setPageContext(filtered);
+          console.log("✅ Page context updated successfully");
+        }
+      } catch (error) {
+        console.error("❌ Failed to get page context:", error);
+        // Reset throttle on error to allow retry
+        setLastContextUpdate(0);
+      } finally {
+        setIsUpdatingContext(false);
+      }
+    },
+    [isUnmounting, lastContextUpdate, isUpdatingContext, excludedContextUids]
+  );
 
   useEffect(() => {
     if (isOpen) {
@@ -196,21 +231,21 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
 
     let lastUrl = window.location.href;
     let lastTitle = document.title;
-    
+
     const checkForPageChange = () => {
       const currentUrl = window.location.href;
       const currentTitle = document.title;
-      
+
       if (currentUrl !== lastUrl || currentTitle !== lastTitle) {
         console.log("📄 Page change detected, updating context...");
         lastUrl = currentUrl;
         lastTitle = currentTitle;
-        
+
         // Debounce the update to avoid too frequent calls
         if (updateContextTimeoutRef.current) {
           clearTimeout(updateContextTimeoutRef.current);
         }
-        
+
         updateContextTimeoutRef.current = setTimeout(() => {
           updatePageContext();
         }, 500); // 500ms delay
@@ -226,16 +261,18 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
     // Use MutationObserver to watch for DOM changes that might indicate page navigation
     const observer = new MutationObserver((mutations) => {
       // Check if the main content area has changed significantly
-      const hasSignificantChange = mutations.some(mutation => {
+      const hasSignificantChange = mutations.some((mutation) => {
         // Check if new nodes were added to the main content area
-        if (mutation.type === 'childList' && mutation.addedNodes.length > 0) {
+        if (mutation.type === "childList" && mutation.addedNodes.length > 0) {
           for (let node of mutation.addedNodes) {
             if (node.nodeType === Node.ELEMENT_NODE) {
               const element = node as Element;
               // Look for Roam's main content indicators
-              if (element.classList?.contains('roam-article') || 
-                  element.classList?.contains('rm-article-wrapper') ||
-                  element.querySelector?.('.roam-article, .rm-article-wrapper')) {
+              if (
+                element.classList?.contains("roam-article") ||
+                element.classList?.contains("rm-article-wrapper") ||
+                element.querySelector?.(".roam-article, .rm-article-wrapper")
+              ) {
                 return true;
               }
             }
@@ -251,18 +288,18 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
     });
 
     // Observe the main Roam content area
-    const roamApp = document.querySelector('#app, .roam-app, .rm-app');
+    const roamApp = document.querySelector("#app, .roam-app, .rm-app");
     if (roamApp) {
       observer.observe(roamApp, {
         childList: true,
         subtree: true,
-        attributes: false
+        attributes: false,
       });
     }
 
     // Listen for hash changes
-    window.addEventListener('hashchange', handleHashChange);
-    
+    window.addEventListener("hashchange", handleHashChange);
+
     // Also check periodically as a fallback
     const intervalId = setInterval(checkForPageChange, 2000); // Check every 2 seconds
 
@@ -271,7 +308,7 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
         clearTimeout(updateContextTimeoutRef.current);
         updateContextTimeoutRef.current = null;
       }
-      window.removeEventListener('hashchange', handleHashChange);
+      window.removeEventListener("hashchange", handleHashChange);
       observer.disconnect();
       clearInterval(intervalId);
     };
@@ -431,11 +468,17 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
       );
 
       // Check if this template requires current page context
-      const template = PROMPT_TEMPLATES.find(t => t.id === currentTemplate.id);
-      templateRequiresCurrentPage = template?.requiresContext === true && template?.contextType === "current-page";
-      
+      const template = PROMPT_TEMPLATES.find(
+        (t) => t.id === currentTemplate.id
+      );
+      templateRequiresCurrentPage =
+        template?.requiresContext === true &&
+        template?.contextType === "current-page";
+
       if (templateRequiresCurrentPage) {
-        console.log("🔄 Template requires current page context, will refresh context");
+        console.log(
+          "🔄 Template requires current page context, will refresh context"
+        );
       }
 
       // Clear the selected template state if it was used
@@ -495,7 +538,10 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
           // updatePageContext updates the state, but we need immediate access
           const latestContext = await RoamService.getPageContext();
           currentContext = latestContext;
-          console.log("✅ Got fresh context for template, current page:", latestContext?.currentPage?.title || "None");
+          console.log(
+            "✅ Got fresh context for template, current page:",
+            latestContext?.currentPage?.title || "None"
+          );
         } catch (error) {
           console.error("❌ Failed to refresh context for template:", error);
           // Continue with existing context
@@ -586,6 +632,13 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
         pagesToInclude,
         blockReferences
       );
+
+      // Respect user exclusions from the preview bar
+      if (excludedContextUids.size > 0) {
+        contextItems = contextItems.filter(
+          (item: any) => !excludedContextUids.has(item.uid)
+        );
+      }
 
       let enhancedUserMessage = actualUserMessage;
 
@@ -775,19 +828,23 @@ ${contextForUser}`;
             "❌ Error during stream iteration:",
             streamIterationError
           );
-          
+
           // Check if this is an abort error (user cancellation)
-          const isAbortError = streamIterationError.name === 'AbortError' || 
-                              streamIterationError.message.includes('aborted') ||
-                              streamIterationError.message.includes('BodyStreamBuffer was aborted') ||
-                              (currentRequestAbortController.current?.signal.aborted || false);
-          
+          const isAbortError =
+            streamIterationError.name === "AbortError" ||
+            streamIterationError.message.includes("aborted") ||
+            streamIterationError.message.includes(
+              "BodyStreamBuffer was aborted"
+            ) ||
+            currentRequestAbortController.current?.signal.aborted ||
+            false;
+
           if (isAbortError) {
             console.log("🛑 Stream iteration stopped due to user cancellation");
             // Don't update the message content - handleCancelRequest already did
             return;
           }
-          
+
           // Handle real errors
           setState((prev) => {
             const updatedMessages = prev.messages.map((msg) =>
@@ -834,10 +891,12 @@ ${contextForUser}`;
         console.error("❌ Streaming error caught:", streamingError);
 
         // Check if the error is due to cancellation
-        const isAbortError = streamingError.name === 'AbortError' || 
-                            streamingError.message.includes('aborted') ||
-                            streamingError.message.includes('BodyStreamBuffer was aborted') ||
-                            (currentRequestAbortController.current?.signal.aborted || false);
+        const isAbortError =
+          streamingError.name === "AbortError" ||
+          streamingError.message.includes("aborted") ||
+          streamingError.message.includes("BodyStreamBuffer was aborted") ||
+          currentRequestAbortController.current?.signal.aborted ||
+          false;
 
         if (isAbortError) {
           console.log("🛑 Request was cancelled - preserving partial content");
@@ -846,7 +905,10 @@ ${contextForUser}`;
         }
 
         // Handle real errors
-        console.log("🔧 Handling real streaming error:", streamingError.message);
+        console.log(
+          "🔧 Handling real streaming error:",
+          streamingError.message
+        );
         setState((prev) => {
           const updatedMessages = prev.messages.map((msg) =>
             msg.id === streamingMessageId
@@ -884,7 +946,7 @@ ${contextForUser}`;
     if (currentRequestAbortController.current) {
       console.log("🛑 User requested cancellation");
       currentRequestAbortController.current.abort();
-      
+
       // Find the currently streaming message and mark it as cancelled but keep content
       setState((prev) => {
         const updatedMessages = prev.messages.map((msg) => {
@@ -892,7 +954,10 @@ ${contextForUser}`;
             const currentContent = msg.content || "";
             return {
               ...msg,
-              content: currentContent + (currentContent ? "\n\n" : "") + "*[Request cancelled by user]*",
+              content:
+                currentContent +
+                (currentContent ? "\n\n" : "") +
+                "*[Request cancelled by user]*",
               isStreaming: false,
             };
           }
@@ -909,7 +974,7 @@ ${contextForUser}`;
           messages: updatedMessages,
         };
       });
-      
+
       currentRequestAbortController.current = null;
     }
   };
@@ -1009,7 +1074,7 @@ ${contextForUser}`;
 
   const handleConversationSelect = async (conversationId: string) => {
     if (state.isLoading) return;
-    
+
     try {
       setState((prev) => ({ ...prev, isLoading: true }));
 
@@ -1822,8 +1887,7 @@ ${contextForUser}`;
             )}
           </div>
 
-          {/* Context Preview */}
-          <ContextPreview context={pageContext} />
+          {/* Context Preview moved into ChatInput for placement control */}
 
           <ChatInput
             placeholder={UI_CONSTANTS.CHAT_INPUT.PLACEHOLDER_TEXT}
@@ -1836,6 +1900,8 @@ ${contextForUser}`;
             onTemplateSelect={handleTemplateSelect}
             isLoading={state.isLoading} // Pass loading state for send button
             onCancel={handleCancelRequest} // Pass cancel handler
+            context={pageContext}
+            onExcludeContextBlock={handleExcludeFromContext}
           />
         </div>
       </div>
