@@ -172,7 +172,7 @@ export const TemplateForm: React.FC<TemplateFormProps> = ({
         </FormGroup>
 
         <FormGroup label="Category">
-          <div style={{ display: "flex", gap: "8px", alignItems: "stretch" }}>
+          <div style={{ display: "flex", gap: "16px", alignItems: "stretch" }}>
             {!isAddingCustomCategory ? (
               <>
                 <div style={{ flex: "1" }}>
@@ -193,7 +193,7 @@ export const TemplateForm: React.FC<TemplateFormProps> = ({
                     ))}
                   </HTMLSelect>
                 </div>
-                <div style={{ flex: "1" }}>
+                <div style={{ flex: "1", display: "flex", justifyContent: "flex-start" }}>
                   <Button
                     minimal
                     icon="plus"
@@ -202,7 +202,6 @@ export const TemplateForm: React.FC<TemplateFormProps> = ({
                       setCustomCategoryInput("");
                     }}
                     title="Add Custom Category"
-                    fill
                   >
                     Add Category
                   </Button>
@@ -219,7 +218,7 @@ export const TemplateForm: React.FC<TemplateFormProps> = ({
                     autoFocus
                   />
                 </div>
-                <div style={{ display: "flex", gap: "4px" }}>
+                <div style={{ flex: "1", display: "flex", justifyContent: "flex-start", gap: "4px" }}>
                   <Button
                     icon="tick"
                     intent="primary"
