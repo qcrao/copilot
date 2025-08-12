@@ -2075,43 +2075,7 @@ details[style*="thinking"][open] {
   transition: background-color 0.2s ease;
 }
 
-/* Compact Context Bar (replaces large card) */
-.rr-context-bar-container {
-  padding: 0 0 6px 0;
-  background: transparent;
-}
-
-.rr-context-bar {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 4px 8px;
-  border: 1px solid #e6e8eb;
-  border-radius: 10px;
-  background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
-  color: #5f6368;
-  cursor: pointer;
-  user-select: none;
-  transition: all 0.2s ease;
-}
-
-.rr-context-bar:hover {
-  border-color: #cfd3d8;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
-}
-
-.rr-context-bar__label {
-  font-size: 12px;
-}
-
-.rr-context-bar__chips {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  margin-left: 6px;
-  overflow: hidden;
-  white-space: nowrap;
-}
+/* Compact Context Chips (no container bar) */
 
 .rr-context-chip {
   display: inline-flex !important;
@@ -2119,14 +2083,15 @@ details[style*="thinking"][open] {
   gap: 4px;
   font-size: 11px !important;
   line-height: 1 !important;
-  padding: 4px 6px !important;
+  padding: 4px 8px !important;
   border-radius: 8px !important;
-  background: #fff !important;
+  background: #ffffff !important;
   border: 1px solid #e6e8eb !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
 }
 
 .rr-context-chip__text {
-  max-width: 120px;
+  max-width: 180px;
   overflow: hidden;
   text-overflow: ellipsis;
 }
@@ -2134,6 +2099,15 @@ details[style*="thinking"][open] {
 .rr-context-chip__count {
   margin-left: 2px;
   opacity: 0.8;
+}
+
+.rr-context-chip--page {
+  border-color: #d0e3ff !important;
+  background: #f7fbff !important;
+}
+.rr-context-chip--backlinks {
+  border-color: #e6e1ff !important;
+  background: #faf9ff !important;
 }
 
 .rr-context-bar__caret {

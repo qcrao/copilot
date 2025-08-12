@@ -99,13 +99,7 @@ export const ContextPreview: React.FC<ContextPreviewProps> = ({
   }, [context]);
 
   // Collapsed, compact bar when no sections
-  if (sections.length === 0) {
-    return (
-      <div className="rr-context-bar rr-context-bar--empty">
-        <span className="rr-context-bar__label">无上下文</span>
-      </div>
-    );
-  }
+  if (sections.length === 0) return null;
 
   // Build hover lists for current page and backlinks
   const currentPageBlocks = context.currentPage?.blocks || [];
@@ -145,49 +139,47 @@ export const ContextPreview: React.FC<ContextPreviewProps> = ({
   const backlinkCount = backlinks.length;
 
   return (
-    <div className="rr-context-bar-container">
-      <div className="rr-context-bar" aria-label="页面上下文">
-        {context.currentPage && (
-          <Popover
-            content={renderHoverList(currentPageBlocks)}
-            position={Position.TOP}
-            interactionKind="hover"
+    <>
+      {context.currentPage && (
+        <Popover
+          content={renderHoverList(currentPageBlocks)}
+          position={Position.TOP}
+          interactionKind="hover"
+          minimal
+          hoverOpenDelay={100}
+        >
+          <Tag
             minimal
-            hoverOpenDelay={100}
+            round
+            className="rr-context-chip rr-context-chip--page"
+            title={context.currentPage.title}
           >
-            <Tag
-              minimal
-              round
-              className="rr-context-chip"
-              title={context.currentPage.title}
-            >
-              <span className="rr-context-chip__text">
-                {context.currentPage.title}
-              </span>
-              <span className="rr-context-chip__count">{pageCount}</span>
-            </Tag>
-          </Popover>
-        )}
-        {backlinkCount > 0 && (
-          <Popover
-            content={renderHoverList(backlinks)}
-            position={Position.TOP}
-            interactionKind="hover"
+            <span className="rr-context-chip__text">
+              {context.currentPage.title}
+            </span>
+            <span className="rr-context-chip__count">{pageCount}</span>
+          </Tag>
+        </Popover>
+      )}
+      {backlinkCount > 0 && (
+        <Popover
+          content={renderHoverList(backlinks)}
+          position={Position.TOP}
+          interactionKind="hover"
+          minimal
+          hoverOpenDelay={100}
+        >
+          <Tag
             minimal
-            hoverOpenDelay={100}
+            round
+            className="rr-context-chip rr-context-chip--backlinks"
+            title={`反向链接 ${backlinkCount}`}
           >
-            <Tag
-              minimal
-              round
-              className="rr-context-chip"
-              title={`反向链接 ${backlinkCount}`}
-            >
-              <span className="rr-context-chip__text">反向链接</span>
-              <span className="rr-context-chip__count">{backlinkCount}</span>
-            </Tag>
-          </Popover>
-        )}
-      </div>
-    </div>
+            <span className="rr-context-chip__text">反向链接</span>
+            <span className="rr-context-chip__count">{backlinkCount}</span>
+          </Tag>
+        </Popover>
+      )}
+    </>
   );
 };

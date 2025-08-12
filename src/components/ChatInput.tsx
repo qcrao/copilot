@@ -1007,11 +1007,20 @@ export const ChatInput: React.FC<ChatInputProps> = ({
       className="rr-copilot-input-container"
       style={{ position: "relative" }}
     >
-      {/* Compact context chips bar right above the input box */}
-      <ContextPreview
-        context={context || null}
-        onExcludeBlock={onExcludeContextBlock}
-      />
+      {/* Compact context chips right above the input box */}
+      <div
+        style={{
+          display: "flex",
+          gap: 8,
+          padding: "0 0 6px 0",
+          flexWrap: "wrap",
+        }}
+      >
+        <ContextPreview
+          context={context || null}
+          onExcludeBlock={onExcludeContextBlock}
+        />
+      </div>
       <div className="rr-copilot-input-box">
         <div
           className="rr-copilot-editor-container"
