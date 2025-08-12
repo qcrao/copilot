@@ -12,6 +12,8 @@ import {
   Colors
 } from "@blueprintjs/core";
 import { PromptTemplate, CustomPromptTemplate } from "../types";
+import { UserTemplateService } from "../services/userTemplateService";
+import { PROMPT_TEMPLATES } from "../data/promptTemplates";
 
 interface TemplateFormProps {
   isOpen: boolean;
@@ -20,7 +22,7 @@ interface TemplateFormProps {
   onSave: (template: Omit<PromptTemplate, 'id'>) => void;
 }
 
-const CATEGORY_OPTIONS = [
+const DEFAULT_CATEGORY_OPTIONS = [
   { label: "Writing & Creation", value: "writing" },
   { label: "Analysis & Insights", value: "analysis" },
   { label: "Planning & Organization", value: "planning" },
@@ -60,12 +62,37 @@ export const TemplateForm: React.FC<TemplateFormProps> = ({
 
   const [isAddingCustomCategory, setIsAddingCustomCategory] = useState(false);
   const [customCategoryInput, setCustomCategoryInput] = useState("");
+  const [availableCategories, setAvailableCategories] = useState(DEFAULT_CATEGORY_OPTIONS);
 
   const [errors, setErrors] = useState<Record<string, string>>({});
+
+  const loadAvailableCategories = () => {
+    // Get all template categories (both default and custom)
+    const allTemplates = [...PROMPT_TEMPLATES, ...UserTemplateService.getCustomTemplates()];
+    const usedCategories = [...new Set(allTemplates.map(t => t.category))];
+    
+    // Create category options
+    const categoryOptions = DEFAULT_CATEGORY_OPTIONS.slice(); // Start with defaults
+    
+    // Add custom categories that are in use
+    usedCategories.forEach(category => {
+      const isDefaultCategory = DEFAULT_CATEGORY_OPTIONS.some(opt => opt.value === category);
+      if (!isDefaultCategory) {
+        categoryOptions.push({
+          label: category.charAt(0).toUpperCase() + category.slice(1),
+          value: category
+        });
+      }
+    });
+    
+    setAvailableCategories(categoryOptions);
+  };
 
   // Reset form when template changes or dialog opens
   useEffect(() => {
     if (isOpen) {
+      loadAvailableCategories(); // Load available categories when dialog opens
+      
       if (template) {
         // Editing existing template
         setFormData({
@@ -177,16 +204,16 @@ export const TemplateForm: React.FC<TemplateFormProps> = ({
               <>
                 <div style={{ flex: "1" }}>
                   <HTMLSelect
-                    value={CATEGORY_OPTIONS.find(opt => opt.value === formData.category) ? formData.category : ""}
+                    value={availableCategories.find(opt => opt.value === formData.category) ? formData.category : ""}
                     onChange={(e) => handleInputChange("category", e.target.value)}
                     fill
                   >
-                    {formData.category && !CATEGORY_OPTIONS.find(opt => opt.value === formData.category) && (
+                    {formData.category && !availableCategories.find(opt => opt.value === formData.category) && (
                       <option value={formData.category}>
                         {formData.category.charAt(0).toUpperCase() + formData.category.slice(1)}
                       </option>
                     )}
-                    {CATEGORY_OPTIONS.map(option => (
+                    {availableCategories.map(option => (
                       <option key={option.value} value={option.value}>
                         {option.label}
                       </option>
