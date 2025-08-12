@@ -2091,6 +2091,7 @@ details[style*="thinking"][open] {
 }
 
 .rr-context-chip__text {
+  margin-left: 4px;
   max-width: 180px;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -2101,10 +2102,32 @@ details[style*="thinking"][open] {
   opacity: 0.8;
 }
 
+.rr-context-preview {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
 .rr-context-chip--page {
   border-color: #d0e3ff !important;
   background: #f7fbff !important;
 }
+
+.rr-context-chip--visible {
+  border-color: #d4edda !important;
+  background: #f8fff9 !important;
+}
+
+.rr-context-chip--selected {
+  border-color: #fff3cd !important;
+  background: #fffef7 !important;
+}
+
+.rr-context-chip--daily {
+  border-color: #e2d9f3 !important;
+  background: #f9f7ff !important;
+}
+
 .rr-context-chip--backlinks {
   border-color: #e6e1ff !important;
   background: #faf9ff !important;
