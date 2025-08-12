@@ -2,11 +2,10 @@
   "hooks": {
     "Stop": [
       {
-        "matcher": "",
         "hooks": [
           {
             "type": "command",
-            "command": "sh $CLAUDE_PROJECT_DIR/.claude/hooks/notify_done.sh",
+            "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/notify_done.sh",
             "timeout": 30
           }
         ]
