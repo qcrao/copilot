@@ -128,12 +128,16 @@ export const TemplateManagement: React.FC<TemplateManagementProps> = ({
     return acc;
   }, {} as Record<string, CustomPromptTemplate[]>);
 
-  const categoryLabels = {
+  const categoryLabels: Record<string, string> = {
     writing: "Writing & Creation",
     analysis: "Analysis & Insights", 
     planning: "Planning & Organization",
     research: "Research & Exploration",
     reflection: "Learning & Reflection",
+  };
+
+  const getCategoryLabel = (category: string) => {
+    return categoryLabels[category] || category.charAt(0).toUpperCase() + category.slice(1);
   };
 
   return (
@@ -188,7 +192,7 @@ export const TemplateManagement: React.FC<TemplateManagementProps> = ({
                   letterSpacing: "0.5px",
                 }}
               >
-                {categoryLabels[category as keyof typeof categoryLabels] || category}
+                {getCategoryLabel(category)}
               </h4>
               
               <div style={{ marginLeft: "12px" }}>

@@ -173,33 +173,19 @@ export interface ExpandedReference {
 }
 
 // Prompt Template interfaces
-export interface PromptVariable {
-  name: string;
-  type: "text" | "date" | "select";
-  placeholder: string;
-  options?: string[];
-  required: boolean;
-}
 
 export interface PromptTemplate {
   id: string;
   title: string;
   description: string;
   prompt: string;
-  category: "writing" | "analysis" | "planning" | "research" | "reflection";
+  category: string;
   icon: string;
   color: string;
   requiresContext: boolean;
   contextType?: "current-page" | "date-range" | "selected-text";
-  variables?: PromptVariable[];
 }
 
-export interface PromptTemplateState {
-  selectedTemplate: PromptTemplate | null;
-  isModalOpen: boolean;
-  variableValues: Record<string, any>;
-  isProcessing: boolean;
-}
 
 export interface PromptTemplateSettings {
   hiddenTemplates: string[]; // Array of template IDs that are hidden

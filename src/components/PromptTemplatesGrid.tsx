@@ -1,9 +1,8 @@
 // src/components/PromptTemplatesGrid.tsx
 import React, { useState, useEffect } from "react";
 import { Button, Icon } from "@blueprintjs/core";
-import { PromptTemplate, PromptTemplateState } from "../types";
+import { PromptTemplate } from "../types";
 import { PromptCard } from "./PromptCard";
-import { PromptModal } from "./PromptModal";
 import { TemplateManagement } from "./TemplateManagement";
 import { PROMPT_TEMPLATES } from "../data/promptTemplates";
 import { RoamService } from "../services/roamService";
@@ -18,12 +17,6 @@ interface PromptTemplatesGridProps {
 export const PromptTemplatesGrid: React.FC<PromptTemplatesGridProps> = ({
   onPromptSelect,
 }) => {
-  const [state, setState] = useState<PromptTemplateState>({
-    selectedTemplate: null,
-    isModalOpen: false,
-    variableValues: {},
-    isProcessing: false,
-  });
 
   const [isManagementOpen, setIsManagementOpen] = useState(false);
   const [hiddenTemplates, setHiddenTemplates] = useState<string[]>([]);
@@ -52,39 +45,12 @@ export const PromptTemplatesGrid: React.FC<PromptTemplatesGridProps> = ({
   };
 
   const handleTemplateClick = (template: PromptTemplate) => {
-    if (template.id === "daily-summary") {
-      // Daily Summary: populate input with clickable date
-      const today = new Date().toISOString().split("T")[0];
-      const prompt = template.prompt.replace("[DATE]", `[${today}]`);
-
-      // Add language instruction based on user's manual setting
-      const responseLanguage =
-        multiProviderSettings.responseLanguage || "English";
-      const finalPrompt =
-        responseLanguage !== "English"
-          ? prompt + `\n\nIMPORTANT: Please respond in ${responseLanguage}.`
-          : prompt;
-
-      onPromptSelect(finalPrompt);
-    } else {
-      // Other templates: process immediately
-      processTemplate(template, {});
-    }
+    processTemplate(template);
   };
 
-  const processTemplate = async (
-    template: PromptTemplate,
-    variables: Record<string, any>
-  ) => {
+  const processTemplate = async (template: PromptTemplate) => {
     try {
       let prompt = template.prompt;
-
-      // Replace variables in the prompt (only for Daily Summary template)
-      if (template.variables && template.variables.length > 0) {
-        Object.entries(variables).forEach(([key, value]) => {
-          prompt = prompt.replace(new RegExp(`{${key}}`, "g"), value);
-        });
-      }
 
       // Handle context types that require real-time data fetching
       if (template.requiresContext) {
@@ -104,23 +70,6 @@ export const PromptTemplatesGrid: React.FC<PromptTemplatesGridProps> = ({
           } catch (error) {
             console.error("❌ Error fetching fresh context:", error);
           }
-        } else if (template.contextType === "date-range" && variables.date) {
-          // Handle date range context (existing logic)
-          try {
-            const dateNotes = await RoamService.getNotesFromDate(variables.date);
-            if (dateNotes && dateNotes.blocks.length > 0) {
-              const notesContent = RoamService.formatBlocksForAI(
-                dateNotes.blocks,
-                0
-              );
-              prompt += `\n\nHere are my notes from ${variables.date}:\n${notesContent}`;
-            } else {
-              prompt += `\n\nNote: No notes found for ${variables.date}. Please let me know that no notes were found for this date.`;
-            }
-          } catch (error) {
-            console.error("Error fetching date notes:", error);
-            prompt += `\n\nNote: Could not retrieve notes for ${variables.date}.`;
-          }
         }
       }
 
@@ -133,34 +82,11 @@ export const PromptTemplatesGrid: React.FC<PromptTemplatesGridProps> = ({
 
       // Send the processed prompt to populate input (not auto-send)
       onPromptSelect(prompt);
-
-      // Only close modal if it was actually open (don't reset other state)
-      if (state.isModalOpen) {
-        setState((prev) => ({
-          ...prev,
-          isModalOpen: false,
-        }));
-      }
     } catch (error) {
       console.error("Error processing template:", error);
     }
   };
 
-  const handleModalSubmit = (variables: Record<string, any>) => {
-    if (state.selectedTemplate) {
-      processTemplate(state.selectedTemplate, variables);
-    }
-  };
-
-  const handleModalClose = () => {
-    setState((prev) => ({
-      ...prev,
-      isModalOpen: false,
-      selectedTemplate: null,
-      variableValues: {},
-      isProcessing: false,
-    }));
-  };
 
   // Combine official and custom templates
   const allTemplates = [
@@ -177,12 +103,16 @@ export const PromptTemplatesGrid: React.FC<PromptTemplatesGridProps> = ({
     return acc;
   }, {} as Record<string, PromptTemplate[]>);
 
-  const categoryLabels = {
+  const categoryLabels: Record<string, string> = {
     writing: "Writing & Creation",
     analysis: "Analysis & Insights",
     planning: "Planning & Organization",
     research: "Research & Exploration",
     reflection: "Learning & Reflection",
+  };
+
+  const getCategoryLabel = (category: string) => {
+    return categoryLabels[category] || category.charAt(0).toUpperCase() + category.slice(1);
   };
 
   return (
@@ -267,8 +197,7 @@ export const PromptTemplatesGrid: React.FC<PromptTemplatesGridProps> = ({
               textTransform: "capitalize",
             }}
           >
-            {categoryLabels[category as keyof typeof categoryLabels] ||
-              category}
+            {getCategoryLabel(category)}
           </h3>
 
           <div
@@ -291,16 +220,6 @@ export const PromptTemplatesGrid: React.FC<PromptTemplatesGridProps> = ({
         </div>
       ))}
 
-      {/* Modal for variable input */}
-      {state.isModalOpen && state.selectedTemplate && (
-        <PromptModal
-          template={state.selectedTemplate}
-          isOpen={state.isModalOpen}
-          isProcessing={state.isProcessing}
-          onSubmit={handleModalSubmit}
-          onClose={handleModalClose}
-        />
-      )}
 
       {/* Template Management Modal */}
       <TemplateManagement

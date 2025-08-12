@@ -231,12 +231,6 @@ When you start a new chat, you'll see a grid of prompt templates. Click on a tem
 
 <!-- TODO: Add screenshot of the prompt templates grid. -->
 
-### Analyzing Notes from a Specific Date
-
-You can ask the Copilot to analyze your notes from a specific date. Use the "Daily Summary" prompt template or simply type a message that includes a date in the format `[YYYY-MM-DD]`.
-
-<!-- TODO: Add screenshot showing a query with a date. -->
-
 ### Settings
 
 You can configure the AI models and other settings from the settings panel.

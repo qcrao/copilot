@@ -37,15 +37,9 @@ const ICON_OPTIONS = [
 const COLOR_OPTIONS = [
   "#667eea", "#4facfe", "#fa709a", "#a8edea", "#8B5CF6", 
   "#ffecd2", "#d299c2", "#89f7fe", "#10b981", "#f59e0b",
-  "#ef4444", "#8b5cf6", "#06b6d4", "#84cc16"
+  "#ef4444", "#e11d48", "#06b6d4", "#84cc16"
 ];
 
-const CONTEXT_TYPE_OPTIONS = [
-  { label: "None", value: "" },
-  { label: "Current Page", value: "current-page" },
-  { label: "Date Range", value: "date-range" },
-  { label: "Selected Text", value: "selected-text" },
-];
 
 export const TemplateForm: React.FC<TemplateFormProps> = ({
   isOpen,
@@ -57,12 +51,15 @@ export const TemplateForm: React.FC<TemplateFormProps> = ({
     title: "",
     description: "",
     prompt: "",
-    category: "writing" as "writing" | "analysis" | "planning" | "research" | "reflection",
+    category: "writing",
     icon: "edit",
     color: "#667eea",
-    requiresContext: false,
-    contextType: "" as any,
+    requiresContext: true,
+    contextType: "current-page" as any,
   });
+
+  const [isAddingCustomCategory, setIsAddingCustomCategory] = useState(false);
+  const [customCategoryInput, setCustomCategoryInput] = useState("");
 
   const [errors, setErrors] = useState<Record<string, string>>({});
 
@@ -79,7 +76,7 @@ export const TemplateForm: React.FC<TemplateFormProps> = ({
           icon: template.icon,
           color: template.color,
           requiresContext: template.requiresContext,
-          contextType: template.contextType || "",
+          contextType: template.contextType || "current-page",
         });
       } else {
         // Creating new template
@@ -90,11 +87,13 @@ export const TemplateForm: React.FC<TemplateFormProps> = ({
           category: "writing",
           icon: "edit",
           color: "#667eea",
-          requiresContext: false,
-          contextType: "",
+          requiresContext: true,
+          contextType: "current-page",
         });
       }
       setErrors({});
+      setIsAddingCustomCategory(false);
+      setCustomCategoryInput("");
     }
   }, [isOpen, template]);
 
@@ -137,8 +136,8 @@ export const TemplateForm: React.FC<TemplateFormProps> = ({
       category: formData.category,
       icon: formData.icon,
       color: formData.color,
-      requiresContext: formData.requiresContext,
-      contextType: formData.requiresContext && formData.contextType ? formData.contextType : undefined,
+      requiresContext: true,
+      contextType: "current-page",
     };
 
     onSave(templateData);
@@ -173,17 +172,77 @@ export const TemplateForm: React.FC<TemplateFormProps> = ({
         </FormGroup>
 
         <FormGroup label="Category">
-          <HTMLSelect
-            value={formData.category}
-            onChange={(e) => handleInputChange("category", e.target.value)}
-            fill
-          >
-            {CATEGORY_OPTIONS.map(option => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </HTMLSelect>
+          <div style={{ display: "flex", gap: "8px", alignItems: "stretch" }}>
+            {!isAddingCustomCategory ? (
+              <>
+                <div style={{ flex: "1" }}>
+                  <HTMLSelect
+                    value={CATEGORY_OPTIONS.find(opt => opt.value === formData.category) ? formData.category : ""}
+                    onChange={(e) => handleInputChange("category", e.target.value)}
+                    fill
+                  >
+                    {formData.category && !CATEGORY_OPTIONS.find(opt => opt.value === formData.category) && (
+                      <option value={formData.category}>
+                        {formData.category.charAt(0).toUpperCase() + formData.category.slice(1)}
+                      </option>
+                    )}
+                    {CATEGORY_OPTIONS.map(option => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </HTMLSelect>
+                </div>
+                <div style={{ flex: "1" }}>
+                  <Button
+                    minimal
+                    icon="plus"
+                    onClick={() => {
+                      setIsAddingCustomCategory(true);
+                      setCustomCategoryInput("");
+                    }}
+                    title="Add Custom Category"
+                    fill
+                  >
+                    Add Category
+                  </Button>
+                </div>
+              </>
+            ) : (
+              <>
+                <div style={{ flex: "1" }}>
+                  <InputGroup
+                    value={customCategoryInput}
+                    onChange={(e) => setCustomCategoryInput(e.target.value)}
+                    placeholder="Enter custom category name..."
+                    fill
+                    autoFocus
+                  />
+                </div>
+                <div style={{ display: "flex", gap: "4px" }}>
+                  <Button
+                    icon="tick"
+                    intent="primary"
+                    onClick={() => {
+                      if (customCategoryInput.trim()) {
+                        handleInputChange("category", customCategoryInput.trim().toLowerCase());
+                        setIsAddingCustomCategory(false);
+                        setCustomCategoryInput("");
+                      }
+                    }}
+                    disabled={!customCategoryInput.trim()}
+                  />
+                  <Button
+                    icon="cross"
+                    onClick={() => {
+                      setIsAddingCustomCategory(false);
+                      setCustomCategoryInput("");
+                    }}
+                  />
+                </div>
+              </>
+            )}
+          </div>
         </FormGroup>
 
         <div style={{ display: "flex", gap: "16px" }}>
@@ -227,28 +286,11 @@ export const TemplateForm: React.FC<TemplateFormProps> = ({
           </FormGroup>
         </div>
 
-        <FormGroup label="Context Settings">
-          <Switch
-            checked={formData.requiresContext}
-            onChange={(e) => handleInputChange("requiresContext", (e.target as HTMLInputElement).checked)}
-            label="This template requires page context"
-          />
-          
-          {formData.requiresContext && (
-            <div style={{ marginTop: "8px" }}>
-              <HTMLSelect
-                value={formData.contextType}
-                onChange={(e) => handleInputChange("contextType", e.target.value)}
-                fill
-              >
-                {CONTEXT_TYPE_OPTIONS.slice(1).map(option => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </HTMLSelect>
-            </div>
-          )}
+        <FormGroup label="Context">
+          <div style={{ padding: "8px", backgroundColor: "#f6f8fa", borderRadius: "4px", fontSize: "12px", color: "#586069" }}>
+            <Icon icon="document" size={12} style={{ marginRight: "6px" }} />
+            Current Page
+          </div>
         </FormGroup>
 
         <FormGroup label="Prompt Content" labelInfo="(required)">
@@ -263,7 +305,7 @@ export const TemplateForm: React.FC<TemplateFormProps> = ({
           />
           {errors.prompt && <div style={{ color: "#db3737", fontSize: "12px", marginTop: "4px" }}>{errors.prompt}</div>}
           <div style={{ fontSize: "11px", color: "#5c7080", marginTop: "4px" }}>
-            You can use variables like {"{variable_name}"} and context will be automatically included if enabled.
+            Context will be automatically included when the template is used.
           </div>
         </FormGroup>
       </div>
