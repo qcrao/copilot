@@ -260,9 +260,9 @@
   background: transparent !important;
 }
 
-/* Simplified Input Component */
+/* Roam-style Input Component */
 .rr-copilot-input-container {
-  padding: 6px 20px 20px 20px; /* allow a context bar to sit right above input */
+  padding: 8px 16px 16px 16px; /* refined padding for better balance */
   background: #ffffff;
   border-top: 1px solid #e1e5e9;
   flex-shrink: 0;
@@ -273,20 +273,25 @@
   display: flex;
   flex-direction: column;
   background: #ffffff;
-  border: 1px solid #e8eaed;
-  border-radius: 16px;
+  border: 1px solid #dadce0;
+  border-radius: 8px; /* reduced from 16px to match Roam's subtler radius */
   padding: 0;
-  transition: all 0.3s cubic-bezier(0.2, 0, 0, 1);
-  box-shadow: 0 2px 8px rgba(60, 64, 67, 0.08);
+  transition: all 0.2s ease;
+  box-shadow: 0 1px 3px rgba(60, 64, 67, 0.06);
   overflow: hidden;
 }
 
+.rr-copilot-input-box:hover {
+  border-color: #9aa0a6;
+  box-shadow: 0 1px 4px rgba(60, 64, 67, 0.1);
+}
+
 .rr-copilot-editor-container {
-  padding: 16px 24px;
-  min-height: 52px;
+  padding: 12px 16px; /* reduced padding for more compact feel */
+  min-height: 48px; /* slightly reduced */
   max-height: 120px;
   background: #ffffff;
-  border-radius: 16px 16px 0 0;
+  border-radius: 8px 8px 0 0; /* match container radius */
   position: relative;
   overflow-y: auto;
   transition: all 0.2s ease;
@@ -297,25 +302,25 @@
   background: #ffffff;
 }
 
-/* TipTap Editor Styles */
+/* TipTap Editor Styles - Roam Research Style */
 .rr-copilot-editor {
   outline: none;
-  font-size: 15px;
-  line-height: 1.5;
-  color: #374151;
+  font-size: 14px; /* slightly smaller for better proportion */
+  line-height: 1.6; /* improved readability */
+  color: #202124; /* darker, more readable color */
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
     "Helvetica Neue", Arial, sans-serif;
   cursor: text;
-  caret-color: #393a3d;
+  caret-color: #1a73e8; /* Roam's blue accent color */
 }
 
 .rr-copilot-editor.ProseMirror-focused {
   outline: none;
-  caret-color: #393a3d;
+  caret-color: #1a73e8 !important;
 }
 
 .rr-copilot-editor .ProseMirror-selectednode {
-  outline: 2px solid #393a3d;
+  outline: 2px solid #1a73e8;
   outline-offset: 2px;
 }
 
@@ -329,12 +334,12 @@
 /* Ensure cursor is always visible when focused */
 .rr-copilot-editor:focus,
 .rr-copilot-editor.ProseMirror-focused {
-  caret-color: #393a3d !important;
+  caret-color: #1a73e8 !important;
 }
 
 /* Make sure the editor container propagates focus */
 .rr-copilot-editor-container:focus-within .rr-copilot-editor {
-  caret-color: #393a3d !important;
+  caret-color: #1a73e8 !important;
 }
 
 /* Force cursor visibility in all states */
@@ -357,7 +362,7 @@
   position: absolute;
   width: 1px;
   height: 1.2em;
-  background-color: #393a3d;
+  background-color: #1a73e8;
   animation: blink 1s infinite;
   pointer-events: none;
 }
@@ -391,13 +396,15 @@ details[style*="thinking"][open] {
   padding: 2px 0;
 }
 
-/* TipTap Placeholder styles */
+/* TipTap Placeholder styles - Roam Research Style */
 .rr-copilot-editor p.is-editor-empty:first-child::before {
   content: attr(data-placeholder);
-  color: #9aa0a6;
+  color: #80868b; /* softer placeholder color */
   pointer-events: none;
   float: left;
   height: 0;
+  font-style: italic;
+  opacity: 0.8;
 }
 
 /* Reference Chip Styles */
@@ -499,10 +506,10 @@ details[style*="thinking"][open] {
 }
 
 .rr-copilot-input-box:focus-within {
-  border-color: #393a3d;
+  border-color: #1a73e8;
   background: white;
-  box-shadow: 0 0 0 3px rgba(57, 58, 61, 0.12),
-    0 4px 16px rgba(60, 64, 67, 0.15);
+  box-shadow: 0 0 0 3px rgba(26, 115, 232, 0.12),
+    0 2px 8px rgba(60, 64, 67, 0.15);
 }
 
 .rr-copilot-input-textarea {
@@ -534,54 +541,54 @@ details[style*="thinking"][open] {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 12px 20px;
-  background: transparent;
-  border-top: none;
-  border-radius: 0 0 16px 16px;
-  gap: 16px;
+  padding: 10px 16px; /* reduced padding for more compact feel */
+  background: #f8f9fa; /* subtle background to separate from input */
+  border-top: 1px solid #e8eaed; /* subtle separator */
+  border-radius: 0 0 8px 8px; /* match container radius */
+  gap: 12px; /* slightly reduced gap */
   flex-shrink: 0;
-  min-height: 56px;
+  min-height: 52px; /* reduced height */
 }
 
 .rr-copilot-model-selector {
   position: relative;
-  padding: 10px 16px;
-  border: 1px solid #e8eaed;
-  border-radius: 12px;
-  background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+  padding: 8px 12px; /* more compact padding */
+  border: 1px solid #dadce0;
+  border-radius: 6px; /* smaller radius for subtle look */
+  background: #ffffff;
   font-size: 13px;
   font-weight: 500;
-  color: #393a3d;
+  color: #202124;
   min-width: 120px;
   max-width: 320px;
-  transition: all 0.3s cubic-bezier(0.2, 0, 0, 1);
-  box-shadow: 0 1px 3px rgba(60, 64, 67, 0.08);
+  transition: all 0.2s ease;
+  box-shadow: 0 1px 2px rgba(60, 64, 67, 0.06);
   cursor: pointer;
   outline: none;
   appearance: none;
   -webkit-appearance: none;
   -moz-appearance: none;
-  padding-right: 36px;
-  background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23393a3d' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6,9 12,15 18,9'%3e%3c/polyline%3e%3c/svg%3e");
+  padding-right: 32px;
+  background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%235f6368' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6,9 12,15 18,9'%3e%3c/polyline%3e%3c/svg%3e");
   background-repeat: no-repeat;
-  background-position: right 12px center;
-  background-size: 16px;
+  background-position: right 10px center;
+  background-size: 14px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
 .rr-copilot-model-selector:hover {
-  border-color: #dadce0;
-  box-shadow: 0 2px 8px rgba(60, 64, 67, 0.15);
-  background: linear-gradient(135deg, #ffffff 0%, #f6f7f8 100%);
+  border-color: #9aa0a6;
+  box-shadow: 0 1px 3px rgba(60, 64, 67, 0.1);
+  background: #ffffff;
 }
 
 .rr-copilot-model-selector:focus {
   outline: none;
-  border-color: #393a3d;
-  box-shadow: 0 0 0 3px rgba(57, 58, 61, 0.12), 0 2px 8px rgba(60, 64, 67, 0.15);
-  background: linear-gradient(135deg, #ffffff 0%, #f6f7f8 100%);
+  border-color: #1a73e8;
+  box-shadow: 0 0 0 3px rgba(26, 115, 232, 0.12), 0 1px 3px rgba(60, 64, 67, 0.1);
+  background: #ffffff;
 }
 
 .rr-copilot-model-selector:disabled {
@@ -607,15 +614,15 @@ details[style*="thinking"][open] {
 }
 
 .rr-copilot-send-button {
-  width: 40px;
-  height: 40px;
+  width: 36px; /* slightly smaller for more refined look */
+  height: 36px;
   border: none;
-  border-radius: 50%;
+  border-radius: 6px; /* rounded square instead of circle */
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  transition: all 0.3s cubic-bezier(0.2, 0, 0, 1);
+  transition: all 0.2s ease;
   outline: none;
   position: relative;
   overflow: hidden;
@@ -630,24 +637,24 @@ details[style*="thinking"][open] {
   bottom: 0;
   border-radius: inherit;
   opacity: 0;
-  transition: opacity 0.3s ease;
+  transition: opacity 0.2s ease;
   background: linear-gradient(
     45deg,
-    rgba(255, 255, 255, 0.3),
+    rgba(255, 255, 255, 0.2),
     rgba(255, 255, 255, 0)
   );
 }
 
 .rr-copilot-send-button.active {
-  background: linear-gradient(135deg, #393a3d 0%, #2c2d30 100%);
+  background: #1a73e8; /* Roam's blue accent */
   color: white;
-  box-shadow: 0 2px 8px rgba(57, 58, 61, 0.2), 0 1px 3px rgba(57, 58, 61, 0.3);
+  box-shadow: 0 1px 3px rgba(26, 115, 232, 0.3);
 }
 
 .rr-copilot-send-button.active:hover {
-  background: linear-gradient(135deg, #2c2d30 0%, #202124 100%);
+  background: #1557b0;
   transform: translateY(-1px);
-  box-shadow: 0 4px 16px rgba(57, 58, 61, 0.3), 0 2px 6px rgba(57, 58, 61, 0.4);
+  box-shadow: 0 2px 6px rgba(26, 115, 232, 0.4);
 }
 
 .rr-copilot-send-button.active:hover::before {
@@ -656,14 +663,15 @@ details[style*="thinking"][open] {
 
 .rr-copilot-send-button.active:active {
   transform: translateY(0);
-  box-shadow: 0 2px 8px rgba(57, 58, 61, 0.2), 0 1px 3px rgba(57, 58, 61, 0.3);
+  box-shadow: 0 1px 3px rgba(26, 115, 232, 0.3);
 }
 
 .rr-copilot-send-button.inactive {
-  background: linear-gradient(135deg, #f5f6f7 0%, #e8eaed 100%);
-  color: #9aa0a6;
+  background: #f8f9fa;
+  color: #80868b;
   cursor: not-allowed;
-  box-shadow: 0 1px 3px rgba(60, 64, 67, 0.08);
+  box-shadow: 0 1px 2px rgba(60, 64, 67, 0.06);
+  border: 1px solid #dadce0;
 }
 
 .rr-copilot-send-button:disabled {
@@ -680,23 +688,23 @@ details[style*="thinking"][open] {
   transform: translateY(-1px);
 }
 
-/* Cancel button styles */
+/* Cancel button styles - Roam Research Style */
 .rr-copilot-cancel-button {
-  width: 40px;
-  height: 40px;
+  width: 36px; /* match send button size */
+  height: 36px;
   border: none;
-  border-radius: 50%;
+  border-radius: 6px; /* match send button style */
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  transition: all 0.3s cubic-bezier(0.2, 0, 0, 1);
+  transition: all 0.2s ease;
   outline: none;
   position: relative;
   overflow: hidden;
-  background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+  background: #ea4335; /* Google's red, consistent with other Google colors */
   color: white;
-  box-shadow: 0 2px 8px rgba(220, 53, 69, 0.2), 0 1px 3px rgba(220, 53, 69, 0.3);
+  box-shadow: 0 1px 3px rgba(234, 67, 53, 0.3);
 }
 
 .rr-copilot-cancel-button::before {
@@ -708,19 +716,18 @@ details[style*="thinking"][open] {
   bottom: 0;
   border-radius: inherit;
   opacity: 0;
-  transition: opacity 0.3s ease;
+  transition: opacity 0.2s ease;
   background: linear-gradient(
     45deg,
-    rgba(255, 255, 255, 0.3),
+    rgba(255, 255, 255, 0.2),
     rgba(255, 255, 255, 0)
   );
 }
 
 .rr-copilot-cancel-button:hover {
-  background: linear-gradient(135deg, #c82333 0%, #a71e2a 100%);
+  background: #d33b2c;
   transform: translateY(-1px);
-  box-shadow: 0 4px 16px rgba(220, 53, 69, 0.3),
-    0 2px 6px rgba(220, 53, 69, 0.4);
+  box-shadow: 0 2px 6px rgba(234, 67, 53, 0.4);
 }
 
 .rr-copilot-cancel-button:hover::before {
@@ -729,7 +736,7 @@ details[style*="thinking"][open] {
 
 .rr-copilot-cancel-button:active {
   transform: translateY(0);
-  box-shadow: 0 2px 8px rgba(220, 53, 69, 0.2), 0 1px 3px rgba(220, 53, 69, 0.3);
+  box-shadow: 0 1px 3px rgba(234, 67, 53, 0.3);
 }
 
 .rr-copilot-cancel-button:disabled {
@@ -2075,67 +2082,126 @@ details[style*="thinking"][open] {
   transition: background-color 0.2s ease;
 }
 
-/* Compact Context Chips (no container bar) */
+/* Compact Context Chips - Roam Research Style */
 
 .rr-context-chip {
   display: inline-flex !important;
   align-items: center;
   gap: 4px;
   font-size: 11px !important;
-  line-height: 1 !important;
-  padding: 4px 8px !important;
-  border-radius: 3px !important;
-  background: #ffffff !important;
-  border: 1px solid #e6e8eb !important;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+  line-height: 1.2 !important;
+  padding: 3px 7px !important;
+  border-radius: 4px !important;
+  background: #f8f9fa !important;
+  border: 1px solid #e1e4e8 !important;
+  box-shadow: 0 1px 2px rgba(60, 64, 67, 0.04);
+  color: #5f6368 !important;
+  font-weight: 500 !important;
+  transition: all 0.15s ease;
+  cursor: default;
+}
+
+.rr-context-chip:hover {
+  background: #f1f3f4 !important;
+  border-color: #dadce0 !important;
+  box-shadow: 0 1px 3px rgba(60, 64, 67, 0.08);
+  transform: translateY(-1px);
 }
 
 .rr-context-chip__text {
-  margin-left: 4px;
-  max-width: 180px;
+  margin-left: 2px;
+  max-width: 140px;
   overflow: hidden;
   text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 500;
 }
 
 .rr-context-chip__count {
-  margin-left: 2px;
-  opacity: 0.8;
+  margin-left: 4px;
+  padding: 1px 4px;
+  border-radius: 8px;
+  background: rgba(95, 99, 104, 0.12);
+  color: #5f6368;
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 1;
+  min-width: 16px;
+  text-align: center;
 }
 
 .rr-context-preview {
   display: inline-flex;
   flex-wrap: wrap;
   gap: 6px;
+  align-items: center;
 }
 
+/* Roam-style subtle color coding */
 .rr-context-chip--page {
-  border-color: #d0e3ff !important;
-  background: #f7fbff !important;
+  border-color: #cedbf2 !important;
+  background: #f4f7fc !important;
+  color: #4285f4 !important;
+}
+
+.rr-context-chip--page .rr-context-chip__count {
+  background: rgba(66, 133, 244, 0.12) !important;
+  color: #4285f4 !important;
 }
 
 .rr-context-chip--visible {
-  border-color: #d4edda !important;
-  background: #f8fff9 !important;
+  border-color: #c8e6c9 !important;
+  background: #f1f8e9 !important;
+  color: #2e7d32 !important;
+}
+
+.rr-context-chip--visible .rr-context-chip__count {
+  background: rgba(46, 125, 50, 0.12) !important;
+  color: #2e7d32 !important;
 }
 
 .rr-context-chip--selected {
-  border-color: #fff3cd !important;
-  background: #fffef7 !important;
+  border-color: #fff3a0 !important;
+  background: #fffbf0 !important;
+  color: #e37400 !important;
+}
+
+.rr-context-chip--selected .rr-context-chip__count {
+  background: rgba(227, 116, 0, 0.12) !important;
+  color: #e37400 !important;
 }
 
 .rr-context-chip--daily {
-  border-color: #e2d9f3 !important;
-  background: #f9f7ff !important;
+  border-color: #d7c7f0 !important;
+  background: #f3f0ff !important;
+  color: #6a1b9a !important;
+}
+
+.rr-context-chip--daily .rr-context-chip__count {
+  background: rgba(106, 27, 154, 0.12) !important;
+  color: #6a1b9a !important;
 }
 
 .rr-context-chip--backlinks {
-  border-color: #e6e1ff !important;
-  background: #faf9ff !important;
+  border-color: #d1c4e9 !important;
+  background: #f3e5f5 !important;
+  color: #7b1fa2 !important;
+}
+
+.rr-context-chip--backlinks .rr-context-chip__count {
+  background: rgba(123, 31, 162, 0.12) !important;
+  color: #7b1fa2 !important;
 }
 
 .rr-context-chip--sidebar {
-  border-color: #ffe6cc !important;
-  background: #fff9f2 !important;
+  border-color: #ffcc80 !important;
+  background: #fff8e1 !important;
+  color: #ef6c00 !important;
+}
+
+.rr-context-chip--sidebar .rr-context-chip__count {
+  background: rgba(239, 108, 0, 0.12) !important;
+  color: #ef6c00 !important;
 }
 
 .rr-context-bar__caret {
