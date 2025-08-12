@@ -8,6 +8,40 @@ import { getModelDisplayInfo } from '../utils/iconUtils';
 import { useSimpleScroll } from '../hooks/useSimpleScroll';
 import { ScrollToBottomButton } from './ScrollToBottomButton';
 
+// Helper function to format timestamp with Yesterday support
+const formatTimestamp = (timestamp: Date): string => {
+  const now = new Date();
+  const messageDate = new Date(timestamp);
+  
+  // Reset time to compare dates only
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const yesterday = new Date(today);
+  yesterday.setDate(yesterday.getDate() - 1);
+  const msgDate = new Date(messageDate.getFullYear(), messageDate.getMonth(), messageDate.getDate());
+  
+  const timeString = messageDate.toLocaleTimeString([], { 
+    hour: 'numeric', 
+    minute: '2-digit',
+    hour12: true 
+  });
+  
+  if (msgDate.getTime() === today.getTime()) {
+    // Today - just show time
+    return timeString;
+  } else if (msgDate.getTime() === yesterday.getTime()) {
+    // Yesterday
+    return `Yesterday, ${timeString}`;
+  } else {
+    // Other dates - show full date
+    const dateString = messageDate.toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric', 
+      year: 'numeric'
+    });
+    return `${dateString}, ${timeString}`;
+  }
+};
+
 interface MessageListProps {
   messages: ChatMessage[];
   isLoading: boolean;
@@ -277,7 +311,7 @@ const MessageItem: React.FC<MessageItemProps> = React.memo(({ message, index, on
           color: '#999',
           flexShrink: 0
         }}>
-          {message.timestamp.toLocaleTimeString()}
+          {formatTimestamp(message.timestamp)}
         </div>
       </div>
 
