@@ -567,6 +567,166 @@ export class RoamService {
   }
 
   /**
+   * Get sidebar notes (pages opened in right sidebar)
+   */
+  static async getSidebarNotes(): Promise<RoamPage[]> {
+    try {
+      console.log("🔍 Getting sidebar notes...");
+
+      // Try to get sidebar windows from Roam API first (more reliable)
+      if (!window.roamAlphaAPI?.ui?.rightSidebar?.getWindows) {
+        console.log("❌ Sidebar getWindows API not available, trying DOM fallback");
+        return this.getSidebarNotesFromDOM();
+      }
+
+      const sidebarWindows = window.roamAlphaAPI.ui.rightSidebar.getWindows();
+      console.log("🔍 Sidebar windows from API:", sidebarWindows);
+
+      if (!sidebarWindows || sidebarWindows.length === 0) {
+        console.log("❌ No sidebar windows found via API, trying DOM fallback");
+        return this.getSidebarNotesFromDOM();
+      }
+
+      const sidebarNotes: RoamPage[] = [];
+      const processedUids = new Set<string>();
+      
+      for (const sidebarWindow of sidebarWindows) {
+        try {
+          console.log("🔍 Processing sidebar window:", sidebarWindow);
+          
+          if (sidebarWindow["page-uid"]) {
+            // This is a page window
+            const pageUid = sidebarWindow["page-uid"];
+            if (!processedUids.has(pageUid)) {
+              processedUids.add(pageUid);
+              console.log("🔍 Found page window with UID:", pageUid);
+              
+              // Get page by UID
+              const blocks = await this.getPageBlocks(pageUid);
+              
+              // Try to get the page title
+              const titleQuery = `
+                [:find ?title
+                 :where
+                 [?e :block/uid "${pageUid}"]
+                 [?e :node/title ?title]]
+              `;
+              
+              const titleResult = window.roamAlphaAPI.q(titleQuery);
+              let pageTitle = "";
+              
+              if (titleResult && titleResult.length > 0) {
+                pageTitle = titleResult[0][0];
+              } else {
+                // Fallback: try to get title from blocks
+                console.log("🔍 Trying to get title from daily note format");
+                const dailyQuery = `
+                  [:find ?title
+                   :where
+                   [?e :block/uid "${pageUid}"]
+                   [?e :block/string ?title]]
+                `;
+                const dailyResult = window.roamAlphaAPI.q(dailyQuery);
+                if (dailyResult && dailyResult.length > 0) {
+                  pageTitle = dailyResult[0][0];
+                }
+              }
+              
+              if (pageTitle) {
+                const page: RoamPage = {
+                  title: pageTitle,
+                  uid: pageUid,
+                  blocks,
+                };
+                sidebarNotes.push(page);
+                console.log("✅ Added page to sidebar notes:", pageTitle);
+              }
+            }
+          } else if (sidebarWindow["block-uid"]) {
+            // This is a block window, get the parent page
+            const blockUid = sidebarWindow["block-uid"];
+            console.log("🔍 Found block window with UID:", blockUid);
+            
+            const parentPageTitle = await this.getParentPageTitleForBlock(blockUid);
+            if (parentPageTitle) {
+              console.log("🔍 Block belongs to page:", parentPageTitle);
+              const page = await this.getPageByTitle(parentPageTitle);
+              if (page && !processedUids.has(page.uid)) {
+                processedUids.add(page.uid);
+                sidebarNotes.push(page);
+                console.log("✅ Added block's page to sidebar notes:", parentPageTitle);
+              }
+            }
+          }
+        } catch (windowError) {
+          console.warn("❌ Error processing sidebar window:", windowError);
+        }
+      }
+
+      console.log(`✅ Found ${sidebarNotes.length} sidebar notes via API`);
+      return sidebarNotes;
+    } catch (error) {
+      console.error("❌ Error getting sidebar notes:", error);
+      return this.getSidebarNotesFromDOM();
+    }
+  }
+
+  /**
+   * Fallback method to detect sidebar notes from DOM
+   */
+  static async getSidebarNotesFromDOM(): Promise<RoamPage[]> {
+    try {
+      console.log("🔍 Getting sidebar notes from DOM...");
+      
+      const sidebarNotes: RoamPage[] = [];
+      
+      // Look for the right sidebar - check common selectors
+      const rightSidebar = document.querySelector("#roam-right-sidebar-content") || 
+                          document.querySelector(".roam-sidebar-container") ||
+                          document.querySelector("[data-testid='right-sidebar']");
+      
+      if (!rightSidebar) {
+        console.log("❌ No right sidebar found in DOM");
+        return [];
+      }
+      
+      console.log("✅ Found right sidebar container");
+      
+      // Look for page title elements in the sidebar
+      const pageTitleElements = rightSidebar.querySelectorAll(".rm-title-display");
+      console.log(`🔍 Found ${pageTitleElements.length} page title elements in sidebar`);
+      
+      const processedTitles = new Set<string>();
+      
+      for (const titleElement of pageTitleElements) {
+        try {
+          const pageTitle = titleElement.textContent?.trim();
+          
+          if (pageTitle && pageTitle !== "" && !processedTitles.has(pageTitle)) {
+            processedTitles.add(pageTitle);
+            console.log("🔍 Found sidebar page title:", pageTitle);
+            
+            const page = await this.getPageByTitle(pageTitle);
+            if (page) {
+              sidebarNotes.push(page);
+              console.log("✅ Added page to sidebar notes:", pageTitle);
+            }
+          }
+        } catch (elementError) {
+          console.warn("❌ Error processing title element:", elementError);
+        }
+      }
+
+      console.log(`✅ Found ${sidebarNotes.length} sidebar notes via DOM`);
+      return sidebarNotes;
+    } catch (error) {
+      console.error("❌ Error getting sidebar notes from DOM:", error);
+      return [];
+    }
+  }
+
+
+  /**
    * Get linked references for a page
    */
   static async getLinkedReferences(pageTitle: string): Promise<RoamBlock[]> {
@@ -603,12 +763,13 @@ export class RoamService {
   static async getPageContext(): Promise<PageContext> {
     console.log("Getting comprehensive page context...");
 
-    const [currentPage, visibleBlocks, selectedText, dailyNote] =
+    const [currentPage, visibleBlocks, selectedText, dailyNote, sidebarNotes] =
       await Promise.all([
         this.getCurrentPageInfo(),
         Promise.resolve(this.getVisibleBlocks()),
         Promise.resolve(this.getSelectedText()),
         this.getCurrentDailyNote(),
+        this.getSidebarNotes(),
       ]);
 
     // Get linked references if we have a current page
@@ -625,6 +786,7 @@ export class RoamService {
       dailyNote: dailyNote?.title || "None",
       dailyNoteBlocks: dailyNote?.blocks?.length || 0,
       linkedReferences: linkedReferences.length,
+      sidebarNotes: sidebarNotes.length,
     });
 
     return {
@@ -633,6 +795,7 @@ export class RoamService {
       selectedText: selectedText || undefined,
       dailyNote: dailyNote || undefined,
       linkedReferences,
+      sidebarNotes,
     };
   }
 
@@ -661,6 +824,7 @@ export class RoamService {
       selectedText: selectedText || undefined, // Only include if actually selected
       dailyNote: undefined, // Skip daily note context
       linkedReferences: [], // Skip all references
+      sidebarNotes: [], // Skip sidebar notes
     };
   }
 
@@ -883,7 +1047,8 @@ export class RoamService {
     // For tool calls, use ultra-minimal context
     const isToolCallContext = !context.currentPage && !context.dailyNote && 
                              context.visibleBlocks.length === 0 && 
-                             context.linkedReferences.length === 0;
+                             context.linkedReferences.length === 0 &&
+                             (!context.sidebarNotes || context.sidebarNotes.length === 0);
 
     if (isToolCallContext) {
       console.log("🎯 Formatting minimal tool call context");
@@ -1003,6 +1168,37 @@ export class RoamService {
         formattedContext += `... and ${
           context.linkedReferences.length - 10
         } more references\n`;
+      }
+      formattedContext += "\n";
+    }
+
+    // Add sidebar notes
+    if (context.sidebarNotes && context.sidebarNotes.length > 0) {
+      formattedContext += `**Sidebar Notes (${context.sidebarNotes.length} open):**\n`;
+      for (const sidebarNote of context.sidebarNotes.slice(0, 5)) { // Limit to first 5 to avoid context bloat
+        const sidebarUrls = this.generatePageUrl(
+          sidebarNote.uid,
+          graphName || undefined
+        );
+        const sidebarUrlLinks = sidebarUrls
+          ? formatUrls(sidebarUrls.webUrl, sidebarUrls.desktopUrl)
+          : `[[${sidebarNote.title}]]`;
+
+        formattedContext += `**Sidebar: "${sidebarNote.title}"** ${sidebarUrlLinks}\n`;
+        
+        if (sidebarNote.blocks.length > 0) {
+          const sidebarContent = this.formatBlocksForAIWithClickableReferences(
+            sidebarNote.blocks.slice(0, 10), // Limit to first 10 blocks per sidebar note
+            0,
+            graphName,
+            isDesktop
+          );
+          formattedContext += sidebarContent;
+        }
+        formattedContext += "\n";
+      }
+      if (context.sidebarNotes.length > 5) {
+        formattedContext += `... and ${context.sidebarNotes.length - 5} more sidebar notes\n`;
       }
       formattedContext += "\n";
     }
@@ -1817,7 +2013,7 @@ export class RoamService {
       // Get parent page titles for blocks in parallel
       const resultsWithPages = await Promise.all(
         limitedBlocks.map(async (block) => {
-          const parentPageTitle = await this.getParentPageTitle(block.uid);
+          const parentPageTitle = await this.getParentPageTitleForBlock(block.uid);
           const preview = this.formatBlockPreview(block.string, 80);
           
           return {
@@ -1841,7 +2037,7 @@ export class RoamService {
   /**
    * Get the parent page title for a block UID
    */
-  private static async getParentPageTitle(blockUid: string): Promise<string | undefined> {
+  static async getParentPageTitleForBlock(blockUid: string): Promise<string | undefined> {
     try {
       if (!window.roamAlphaAPI?.q) {
         console.warn("Roam API not available for getting parent page title");

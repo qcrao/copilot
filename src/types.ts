@@ -64,6 +64,7 @@ export interface PageContext {
   selectedText?: string;
   dailyNote?: RoamPage;
   linkedReferences: RoamBlock[];
+  sidebarNotes?: RoamPage[];
 }
 
 export interface CopilotState {

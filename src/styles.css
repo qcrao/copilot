@@ -2084,7 +2084,7 @@ details[style*="thinking"][open] {
   font-size: 11px !important;
   line-height: 1 !important;
   padding: 4px 8px !important;
-  border-radius: 8px !important;
+  border-radius: 3px !important;
   background: #ffffff !important;
   border: 1px solid #e6e8eb !important;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
@@ -2131,6 +2131,11 @@ details[style*="thinking"][open] {
 .rr-context-chip--backlinks {
   border-color: #e6e1ff !important;
   background: #faf9ff !important;
+}
+
+.rr-context-chip--sidebar {
+  border-color: #ffe6cc !important;
+  background: #fff9f2 !important;
 }
 
 .rr-context-bar__caret {

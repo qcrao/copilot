@@ -13,6 +13,15 @@ declare global {
           close: () => Promise<void>;
           addWindow: (config: { window: any }) => Promise<void>;
           removeWindow: (config: { window: any }) => Promise<void>;
+          getWindows?: () => Array<{
+            "collapsed?": boolean;
+            order: number;
+            "page-uid"?: string;
+            "block-uid"?: string;
+            "pinned?"?: boolean;
+            type: "outline" | "block";
+            "window-id": string;
+          }>;
         };
         commandPalette: {
           addCommand: (config: {

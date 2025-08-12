@@ -47,12 +47,14 @@ export const ContextPreview: React.FC<ContextPreviewProps> = ({
   const selectedText = context.selectedText;
   const dailyNoteBlocks = context.dailyNote?.blocks || [];
   const backlinks = context.linkedReferences || [];
+  const sidebarNotes = context.sidebarNotes || [];
 
   // Check if page has any content
   const hasPageContent = currentPageBlocks.length > 0 || visibleBlocks.length > 0 || selectedText || dailyNoteBlocks.length > 0;
   const hasBacklinks = backlinks.length > 0;
+  const hasSidebarNotes = sidebarNotes.length > 0;
 
-  if (!hasPageContent && !hasBacklinks) return null;
+  if (!hasPageContent && !hasBacklinks && !hasSidebarNotes) return null;
 
   return (
     <div className="rr-context-preview">
@@ -135,6 +137,50 @@ export const ContextPreview: React.FC<ContextPreviewProps> = ({
               {context.dailyNote.title}
             </span>
             <span className="rr-context-chip__count">{dailyNoteBlocks.length}</span>
+          </Tag>
+        </Popover>
+      )}
+
+      {/* Sidebar Notes */}
+      {hasSidebarNotes && (
+        <Popover
+          content={
+            <div className="rr-context-popover">
+              <div className="rr-context-popover__body">
+                {sidebarNotes.length === 0 && (
+                  <div className="rr-context-popover__empty">No sidebar notes</div>
+                )}
+                {sidebarNotes.slice(0, 10).map((note) => (
+                  <div key={note.uid} className="rr-context-hover-row">
+                    <div className="rr-context-hover-text" title={note.title}>
+                      <strong>{note.title}</strong> ({note.blocks.length} blocks)
+                    </div>
+                  </div>
+                ))}
+                {sidebarNotes.length > 10 && (
+                  <div className="rr-context-hover-row">
+                    <div className="rr-context-hover-text">
+                      ... and {sidebarNotes.length - 10} more sidebar notes
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          }
+          position={Position.TOP}
+          interactionKind="hover"
+          minimal
+          hoverOpenDelay={100}
+        >
+          <Tag
+            minimal
+            round
+            className="rr-context-chip rr-context-chip--sidebar"
+            title={`Sidebar notes: ${sidebarNotes.length}`}
+          >
+            <Icon icon="panel-stats" size={12} />
+            <span className="rr-context-chip__text">Sidebar</span>
+            <span className="rr-context-chip__count">{sidebarNotes.length}</span>
           </Tag>
         </Popover>
       )}
