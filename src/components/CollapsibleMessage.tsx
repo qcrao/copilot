@@ -13,25 +13,30 @@ export const CollapsibleMessage: React.FC<CollapsibleMessageProps> = ({
   content,
   isUser = false,
   isStreaming = false,
-  maxLength = 300
+  maxLength = 80
 }) => {
   const [isExpanded, setIsExpanded] = useState(false);
   
-  // Force scroll to bottom after content expansion/collapse
+  // Handle expand/collapse with proper scroll behavior
   const handleToggleExpanded = (expanded: boolean) => {
     setIsExpanded(expanded);
     
-    // Force scroll after DOM update with more reliable timing
-    setTimeout(() => {
-      requestAnimationFrame(() => {
+    if (!expanded) {
+      // When collapsing (show less), scroll to the end of collapsed content
+      // This is the industry standard behavior
+      setTimeout(() => {
         requestAnimationFrame(() => {
-          const container = document.querySelector('.rr-copilot-message-list');
-          if (container) {
-            container.scrollTop = container.scrollHeight;
+          // After state update, the "show more" button should be visible
+          const showMoreButton = document.querySelector('.rr-copilot-show-more-btn');
+          if (showMoreButton) {
+            showMoreButton.scrollIntoView({ 
+              behavior: 'smooth', 
+              block: 'center' 
+            });
           }
         });
-      });
-    }, 50); // Small delay to ensure DOM is fully updated
+      }, 0);
+    }
   };
 
   const { shouldCollapse, truncatedContent } = useMemo(() => {
@@ -110,6 +115,7 @@ export const CollapsibleMessage: React.FC<CollapsibleMessageProps> = ({
       {!isExpanded && (
         <div style={{ marginTop: '8px' }}>
           <button
+            className="rr-copilot-show-more-btn"
             onClick={() => handleToggleExpanded(true)}
             style={{
               backgroundColor: 'transparent',
@@ -141,6 +147,7 @@ export const CollapsibleMessage: React.FC<CollapsibleMessageProps> = ({
       {isExpanded && (
         <div style={{ marginTop: '8px' }}>
           <button
+            className="rr-copilot-show-less-btn"
             onClick={() => handleToggleExpanded(false)}
             style={{
               backgroundColor: 'transparent',
