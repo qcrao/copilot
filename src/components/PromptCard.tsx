@@ -63,6 +63,14 @@ export const PromptCard: React.FC<PromptCardProps> = ({ template, onClick, isCus
           alignItems: "center",
           gap: "8px"
         }}>
+          <Icon
+            icon={template.icon as any}
+            size={16}
+            style={{ 
+              color: template.color || "#666",
+              flexShrink: 0
+            }}
+          />
           {template.title}
           {isCustom && (
             <span style={{

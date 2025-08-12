@@ -8,10 +8,12 @@ This is "Roam Copilot" - a Roam Research extension that provides an AI-powered c
 
 ## Build Commands
 
-### Production Build (Recommended)
+### Build
+
+Every time you make a change to the code, you need to build the extension.
 
 ```bash
-sh build.sh          # Primary build script for Roam extension
+sh build.sh
 ```
 
 This is the main build command for compiling the Roam extension. It uses `roamjs-scripts build --depot` for proper Roam Research extension packaging.
