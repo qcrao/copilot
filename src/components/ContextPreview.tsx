@@ -48,11 +48,24 @@ export const ContextPreview: React.FC<ContextPreviewProps> = ({
   const dailyNoteBlocks = context.dailyNote?.blocks || [];
   const backlinks = context.linkedReferences || [];
   const sidebarNotes = context.sidebarNotes || [];
+  
+  // 🔍 Debug context in ContextPreview
+  console.log("🔍 ContextPreview received:", {
+    sidebarNotesLength: sidebarNotes.length,
+    sidebarNotesData: sidebarNotes,
+    contextObject: context
+  });
 
   // Check if page has any content
   const hasPageContent = currentPageBlocks.length > 0 || visibleBlocks.length > 0 || selectedText || dailyNoteBlocks.length > 0;
   const hasBacklinks = backlinks.length > 0;
   const hasSidebarNotes = sidebarNotes.length > 0;
+  
+  console.log("🔍 ContextPreview flags:", {
+    hasPageContent,
+    hasBacklinks,
+    hasSidebarNotes
+  });
 
   if (!hasPageContent && !hasBacklinks && !hasSidebarNotes) return null;
 

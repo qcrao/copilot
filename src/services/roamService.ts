@@ -206,7 +206,16 @@ export class RoamService {
       let currentPageUid = null;
       let title = "";
 
-      // Try to get from API (might be async)
+      // First, check if we have sidebar notes (they take priority as context)
+      // Instead of trying to pick one "active" page, we'll let all sidebar notes 
+      // contribute to context via the getSidebarNotes() method in getPageContext()
+      const sidebarNotes = await this.getSidebarNotes();
+      if (sidebarNotes && sidebarNotes.length > 0) {
+        console.log("🔍 Found", sidebarNotes.length, "sidebar notes - using main window as current page");
+        // Continue to get main window page, sidebar notes will be included in context separately
+      }
+
+      // Try to get from main window API (might be async)
       const apiResult =
         window.roamAlphaAPI?.ui?.mainWindow?.getOpenPageOrBlockUid?.();
       if (apiResult && typeof apiResult === "object" && "then" in apiResult) {
@@ -215,7 +224,7 @@ export class RoamService {
         currentPageUid = apiResult || null;
       }
 
-      console.log("Current page UID from API:", currentPageUid);
+      console.log("Current page UID from main window API:", currentPageUid);
 
       if (!currentPageUid) {
         // Fallback: try to get from URL
@@ -294,6 +303,61 @@ export class RoamService {
       };
     } catch (error) {
       console.error("Error getting current page info:", error);
+      return null;
+    }
+  }
+
+  // The getActiveSidebarPageInfo and findMostActiveSidebarWindow methods have been removed
+  // as we now include ALL sidebar notes in the context instead of trying to pick one "active" page
+
+  /**
+   * Fallback method to detect active sidebar page from DOM
+   */
+  static async getActiveSidebarPageFromDOM(): Promise<RoamPage | null> {
+    try {
+      console.log("🔍 Checking DOM for active sidebar page...");
+      
+      // Look for the right sidebar
+      const rightSidebar = document.querySelector("#roam-right-sidebar-content") || 
+                          document.querySelector(".roam-sidebar-container") ||
+                          document.querySelector("[data-testid='right-sidebar']");
+      
+      if (!rightSidebar) {
+        console.log("❌ No right sidebar found in DOM");
+        return null;
+      }
+      
+      // Look for all visible page titles in the sidebar
+      const titleElements = rightSidebar.querySelectorAll(".rm-title-display");
+      
+      if (titleElements.length > 0) {
+        // Get all visible titles
+        const visibleTitles = Array.from(titleElements).filter(el => {
+          const rect = el.getBoundingClientRect();
+          return rect.width > 0 && rect.height > 0;
+        });
+        
+        if (visibleTitles.length > 0) {
+          // Just return the first visible one for fallback, 
+          // but the real value is in getSidebarNotes() which gets all of them
+          const firstVisibleTitle = visibleTitles[0];
+          const pageTitle = firstVisibleTitle.textContent?.trim();
+          
+          if (pageTitle) {
+            console.log("🔍 Found fallback sidebar page title:", pageTitle);
+            const page = await this.getPageByTitle(pageTitle);
+            if (page) {
+              console.log("✅ Successfully got fallback sidebar page from DOM:", pageTitle);
+              return page;
+            }
+          }
+        }
+      }
+      
+      console.log("❌ No sidebar page titles found in DOM");
+      return null;
+    } catch (error) {
+      console.error("❌ Error getting active sidebar page from DOM:", error);
       return null;
     }
   }
@@ -581,6 +645,7 @@ export class RoamService {
 
       const sidebarWindows = window.roamAlphaAPI.ui.rightSidebar.getWindows();
       console.log("🔍 Sidebar windows from API:", sidebarWindows);
+      console.log("🔍 Raw sidebar windows data:", JSON.stringify(sidebarWindows, null, 2));
 
       if (!sidebarWindows || sidebarWindows.length === 0) {
         console.log("❌ No sidebar windows found via API, trying DOM fallback");
@@ -593,6 +658,9 @@ export class RoamService {
       for (const sidebarWindow of sidebarWindows) {
         try {
           console.log("🔍 Processing sidebar window:", sidebarWindow);
+          console.log("🔍 Window keys:", Object.keys(sidebarWindow));
+          console.log("🔍 Window page-uid:", sidebarWindow["page-uid"]);
+          console.log("🔍 Window block-uid:", sidebarWindow["block-uid"]);
           
           if (sidebarWindow["page-uid"]) {
             // This is a page window
@@ -600,6 +668,9 @@ export class RoamService {
             if (!processedUids.has(pageUid)) {
               processedUids.add(pageUid);
               console.log("🔍 Found page window with UID:", pageUid);
+              
+              // Add a small delay to ensure the page is fully loaded
+              await new Promise(resolve => setTimeout(resolve, 100));
               
               // Get page by UID
               const blocks = await this.getPageBlocks(pageUid);
@@ -664,6 +735,15 @@ export class RoamService {
       }
 
       console.log(`✅ Found ${sidebarNotes.length} sidebar notes via API`);
+      
+      // If API didn't find any notes, try DOM fallback
+      if (sidebarNotes.length === 0) {
+        console.log("🔄 No sidebar notes from API, trying DOM fallback...");
+        const domNotes = await this.getSidebarNotesFromDOM();
+        console.log(`🔍 DOM fallback found ${domNotes.length} notes`);
+        return domNotes;
+      }
+      
       return sidebarNotes;
     } catch (error) {
       console.error("❌ Error getting sidebar notes:", error);
@@ -788,8 +868,19 @@ export class RoamService {
       linkedReferences: linkedReferences.length,
       sidebarNotes: sidebarNotes.length,
     });
+    
+    // 🔍 Debug: Log detailed sidebar notes info
+    if (sidebarNotes && sidebarNotes.length > 0) {
+      console.log("📝 Sidebar notes details:", sidebarNotes.map(note => ({
+        title: note.title,
+        uid: note.uid,
+        blockCount: note.blocks.length
+      })));
+    } else {
+      console.log("❌ No sidebar notes in context - this might be the issue!");
+    }
 
-    return {
+    const contextResult = {
       currentPage: currentPage || undefined,
       visibleBlocks,
       selectedText: selectedText || undefined,
@@ -797,6 +888,14 @@ export class RoamService {
       linkedReferences,
       sidebarNotes,
     };
+    
+    // 🔍 Debug: Final context check
+    console.log("🔍 Final context object:", {
+      hasSidebarNotes: contextResult.sidebarNotes?.length > 0,
+      sidebarNotesArray: contextResult.sidebarNotes
+    });
+    
+    return contextResult;
   }
 
   /**

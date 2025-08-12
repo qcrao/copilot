@@ -203,6 +203,7 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
                 }
               : undefined,
             linkedReferences: filterBlocks(context.linkedReferences) as any,
+            sidebarNotes: context.sidebarNotes || [], // 🔧 Fix: Include sidebar notes!
           } as PageContext;
 
           setPageContext(filtered);
@@ -302,6 +303,45 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
 
     // Also check periodically as a fallback
     const intervalId = setInterval(checkForPageChange, 2000); // Check every 2 seconds
+    
+    // Listen for sidebar window changes
+    const handleSidebarChange = () => {
+      console.log("🔍 Sidebar change detected, updating context...");
+      if (updateContextTimeoutRef.current) {
+        clearTimeout(updateContextTimeoutRef.current);
+      }
+      updateContextTimeoutRef.current = setTimeout(() => {
+        updatePageContext();
+      }, 300); // Shorter delay for sidebar changes
+    };
+    
+    // Try to listen for Roam's internal sidebar events
+    // Listen for various DOM changes that might indicate sidebar updates
+    const sidebarObserver = new MutationObserver((mutations) => {
+      for (const mutation of mutations) {
+        if (mutation.type === 'childList') {
+          // Check if sidebar content was added/removed
+          const target = mutation.target as Element;
+          if (target.closest?.('#roam-right-sidebar-content') || 
+              target.closest?.('.roam-sidebar-container')) {
+            console.log("🔍 Sidebar DOM change detected");
+            handleSidebarChange();
+            break;
+          }
+        }
+      }
+    });
+    
+    // Observe the sidebar container for changes
+    const sidebarContainer = document.querySelector('#roam-right-sidebar-content') ||
+                            document.querySelector('.roam-sidebar-container');
+    if (sidebarContainer) {
+      sidebarObserver.observe(sidebarContainer, {
+        childList: true,
+        subtree: true
+      });
+      console.log("✅ Started observing sidebar changes");
+    }
 
     return () => {
       if (updateContextTimeoutRef.current) {
@@ -310,6 +350,7 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
       }
       window.removeEventListener("hashchange", handleHashChange);
       observer.disconnect();
+      sidebarObserver.disconnect();
       clearInterval(intervalId);
     };
   }, [isOpen, updatePageContext]);
