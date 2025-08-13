@@ -1017,12 +1017,11 @@ export class RoamService {
   static async getPageContext(): Promise<PageContext> {
     // Getting comprehensive page context
 
-    const [currentPage, visibleBlocks, selectedText, dailyNote, sidebarNotes] =
+    const [currentPage, visibleBlocks, selectedText, sidebarNotes] =
       await Promise.all([
         this.getCurrentPageInfo(),
         Promise.resolve(this.getVisibleBlocks()),
         Promise.resolve(this.getSelectedText()),
-        this.getCurrentDailyNote(),
         this.getSidebarNotes(),
       ]);
 
@@ -1050,7 +1049,7 @@ export class RoamService {
       currentPage: currentPage || undefined,
       visibleBlocks,
       selectedText: selectedText || undefined,
-      dailyNote: dailyNote || undefined,
+      dailyNote: undefined,
       linkedReferences,
       sidebarNotes,
     };
