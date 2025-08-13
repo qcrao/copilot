@@ -4,6 +4,45 @@ import { Icon, Tag, Card, Popover, Position } from "@blueprintjs/core";
 import { PageContext } from "../types";
 import { RoamService } from "../services/roamService";
 
+// Custom Context Chip Component
+interface ContextChipProps {
+  icon: string;
+  text: string;
+  count?: number;
+  variant: 'page' | 'daily' | 'visible' | 'selected' | 'backlinks' | 'sidebar';
+  title?: string;
+  maxTextWidth?: number;
+  children?: React.ReactNode;
+}
+
+const ContextChip: React.FC<ContextChipProps> = ({ 
+  icon, 
+  text, 
+  count, 
+  variant, 
+  title, 
+  maxTextWidth = 80,
+  children 
+}) => {
+  const needsTextTruncation = variant === 'page' || variant === 'daily';
+  
+  return (
+    <div className={`rr-context-chip rr-context-chip--${variant}`} title={title}>
+      <Icon icon={icon as any} size={12} />
+      <span 
+        className="rr-context-chip__text"
+        style={needsTextTruncation ? { maxWidth: `${maxTextWidth}px` } : undefined}
+      >
+        {text}
+      </span>
+      {count !== undefined && (
+        <span className="rr-context-chip__count">{count}</span>
+      )}
+      {children}
+    </div>
+  );
+};
+
 interface ContextPreviewProps {
   context: PageContext | null;
   onExcludeBlock?: (uid: string) => void;
@@ -126,22 +165,15 @@ export const ContextPreview: React.FC<ContextPreviewProps> = ({
           minimal
           hoverOpenDelay={100}
         >
-          <Tag
-            minimal
-            round
-            className={isCurrentPageDaily ? "rr-context-chip rr-context-chip--daily" : "rr-context-chip rr-context-chip--page"}
+          <ContextChip
+            icon={isCurrentPageDaily ? "calendar" : "document"}
+            text={context.currentPage.title}
+            count={currentPageBlocks.length > 0 
+              ? countNonEmptyBlocks(currentPageBlocks) 
+              : countNonEmptyBlocks(visibleBlocks)}
+            variant={isCurrentPageDaily ? "daily" : "page"}
             title={context.currentPage.title}
-          >
-            <Icon icon={isCurrentPageDaily ? "calendar" : "document"} size={12} />
-            <span className="rr-context-chip__text">
-              {context.currentPage.title}
-            </span>
-            <span className="rr-context-chip__count">
-              {currentPageBlocks.length > 0 
-                ? countNonEmptyBlocks(currentPageBlocks) 
-                : countNonEmptyBlocks(visibleBlocks)}
-            </span>
-          </Tag>
+          />
         </Popover>
       )}
 
@@ -154,30 +186,24 @@ export const ContextPreview: React.FC<ContextPreviewProps> = ({
           minimal
           hoverOpenDelay={100}
         >
-          <Tag
-            minimal
-            round
-            className="rr-context-chip rr-context-chip--visible"
+          <ContextChip
+            icon="eye-open"
+            text="Visible"
+            count={countNonEmptyBlocks(visibleBlocks)}
+            variant="visible"
             title={`Visible blocks: ${visibleBlocks.length}`}
-          >
-            <Icon icon="eye-open" size={12} />
-            <span className="rr-context-chip__text">Visible</span>
-            <span className="rr-context-chip__count">{countNonEmptyBlocks(visibleBlocks)}</span>
-          </Tag>
+          />
         </Popover>
       )}
 
       {/* Selected Text */}
       {selectedText && (
-        <Tag
-          minimal
-          round
-          className="rr-context-chip rr-context-chip--selected"
+        <ContextChip
+          icon="selection"
+          text="Selected"
+          variant="selected"
           title={selectedText.length > 100 ? selectedText.substring(0, 100) + "..." : selectedText}
-        >
-          <Icon icon="selection" size={12} />
-          <span className="rr-context-chip__text">Selected</span>
-        </Tag>
+        />
       )}
 
       {/* Daily Note - only show if it's different from current page */}
@@ -189,18 +215,13 @@ export const ContextPreview: React.FC<ContextPreviewProps> = ({
           minimal
           hoverOpenDelay={100}
         >
-          <Tag
-            minimal
-            round
-            className="rr-context-chip rr-context-chip--daily"
+          <ContextChip
+            icon="calendar"
+            text={context.dailyNote.title}
+            count={countNonEmptyBlocks(dailyNoteBlocks)}
+            variant="daily"
             title={context.dailyNote.title}
-          >
-            <Icon icon="calendar" size={12} />
-            <span className="rr-context-chip__text">
-              {context.dailyNote.title}
-            </span>
-            <span className="rr-context-chip__count">{countNonEmptyBlocks(dailyNoteBlocks)}</span>
-          </Tag>
+          />
         </Popover>
       )}
 
@@ -213,16 +234,13 @@ export const ContextPreview: React.FC<ContextPreviewProps> = ({
           minimal
           hoverOpenDelay={100}
         >
-          <Tag
-            minimal
-            round
-            className="rr-context-chip rr-context-chip--backlinks"
+          <ContextChip
+            icon="link"
+            text="Backlinks"
+            count={backlinks.length}
+            variant="backlinks"
             title={`Backlinks: ${backlinks.length}`}
-          >
-            <Icon icon="link" size={12} />
-            <span className="rr-context-chip__text">Backlinks</span>
-            <span className="rr-context-chip__count">{backlinks.length}</span>
-          </Tag>
+          />
         </Popover>
       )}
 
@@ -260,16 +278,13 @@ export const ContextPreview: React.FC<ContextPreviewProps> = ({
           minimal
           hoverOpenDelay={100}
         >
-          <Tag
-            minimal
-            round
-            className="rr-context-chip rr-context-chip--sidebar"
+          <ContextChip
+            icon="panel-stats"
+            text="Sidebar"
+            count={sidebarNotes.length}
+            variant="sidebar"
             title={`Sidebar notes: ${sidebarNotes.length}`}
-          >
-            <Icon icon="panel-stats" size={12} />
-            <span className="rr-context-chip__text">Sidebar</span>
-            <span className="rr-context-chip__count">{sidebarNotes.length}</span>
-          </Tag>
+          />
         </Popover>
       )}
     </div>
