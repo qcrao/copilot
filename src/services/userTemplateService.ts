@@ -1,5 +1,7 @@
 // src/services/userTemplateService.ts
 import { CustomPromptTemplate, UserTemplateSettings, PromptTemplate } from "../types";
+import { RoamTemplateService } from "./roamTemplateService";
+import { TemplateSettingsService } from "./templateSettingsService";
 
 const USER_TEMPLATES_KEY = "copilot-user-templates";
 
@@ -10,8 +12,42 @@ const DEFAULT_SETTINGS: UserTemplateSettings = {
 
 export class UserTemplateService {
   private static settings: UserTemplateSettings = { ...DEFAULT_SETTINGS };
+  private static isInitialized = false;
+  private static useRoamStorage = false;
 
-  static loadSettings(): UserTemplateSettings {
+  static async initialize(): Promise<void> {
+    if (this.isInitialized) return;
+
+    // Check if Roam API is available
+    this.useRoamStorage = RoamTemplateService.isRoamAvailable();
+    
+    if (this.useRoamStorage) {
+      console.log("Using Roam Research for template storage");
+      await this.loadSettingsFromRoam();
+    } else {
+      console.log("Using localStorage for template storage (Roam API not available)");
+      this.loadSettingsFromLocalStorage();
+    }
+
+    this.isInitialized = true;
+  }
+
+  private static async loadSettingsFromRoam(): Promise<void> {
+    try {
+      const { userTemplateSettings } = await RoamTemplateService.loadTemplateSettings();
+      const customTemplates = await RoamTemplateService.loadCustomTemplates();
+      
+      this.settings = {
+        customTemplates,
+        hiddenCustomTemplates: userTemplateSettings.hiddenCustomTemplates || []
+      };
+    } catch (error) {
+      console.error("Failed to load template settings from Roam:", error);
+      this.settings = { ...DEFAULT_SETTINGS };
+    }
+  }
+
+  private static loadSettingsFromLocalStorage(): void {
     try {
       const saved = localStorage.getItem(USER_TEMPLATES_KEY);
       if (saved) {
@@ -22,108 +58,154 @@ export class UserTemplateService {
       console.error("Failed to load user template settings:", error);
       this.settings = { ...DEFAULT_SETTINGS };
     }
+  }
+
+  static async loadSettings(): Promise<UserTemplateSettings> {
+    await this.initialize();
     return this.settings;
   }
 
-  static saveSettings(settings: UserTemplateSettings): void {
+  static async saveSettings(settings: UserTemplateSettings): Promise<void> {
+    await this.initialize();
+    
     try {
       this.settings = settings;
-      localStorage.setItem(USER_TEMPLATES_KEY, JSON.stringify(settings));
+      
+      if (this.useRoamStorage) {
+        // Save settings to Roam
+        const globalSettings = await TemplateSettingsService.getSettings();
+        await RoamTemplateService.saveTemplateSettings(settings, globalSettings);
+      } else {
+        // Fallback to localStorage
+        localStorage.setItem(USER_TEMPLATES_KEY, JSON.stringify(settings));
+      }
     } catch (error) {
       console.error("Failed to save user template settings:", error);
     }
   }
 
-  static getSettings(): UserTemplateSettings {
+  static async getSettings(): Promise<UserTemplateSettings> {
+    await this.initialize();
     return this.settings;
   }
 
-  static createTemplate(template: Omit<PromptTemplate, 'id'>): string {
+  static async createTemplate(template: Omit<PromptTemplate, 'id'>): Promise<string> {
+    await this.initialize();
+    
     const newTemplate: CustomPromptTemplate = {
       ...template,
-      id: `custom-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      id: `custom-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`,
       isCustom: true,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };
 
-    const currentSettings = this.getSettings();
+    const currentSettings = this.settings;
     currentSettings.customTemplates.push(newTemplate);
-    this.saveSettings(currentSettings);
+    
+    if (this.useRoamStorage) {
+      // Save the template directly to Roam
+      await RoamTemplateService.saveCustomTemplate(newTemplate);
+    }
+    
+    await this.saveSettings(currentSettings);
     
     return newTemplate.id;
   }
 
-  static updateTemplate(id: string, updates: Partial<Omit<PromptTemplate, 'id' | 'isCustom'>>): boolean {
-    const currentSettings = this.getSettings();
+  static async updateTemplate(id: string, updates: Partial<Omit<PromptTemplate, 'id' | 'isCustom'>>): Promise<boolean> {
+    await this.initialize();
+    
+    const currentSettings = this.settings;
     const templateIndex = currentSettings.customTemplates.findIndex(t => t.id === id);
     
     if (templateIndex === -1) {
       return false;
     }
 
-    currentSettings.customTemplates[templateIndex] = {
+    const updatedTemplate = {
       ...currentSettings.customTemplates[templateIndex],
       ...updates,
       updatedAt: new Date().toISOString(),
     };
     
-    this.saveSettings(currentSettings);
+    currentSettings.customTemplates[templateIndex] = updatedTemplate;
+    
+    if (this.useRoamStorage) {
+      // Update the template directly in Roam
+      await RoamTemplateService.updateCustomTemplate(updatedTemplate);
+    }
+    
+    await this.saveSettings(currentSettings);
     return true;
   }
 
-  static deleteTemplate(id: string): boolean {
-    const currentSettings = this.getSettings();
+  static async deleteTemplate(id: string): Promise<boolean> {
+    await this.initialize();
+    
+    const currentSettings = this.settings;
     const initialLength = currentSettings.customTemplates.length;
     
     currentSettings.customTemplates = currentSettings.customTemplates.filter(t => t.id !== id);
     currentSettings.hiddenCustomTemplates = currentSettings.hiddenCustomTemplates.filter(hiddenId => hiddenId !== id);
     
     if (currentSettings.customTemplates.length !== initialLength) {
-      this.saveSettings(currentSettings);
+      if (this.useRoamStorage) {
+        // Delete the template directly from Roam
+        await RoamTemplateService.deleteCustomTemplate(id);
+      }
+      
+      await this.saveSettings(currentSettings);
       return true;
     }
     
     return false;
   }
 
-  static hideTemplate(templateId: string): void {
-    const currentSettings = this.getSettings();
+  static async hideTemplate(templateId: string): Promise<void> {
+    await this.initialize();
+    
+    const currentSettings = this.settings;
     if (!currentSettings.hiddenCustomTemplates.includes(templateId)) {
       currentSettings.hiddenCustomTemplates.push(templateId);
-      this.saveSettings(currentSettings);
+      await this.saveSettings(currentSettings);
     }
   }
 
-  static showTemplate(templateId: string): void {
-    const currentSettings = this.getSettings();
+  static async showTemplate(templateId: string): Promise<void> {
+    await this.initialize();
+    
+    const currentSettings = this.settings;
     currentSettings.hiddenCustomTemplates = currentSettings.hiddenCustomTemplates.filter(
       (id) => id !== templateId
     );
-    this.saveSettings(currentSettings);
+    await this.saveSettings(currentSettings);
   }
 
-  static isTemplateHidden(templateId: string): boolean {
-    return this.getSettings().hiddenCustomTemplates.includes(templateId);
+  static async isTemplateHidden(templateId: string): Promise<boolean> {
+    const settings = await this.getSettings();
+    return settings.hiddenCustomTemplates.includes(templateId);
   }
 
-  static getCustomTemplates(): CustomPromptTemplate[] {
-    return this.getSettings().customTemplates;
+  static async getCustomTemplates(): Promise<CustomPromptTemplate[]> {
+    const settings = await this.getSettings();
+    return settings.customTemplates;
   }
 
-  static getVisibleCustomTemplates(): CustomPromptTemplate[] {
-    const { customTemplates, hiddenCustomTemplates } = this.getSettings();
+  static async getVisibleCustomTemplates(): Promise<CustomPromptTemplate[]> {
+    const { customTemplates, hiddenCustomTemplates } = await this.getSettings();
     return customTemplates.filter(template => !hiddenCustomTemplates.includes(template.id));
   }
 
-  static getAllTemplates(): (PromptTemplate | CustomPromptTemplate)[] {
+  static async getAllTemplates(): Promise<(PromptTemplate | CustomPromptTemplate)[]> {
     const { PROMPT_TEMPLATES } = require("../data/promptTemplates");
-    const customTemplates = this.getCustomTemplates();
+    const customTemplates = await this.getCustomTemplates();
     return [...PROMPT_TEMPLATES, ...customTemplates];
   }
 
-  static getTemplateById(id: string): PromptTemplate | CustomPromptTemplate | null {
-    const customTemplate = this.getCustomTemplates().find(t => t.id === id);
+  static async getTemplateById(id: string): Promise<PromptTemplate | CustomPromptTemplate | null> {
+    const customTemplates = await this.getCustomTemplates();
+    const customTemplate = customTemplates.find(t => t.id === id);
     if (customTemplate) {
       return customTemplate;
     }
@@ -131,7 +213,28 @@ export class UserTemplateService {
     const { PROMPT_TEMPLATES } = require("../data/promptTemplates");
     return PROMPT_TEMPLATES.find((t: PromptTemplate) => t.id === id) || null;
   }
+
+  // Legacy synchronous methods for backward compatibility
+  // These will use cached data if available
+  static getSettingsSync(): UserTemplateSettings {
+    return this.settings;
+  }
+
+  static getCustomTemplatesSync(): CustomPromptTemplate[] {
+    return this.settings.customTemplates;
+  }
+
+  static getVisibleCustomTemplatesSync(): CustomPromptTemplate[] {
+    const { customTemplates, hiddenCustomTemplates } = this.settings;
+    return customTemplates.filter(template => !hiddenCustomTemplates.includes(template.id));
+  }
+
+  static isTemplateHiddenSync(templateId: string): boolean {
+    return this.settings.hiddenCustomTemplates.includes(templateId);
+  }
 }
 
-// Initialize settings on load
-UserTemplateService.loadSettings();
+// Initialize settings on load (don't await here to avoid blocking)
+UserTemplateService.initialize().catch(error => {
+  console.error("Failed to initialize UserTemplateService:", error);
+});

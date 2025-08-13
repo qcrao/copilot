@@ -25,23 +25,64 @@ export const PromptTemplatesGrid: React.FC<PromptTemplatesGridProps> = ({
   const [dismissedEmptyMessage, setDismissedEmptyMessage] = useState(false);
 
   useEffect(() => {
-    // Load hidden templates and custom templates on mount
-    setHiddenTemplates(TemplateSettingsService.getHiddenTemplates());
-    setHiddenCustomTemplates(UserTemplateService.getSettings().hiddenCustomTemplates);
-    setCustomTemplates(UserTemplateService.getCustomTemplates() as any);
+    const loadData = async () => {
+      try {
+        // Load hidden templates and custom templates on mount
+        const [hiddenTemplatesData, userSettings, customTemplatesData] = await Promise.all([
+          TemplateSettingsService.getHiddenTemplates(),
+          UserTemplateService.getSettings(),
+          UserTemplateService.getCustomTemplates()
+        ]);
+        
+        setHiddenTemplates(hiddenTemplatesData);
+        setHiddenCustomTemplates(userSettings.hiddenCustomTemplates);
+        setCustomTemplates(customTemplatesData as any);
+        
+        // Load dismissed message state from localStorage
+        const dismissed = localStorage.getItem("copilot-empty-message-dismissed");
+        setDismissedEmptyMessage(dismissed === "true");
+      } catch (error) {
+        console.error("Failed to load template data:", error);
+        // Fallback to sync methods if available
+        try {
+          setHiddenTemplates(TemplateSettingsService.getHiddenTemplatesSync());
+          setHiddenCustomTemplates(UserTemplateService.getSettingsSync().hiddenCustomTemplates);
+          setCustomTemplates(UserTemplateService.getCustomTemplatesSync() as any);
+        } catch (fallbackError) {
+          console.error("Fallback to sync methods also failed:", fallbackError);
+        }
+      }
+    };
     
-    // Load dismissed message state from localStorage
-    const dismissed = localStorage.getItem("copilot-empty-message-dismissed");
-    setDismissedEmptyMessage(dismissed === "true");
+    loadData();
   }, []);
 
-  const handleManagementSettingsChanged = () => {
-    setHiddenTemplates(TemplateSettingsService.getHiddenTemplates());
-    setHiddenCustomTemplates(UserTemplateService.getSettings().hiddenCustomTemplates);
-    setCustomTemplates(UserTemplateService.getCustomTemplates() as any);
-    // Reset dismissed message when templates visibility changes
-    setDismissedEmptyMessage(false);
-    localStorage.removeItem("copilot-empty-message-dismissed");
+  const handleManagementSettingsChanged = async () => {
+    try {
+      const [hiddenTemplatesData, userSettings, customTemplatesData] = await Promise.all([
+        TemplateSettingsService.getHiddenTemplates(),
+        UserTemplateService.getSettings(),
+        UserTemplateService.getCustomTemplates()
+      ]);
+      
+      setHiddenTemplates(hiddenTemplatesData);
+      setHiddenCustomTemplates(userSettings.hiddenCustomTemplates);
+      setCustomTemplates(customTemplatesData as any);
+      
+      // Reset dismissed message when templates visibility changes
+      setDismissedEmptyMessage(false);
+      localStorage.removeItem("copilot-empty-message-dismissed");
+    } catch (error) {
+      console.error("Failed to refresh template data:", error);
+      // Fallback to sync methods if available
+      try {
+        setHiddenTemplates(TemplateSettingsService.getHiddenTemplatesSync());
+        setHiddenCustomTemplates(UserTemplateService.getSettingsSync().hiddenCustomTemplates);
+        setCustomTemplates(UserTemplateService.getCustomTemplatesSync() as any);
+      } catch (fallbackError) {
+        console.error("Fallback to sync methods also failed:", fallbackError);
+      }
+    }
   };
 
   const handleTemplateClick = (template: PromptTemplate) => {

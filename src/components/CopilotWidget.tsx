@@ -1239,59 +1239,66 @@ ${contextForUser}`;
     return { top: finalTop, left: finalLeft };
   };
 
-  const handlePromptSelect = (prompt: string) => {
+  const handlePromptSelect = async (prompt: string) => {
     console.log("📝 Template selected:", prompt.substring(0, 100) + "...");
 
-    // Import UserTemplateService dynamically to avoid circular imports
-    const { UserTemplateService } = require("../services/userTemplateService");
-    
-    // Get all templates (official + custom)
-    const allTemplates = UserTemplateService.getAllTemplates();
-    
-    // Find the template that matches this prompt (try exact match first)
-    let template = allTemplates.find((t: any) => t.prompt === prompt);
+    try {
+      // Import UserTemplateService dynamically to avoid circular imports
+      const { UserTemplateService } = require("../services/userTemplateService");
+      
+      // Get all templates (official + custom) - now async
+      const allTemplates = await UserTemplateService.getAllTemplates();
+      
+      // Find the template that matches this prompt (try exact match first)
+      let template = allTemplates.find((t: any) => t.prompt === prompt);
 
-    // If no exact match, try to find by base prompt (before language instructions)
-    if (!template) {
-      template = allTemplates.find((t: any) => {
-        // Check if the prompt starts with the template's base prompt
-        const basePrompt = t.prompt.trim();
-        const normalizedPrompt = prompt.trim();
+      // If no exact match, try to find by base prompt (before language instructions)
+      if (!template) {
+        template = allTemplates.find((t: any) => {
+          // Check if the prompt starts with the template's base prompt
+          const basePrompt = t.prompt.trim();
+          const normalizedPrompt = prompt.trim();
 
-        if (normalizedPrompt.startsWith(basePrompt)) {
-          // Check if the remaining part is just language instruction
-          const remainingText = normalizedPrompt
-            .substring(basePrompt.length)
-            .trim();
-          return (
-            remainingText === "" ||
-            remainingText.startsWith("IMPORTANT: Please respond")
-          );
-        }
-        return false;
-      });
-    }
+          if (normalizedPrompt.startsWith(basePrompt)) {
+            // Check if the remaining part is just language instruction
+            const remainingText = normalizedPrompt
+              .substring(basePrompt.length)
+              .trim();
+            return (
+              remainingText === "" ||
+              remainingText.startsWith("IMPORTANT: Please respond")
+            );
+          }
+          return false;
+        });
+      }
 
-    if (template) {
-      console.log("🎯 Found matching template:", template.id, template.title);
+      if (template) {
+        console.log("🎯 Found matching template:", template.id, template.title);
 
-      // Hide templates since we're sending a message
+        // Hide templates since we're sending a message
+        setShowTemplates(false);
+
+        // Send the prompt directly with template info
+        handleSendMessage(prompt, {
+          id: template.id,
+          prompt: template.prompt, // Use the original template prompt, not the modified one
+        });
+      } else {
+        console.error(
+          "❌ No matching template found for prompt:",
+          prompt.substring(0, 100) + "..."
+        );
+        console.log(
+          "Available templates:",
+          allTemplates.map((t: any) => ({ id: t.id, title: t.title }))
+        );
+      }
+    } catch (error) {
+      console.error("Failed to load templates for prompt selection:", error);
+      // Fallback: still send the prompt even if we can't match it to a template
       setShowTemplates(false);
-
-      // Send the prompt directly with template info
-      handleSendMessage(prompt, {
-        id: template.id,
-        prompt: template.prompt, // Use the original template prompt, not the modified one
-      });
-    } else {
-      console.error(
-        "❌ No matching template found for prompt:",
-        prompt.substring(0, 100) + "..."
-      );
-      console.log(
-        "Available templates:",
-        allTemplates.map((t: any) => ({ id: t.id, title: t.title }))
-      );
+      handleSendMessage(prompt);
     }
   };
 

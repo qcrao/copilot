@@ -66,61 +66,92 @@ export const TemplateForm: React.FC<TemplateFormProps> = ({
 
   const [errors, setErrors] = useState<Record<string, string>>({});
 
-  const loadAvailableCategories = () => {
-    // Get all template categories (both default and custom)
-    const allTemplates = [...PROMPT_TEMPLATES, ...UserTemplateService.getCustomTemplates()];
-    const usedCategories = [...new Set(allTemplates.map(t => t.category))];
-    
-    // Create category options
-    const categoryOptions = DEFAULT_CATEGORY_OPTIONS.slice(); // Start with defaults
-    
-    // Add custom categories that are in use
-    usedCategories.forEach(category => {
-      const isDefaultCategory = DEFAULT_CATEGORY_OPTIONS.some(opt => opt.value === category);
-      if (!isDefaultCategory) {
-        categoryOptions.push({
-          label: category.charAt(0).toUpperCase() + category.slice(1),
-          value: category
+  const loadAvailableCategories = async () => {
+    try {
+      // Get all template categories (both default and custom)
+      const customTemplates = await UserTemplateService.getCustomTemplates();
+      const allTemplates = [...PROMPT_TEMPLATES, ...customTemplates];
+      const usedCategories = [...new Set(allTemplates.map(t => t.category))];
+      
+      // Create category options
+      const categoryOptions = DEFAULT_CATEGORY_OPTIONS.slice(); // Start with defaults
+      
+      // Add custom categories that are in use
+      usedCategories.forEach(category => {
+        const isDefaultCategory = DEFAULT_CATEGORY_OPTIONS.some(opt => opt.value === category);
+        if (!isDefaultCategory) {
+          categoryOptions.push({
+            label: category.charAt(0).toUpperCase() + category.slice(1),
+            value: category
+          });
+        }
+      });
+      
+      setAvailableCategories(categoryOptions);
+    } catch (error) {
+      console.error("Failed to load available categories:", error);
+      // Fallback to sync method if available
+      try {
+        const customTemplates = UserTemplateService.getCustomTemplatesSync();
+        const allTemplates = [...PROMPT_TEMPLATES, ...customTemplates];
+        const usedCategories = [...new Set(allTemplates.map(t => t.category))];
+        
+        const categoryOptions = DEFAULT_CATEGORY_OPTIONS.slice();
+        usedCategories.forEach(category => {
+          const isDefaultCategory = DEFAULT_CATEGORY_OPTIONS.some(opt => opt.value === category);
+          if (!isDefaultCategory) {
+            categoryOptions.push({
+              label: category.charAt(0).toUpperCase() + category.slice(1),
+              value: category
+            });
+          }
         });
+        
+        setAvailableCategories(categoryOptions);
+      } catch (fallbackError) {
+        console.error("Fallback to sync method also failed:", fallbackError);
+        setAvailableCategories(DEFAULT_CATEGORY_OPTIONS);
       }
-    });
-    
-    setAvailableCategories(categoryOptions);
+    }
   };
 
   // Reset form when template changes or dialog opens
   useEffect(() => {
     if (isOpen) {
-      loadAvailableCategories(); // Load available categories when dialog opens
+      const initializeForm = async () => {
+        await loadAvailableCategories(); // Load available categories when dialog opens
+        
+        if (template) {
+          // Editing existing template
+          setFormData({
+            title: template.title,
+            description: template.description,
+            prompt: template.prompt,
+            category: template.category,
+            icon: template.icon,
+            color: template.color,
+            requiresContext: template.requiresContext,
+            contextType: template.contextType || "current-page",
+          });
+        } else {
+          // Creating new template
+          setFormData({
+            title: "",
+            description: "",
+            prompt: "",
+            category: "writing",
+            icon: "edit",
+            color: "#667eea",
+            requiresContext: true,
+            contextType: "current-page",
+          });
+        }
+        setErrors({});
+        setIsAddingCustomCategory(false);
+        setCustomCategoryInput("");
+      };
       
-      if (template) {
-        // Editing existing template
-        setFormData({
-          title: template.title,
-          description: template.description,
-          prompt: template.prompt,
-          category: template.category,
-          icon: template.icon,
-          color: template.color,
-          requiresContext: template.requiresContext,
-          contextType: template.contextType || "current-page",
-        });
-      } else {
-        // Creating new template
-        setFormData({
-          title: "",
-          description: "",
-          prompt: "",
-          category: "writing",
-          icon: "edit",
-          color: "#667eea",
-          requiresContext: true,
-          contextType: "current-page",
-        });
-      }
-      setErrors({});
-      setIsAddingCustomCategory(false);
-      setCustomCategoryInput("");
+      initializeForm();
     }
   }, [isOpen, template]);
 

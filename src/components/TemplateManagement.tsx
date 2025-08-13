@@ -26,42 +26,58 @@ export const TemplateManagement: React.FC<TemplateManagementProps> = ({
 
   useEffect(() => {
     if (isOpen) {
-      setHiddenTemplates(TemplateSettingsService.getHiddenTemplates());
-      setHiddenCustomTemplates(UserTemplateService.getSettings().hiddenCustomTemplates);
-      setCustomTemplates(UserTemplateService.getCustomTemplates());
+      const loadData = async () => {
+        try {
+          const hiddenTemplatesData = await TemplateSettingsService.getHiddenTemplates();
+          const userSettings = await UserTemplateService.getSettings();
+          const customTemplatesData = await UserTemplateService.getCustomTemplates();
+          
+          setHiddenTemplates(hiddenTemplatesData);
+          setHiddenCustomTemplates(userSettings.hiddenCustomTemplates);
+          setCustomTemplates(customTemplatesData);
+        } catch (error) {
+          console.error("Failed to load template data:", error);
+        }
+      };
+      
+      loadData();
     }
   }, [isOpen]);
 
-  const handleToggleTemplate = (templateId: string, isCustom: boolean = false) => {
-    if (isCustom) {
-      const isCurrentlyHidden = hiddenCustomTemplates.includes(templateId);
-      
-      let newHiddenCustomTemplates: string[];
-      if (isCurrentlyHidden) {
-        UserTemplateService.showTemplate(templateId);
-        newHiddenCustomTemplates = hiddenCustomTemplates.filter(id => id !== templateId);
+  const handleToggleTemplate = async (templateId: string, isCustom: boolean = false) => {
+    try {
+      if (isCustom) {
+        const isCurrentlyHidden = hiddenCustomTemplates.includes(templateId);
+        
+        let newHiddenCustomTemplates: string[];
+        if (isCurrentlyHidden) {
+          await UserTemplateService.showTemplate(templateId);
+          newHiddenCustomTemplates = hiddenCustomTemplates.filter(id => id !== templateId);
+        } else {
+          await UserTemplateService.hideTemplate(templateId);
+          newHiddenCustomTemplates = [...hiddenCustomTemplates, templateId];
+        }
+        
+        setHiddenCustomTemplates(newHiddenCustomTemplates);
       } else {
-        UserTemplateService.hideTemplate(templateId);
-        newHiddenCustomTemplates = [...hiddenCustomTemplates, templateId];
+        const isCurrentlyHidden = hiddenTemplates.includes(templateId);
+        
+        let newHiddenTemplates: string[];
+        if (isCurrentlyHidden) {
+          await TemplateSettingsService.showTemplate(templateId);
+          newHiddenTemplates = hiddenTemplates.filter(id => id !== templateId);
+        } else {
+          await TemplateSettingsService.hideTemplate(templateId);
+          newHiddenTemplates = [...hiddenTemplates, templateId];
+        }
+        
+        setHiddenTemplates(newHiddenTemplates);
       }
       
-      setHiddenCustomTemplates(newHiddenCustomTemplates);
-    } else {
-      const isCurrentlyHidden = hiddenTemplates.includes(templateId);
-      
-      let newHiddenTemplates: string[];
-      if (isCurrentlyHidden) {
-        TemplateSettingsService.showTemplate(templateId);
-        newHiddenTemplates = hiddenTemplates.filter(id => id !== templateId);
-      } else {
-        TemplateSettingsService.hideTemplate(templateId);
-        newHiddenTemplates = [...hiddenTemplates, templateId];
-      }
-      
-      setHiddenTemplates(newHiddenTemplates);
+      onSettingsChanged();
+    } catch (error) {
+      console.error("Failed to toggle template:", error);
     }
-    
-    onSettingsChanged();
   };
 
   const handleCreateTemplate = () => {
@@ -74,29 +90,42 @@ export const TemplateManagement: React.FC<TemplateManagementProps> = ({
     setIsFormOpen(true);
   };
 
-  const handleDeleteTemplate = (templateId: string) => {
+  const handleDeleteTemplate = async (templateId: string) => {
     if (confirm("Are you sure you want to delete this template? This action cannot be undone.")) {
-      UserTemplateService.deleteTemplate(templateId);
-      setCustomTemplates(UserTemplateService.getCustomTemplates());
-      setHiddenCustomTemplates(UserTemplateService.getSettings().hiddenCustomTemplates);
-      onSettingsChanged();
+      try {
+        await UserTemplateService.deleteTemplate(templateId);
+        const [newCustomTemplates, userSettings] = await Promise.all([
+          UserTemplateService.getCustomTemplates(),
+          UserTemplateService.getSettings()
+        ]);
+        setCustomTemplates(newCustomTemplates);
+        setHiddenCustomTemplates(userSettings.hiddenCustomTemplates);
+        onSettingsChanged();
+      } catch (error) {
+        console.error("Failed to delete template:", error);
+      }
     }
   };
 
-  const handleFormSave = (templateData: Omit<PromptTemplate, 'id'>) => {
-    if (editingTemplate) {
-      // Update existing template
-      UserTemplateService.updateTemplate(editingTemplate.id, templateData);
-    } else {
-      // Create new template
-      UserTemplateService.createTemplate(templateData);
+  const handleFormSave = async (templateData: Omit<PromptTemplate, 'id'>) => {
+    try {
+      if (editingTemplate) {
+        // Update existing template
+        await UserTemplateService.updateTemplate(editingTemplate.id, templateData);
+      } else {
+        // Create new template
+        await UserTemplateService.createTemplate(templateData);
+      }
+      
+      // Refresh template list
+      const newCustomTemplates = await UserTemplateService.getCustomTemplates();
+      setCustomTemplates(newCustomTemplates);
+      setIsFormOpen(false);
+      setEditingTemplate(undefined);
+      onSettingsChanged();
+    } catch (error) {
+      console.error("Failed to save template:", error);
     }
-    
-    // Refresh template list
-    setCustomTemplates(UserTemplateService.getCustomTemplates());
-    setIsFormOpen(false);
-    setEditingTemplate(undefined);
-    onSettingsChanged();
   };
 
   const handleFormClose = () => {
@@ -104,10 +133,14 @@ export const TemplateManagement: React.FC<TemplateManagementProps> = ({
     setEditingTemplate(undefined);
   };
 
-  const handleReset = () => {
-    TemplateSettingsService.resetToDefaults();
-    setHiddenTemplates([]);
-    onSettingsChanged();
+  const handleReset = async () => {
+    try {
+      await TemplateSettingsService.resetToDefaults();
+      setHiddenTemplates([]);
+      onSettingsChanged();
+    } catch (error) {
+      console.error("Failed to reset templates:", error);
+    }
   };
 
   // Group official templates
