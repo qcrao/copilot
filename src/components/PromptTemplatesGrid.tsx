@@ -139,10 +139,10 @@ export const PromptTemplatesGrid: React.FC<PromptTemplatesGridProps> = ({
   };
 
 
-  // Combine official and custom templates
+  // Combine custom and official templates (custom templates first)
   const allTemplates = [
-    ...PROMPT_TEMPLATES.filter(t => !hiddenTemplates.includes(t.id)),
-    ...(customTemplates as any[]).filter((t: any) => !hiddenCustomTemplates.includes(t.id))
+    ...(customTemplates as any[]).filter((t: any) => !hiddenCustomTemplates.includes(t.id)),
+    ...PROMPT_TEMPLATES.filter(t => !hiddenTemplates.includes(t.id))
   ];
 
   // Group all visible templates by category

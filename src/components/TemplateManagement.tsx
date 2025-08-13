@@ -206,7 +206,7 @@ export const TemplateManagement: React.FC<TemplateManagementProps> = ({
         </div>
 
         {/* Render all categories that have either official or custom templates */}
-        {Object.keys({ ...groupedOfficialTemplates, ...groupedCustomTemplates }).map((category) => {
+        {Object.keys({ ...groupedCustomTemplates, ...groupedOfficialTemplates }).map((category) => {
           const officialTemplates = groupedOfficialTemplates[category] || [];
           const customTemplatesInCategory = groupedCustomTemplates[category] || [];
           
@@ -231,72 +231,6 @@ export const TemplateManagement: React.FC<TemplateManagementProps> = ({
               </h4>
               
               <div style={{ marginLeft: "12px" }}>
-                {/* Official Templates */}
-                {officialTemplates.map((template) => {
-                  const isHidden = hiddenTemplates.includes(template.id);
-                  return (
-                    <div
-                      key={template.id}
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        padding: "10px 12px",
-                        border: "1px solid #d8e1e8",
-                        backgroundColor: isHidden ? "#f5f8fa" : "white",
-                        borderRadius: "6px",
-                        marginBottom: "4px",
-                      }}
-                    >
-                      <Icon
-                        icon={template.icon as any}
-                        size={16}
-                        style={{ 
-                          marginRight: "12px", 
-                          color: isHidden ? "#8a9ba8" : template.color 
-                        }}
-                      />
-                      
-                      <div style={{ flex: 1 }}>
-                        <div style={{ 
-                          fontWeight: "500", 
-                          marginBottom: "2px",
-                          color: isHidden ? "#8a9ba8" : "#182026"
-                        }}>
-                          {template.title}
-                          <span style={{ 
-                            fontSize: "10px", 
-                            color: "#8a9ba8", 
-                            marginLeft: "8px",
-                            fontWeight: "400"
-                          }}>
-                            OFFICIAL
-                          </span>
-                        </div>
-                        <div style={{ 
-                          fontSize: "12px", 
-                          color: isHidden ? "#a7b6c2" : "#5c7080",
-                          opacity: isHidden ? 0.7 : 1
-                        }}>
-                          {template.description}
-                        </div>
-                      </div>
-                      
-                      <Button
-                        minimal
-                        small
-                        icon={isHidden ? "eye-off" : "eye-open"}
-                        intent={isHidden ? "none" : "primary"}
-                        onClick={() => handleToggleTemplate(template.id, false)}
-                        style={{
-                          marginLeft: "12px",
-                          opacity: isHidden ? 0.6 : 1
-                        }}
-                        title={isHidden ? "Show template" : "Hide template"}
-                      />
-                    </div>
-                  );
-                })}
-
                 {/* Custom Templates */}
                 {customTemplatesInCategory.map((template) => {
                   const isHidden = hiddenCustomTemplates.includes(template.id);
@@ -375,6 +309,72 @@ export const TemplateManagement: React.FC<TemplateManagementProps> = ({
                           title={isHidden ? "Show template" : "Hide template"}
                         />
                       </div>
+                    </div>
+                  );
+                })}
+
+                {/* Official Templates */}
+                {officialTemplates.map((template) => {
+                  const isHidden = hiddenTemplates.includes(template.id);
+                  return (
+                    <div
+                      key={template.id}
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        padding: "10px 12px",
+                        border: "1px solid #d8e1e8",
+                        backgroundColor: isHidden ? "#f5f8fa" : "white",
+                        borderRadius: "6px",
+                        marginBottom: "4px",
+                      }}
+                    >
+                      <Icon
+                        icon={template.icon as any}
+                        size={16}
+                        style={{ 
+                          marginRight: "12px", 
+                          color: isHidden ? "#8a9ba8" : template.color 
+                        }}
+                      />
+                      
+                      <div style={{ flex: 1 }}>
+                        <div style={{ 
+                          fontWeight: "500", 
+                          marginBottom: "2px",
+                          color: isHidden ? "#8a9ba8" : "#182026"
+                        }}>
+                          {template.title}
+                          <span style={{ 
+                            fontSize: "10px", 
+                            color: "#8a9ba8", 
+                            marginLeft: "8px",
+                            fontWeight: "400"
+                          }}>
+                            OFFICIAL
+                          </span>
+                        </div>
+                        <div style={{ 
+                          fontSize: "12px", 
+                          color: isHidden ? "#a7b6c2" : "#5c7080",
+                          opacity: isHidden ? 0.7 : 1
+                        }}>
+                          {template.description}
+                        </div>
+                      </div>
+                      
+                      <Button
+                        minimal
+                        small
+                        icon={isHidden ? "eye-off" : "eye-open"}
+                        intent={isHidden ? "none" : "primary"}
+                        onClick={() => handleToggleTemplate(template.id, false)}
+                        style={{
+                          marginLeft: "12px",
+                          opacity: isHidden ? 0.6 : 1
+                        }}
+                        title={isHidden ? "Show template" : "Hide template"}
+                      />
                     </div>
                   );
                 })}
