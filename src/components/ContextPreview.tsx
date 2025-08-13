@@ -191,7 +191,35 @@ export const ContextPreview: React.FC<ContextPreviewProps> = ({
 
   return (
     <div className="rr-context-preview">
-      {/* Daily Note - show first, only if it's different from current page */}
+      {/* Selected Text - show first when available */}
+      {selectedText && (
+        <Popover
+          content={
+            <div className="rr-context-popover">
+              <div className="rr-context-popover__body">
+                <div className="rr-context-hover-row">
+                  <div className="rr-context-hover-text" style={{ whiteSpace: 'pre-wrap', maxWidth: '400px', wordBreak: 'break-word' }}>
+                    {selectedText}
+                  </div>
+                </div>
+              </div>
+            </div>
+          }
+          position={Position.TOP}
+          interactionKind="hover"
+          minimal
+          hoverOpenDelay={100}
+        >
+          <ContextChip
+            icon="selection"
+            text="Selected"
+            variant="selected"
+            title={selectedText.length > 100 ? selectedText.substring(0, 100) + "..." : selectedText}
+          />
+        </Popover>
+      )}
+
+      {/* Daily Note - show second, only if it's different from current page */}
       {context.dailyNote && dailyNoteBlocks.length > 0 && !isDailyNoteSameAsCurrentPage && (
         <Popover
           content={renderHoverList(dailyNoteBlocks)}
@@ -268,16 +296,6 @@ export const ContextPreview: React.FC<ContextPreviewProps> = ({
             title={`Visible blocks: ${visibleBlocks.length}`}
           />
         </Popover>
-      )}
-
-      {/* Selected Text */}
-      {selectedText && (
-        <ContextChip
-          icon="selection"
-          text="Selected"
-          variant="selected"
-          title={selectedText.length > 100 ? selectedText.substring(0, 100) + "..." : selectedText}
-        />
       )}
 
       {/* Sidebar Notes */}

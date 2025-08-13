@@ -340,6 +340,20 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
     // Listen for hash changes
     window.addEventListener("hashchange", handleHashChange);
 
+    // Listen for text selection changes to update context
+    const handleSelectionChange = () => {
+      console.log("📝 Selection change detected");
+      // Debounce the update to avoid too frequent calls
+      if (updateContextTimeoutRef.current) {
+        clearTimeout(updateContextTimeoutRef.current);
+      }
+      updateContextTimeoutRef.current = setTimeout(() => {
+        updatePageContext();
+      }, 300); // 300ms delay for selection changes
+    };
+
+    document.addEventListener("selectionchange", handleSelectionChange);
+
     // Also check periodically as a fallback
     const intervalId = setInterval(checkForPageChange, 2000); // Check every 2 seconds
     
@@ -362,6 +376,7 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
         updateContextTimeoutRef.current = null;
       }
       window.removeEventListener("hashchange", handleHashChange);
+      document.removeEventListener("selectionchange", handleSelectionChange);
       observer.disconnect();
       cleanupSidebarMonitoring(); // Cleanup the sidebar monitoring
       clearInterval(intervalId);
