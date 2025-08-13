@@ -725,10 +725,19 @@ ${contextForUser}`;
         // For prompt templates, context should go to system message context, not user message
         enhancedUserMessage = actualUserMessage; // Keep empty if using template
 
-        // Use simplified context for system message
-        contextString = filteredContext
-          ? RoamService.formatContextForAI(filteredContext, 8000) // Reduce system message context
-          : "No additional context available";
+        // Use simplified context for system message with smart management
+        if (filteredContext) {
+          const currentModel = multiProviderSettings.currentModel;
+          const provider = await AIService.getProviderForModel(currentModel);
+          contextString = RoamService.formatContextForAI(
+            filteredContext, 
+            8000, // Reduce system message context  
+            provider?.provider?.id || "openai",
+            currentModel
+          );
+        } else {
+          contextString = "No additional context available";
+        }
 
         console.log(
           "✅ Using enhanced context with",
@@ -748,7 +757,12 @@ ${contextForUser}`;
         );
 
         contextString = filteredContext
-          ? RoamService.formatContextForAI(filteredContext, maxContextTokens)
+          ? RoamService.formatContextForAI(
+              filteredContext, 
+              maxContextTokens,
+              provider?.provider?.id || "openai",
+              currentModel
+            )
           : "No context available";
       }
 

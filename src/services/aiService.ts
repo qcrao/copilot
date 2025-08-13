@@ -84,8 +84,11 @@ export class AIService {
       );
     }
 
+    // Analyze context to provide better guidance
+    const contextAnalysis = this.analyzeContext(context);
+    
     // Use LLMUtil without tool calling for better compatibility
-    const systemMessage = this.getSystemMessage(context, customPrompt);
+    const systemMessage = this.getSystemMessage(context, customPrompt, contextAnalysis);
     const finalUserMessage = userMessage;
     const messagesWithHistory = this.buildMessagesWithHistory(
       systemMessage,
@@ -197,8 +200,11 @@ export class AIService {
       );
     }
 
+    // Analyze context to provide better guidance
+    const contextAnalysis = this.analyzeContext(context);
+    
     // Use LLMUtil streaming
-    const systemMessage = this.getSystemMessage(context, customPrompt);
+    const systemMessage = this.getSystemMessage(context, customPrompt, contextAnalysis);
     const finalUserMessage = userMessage;
     const messagesWithHistory = this.buildMessagesWithHistory(
       systemMessage,
@@ -297,7 +303,8 @@ export class AIService {
       );
     }
 
-    const systemMessage = this.getSystemMessage(context, customPrompt);
+    const contextAnalysis = this.analyzeContext(context);
+    const systemMessage = this.getSystemMessage(context, customPrompt, contextAnalysis);
     const messagesWithHistory = this.buildMessagesWithHistory(
       systemMessage,
       userMessage,
@@ -344,27 +351,161 @@ export class AIService {
 
   private static getSystemMessage(
     context: string,
-    customPrompt?: string
+    customPrompt?: string,
+    contextAnalysis?: {
+      hasSelectedText: boolean;
+      hasCurrentPage: boolean;
+      hasSidebarNotes: boolean;
+      hasBacklinks: boolean;
+      hasVisibleBlocks: boolean;
+      contextType: 'minimal' | 'focused' | 'comprehensive';
+    }
   ): string {
     // Get response language setting
     const responseLanguage =
       multiProviderSettings.responseLanguage || "English";
     const languageInstruction = `\n\n**LANGUAGE REQUIREMENT:** Please respond in ${responseLanguage}.`;
 
-    // If custom prompt is provided, use it instead of default psychology analyst prompt
+    // Generate context-specific guidance
+    const contextGuidance = this.generateContextGuidance(contextAnalysis);
+
+    // If custom prompt is provided, use it with enhanced context guidance
     if (customPrompt) {
       const contextSection = context
         ? `\n\n**Available Context:**\n${context}`
         : "";
-      return `${customPrompt}${languageInstruction}${contextSection}`;
+      return `${customPrompt}${contextGuidance}${languageInstruction}${contextSection}`;
     }
 
-    // Use universal assistant as default prompt
+    // Use universal assistant as default prompt with context guidance
     const contextSection = context
       ? `\n\n**Available Context:**\n${context}`
       : "";
     
-    return `${UNIVERSAL_ASSISTANT_PROMPT}${languageInstruction}${contextSection}`;
+    return `${UNIVERSAL_ASSISTANT_PROMPT}${contextGuidance}${languageInstruction}${contextSection}`;
+  }
+
+  /**
+   * Generate context-specific guidance for the AI based on available context types
+   */
+  private static generateContextGuidance(contextAnalysis?: {
+    hasSelectedText: boolean;
+    hasCurrentPage: boolean;
+    hasSidebarNotes: boolean;
+    hasBacklinks: boolean;
+    hasVisibleBlocks: boolean;
+    contextType: 'minimal' | 'focused' | 'comprehensive';
+  }): string {
+    if (!contextAnalysis) {
+      return "";
+    }
+
+    let guidance = "\n\n**CONTEXT-SPECIFIC GUIDANCE:**\n";
+
+    // Priority-based guidance (removed selectedText references)
+    if (contextAnalysis.hasCurrentPage) {
+      guidance += "• **PRIMARY FOCUS**: Focus on the current page content as the main subject of analysis.\n";
+      guidance += "• **PAGE CONTEXT**: Consider the page structure, content organization, and key concepts presented.\n";
+    }
+
+    if (contextAnalysis.hasSidebarNotes) {
+      guidance += "• **CROSS-REFERENCE**: Multiple notes are open in sidebar - look for connections and patterns across different topics.\n";
+      guidance += "• **NETWORK THINKING**: Consider how ideas from different sidebar notes might relate to the main query.\n";
+    }
+
+    if (contextAnalysis.hasBacklinks) {
+      guidance += "• **RELATIONSHIP ANALYSIS**: This content has backlinks - consider the broader knowledge network and recurring themes.\n";
+      guidance += "• **PATTERN RECOGNITION**: Look for how this topic connects to other ideas in the user's knowledge base.\n";
+    }
+
+    if (contextAnalysis.hasVisibleBlocks) {
+      guidance += "• **VIEWPORT CONTEXT**: Consider what's currently visible to the user and how it relates to their immediate focus.\n";
+    }
+
+    // Context type specific guidance
+    switch (contextAnalysis.contextType) {
+      case 'minimal':
+        guidance += "• **FOCUSED RESPONSE**: Limited context available - provide direct, actionable insights based on what's given.\n";
+        break;
+      
+      case 'focused':
+        guidance += "• **TARGETED ANALYSIS**: Moderate context available - balance depth with relevance to the specific content.\n";
+        break;
+      
+      case 'comprehensive':
+        guidance += "• **SYSTEMS THINKING**: Rich context available - synthesize insights across multiple sources and identify meta-patterns.\n";
+        guidance += "• **INTEGRATION**: Look for opportunities to connect different pieces of information into coherent insights.\n";
+        break;
+    }
+
+    // Thinking framework suggestions (updated without selectedText)
+    guidance += "\n**RECOMMENDED THINKING FRAMEWORK:**\n";
+    
+    if (contextAnalysis.hasSidebarNotes || contextAnalysis.hasBacklinks) {
+      guidance += "1. **Pattern Recognition**: What themes and patterns emerge across the content?\n";
+      guidance += "2. **Connection Mapping**: How do different pieces of information relate?\n";
+      guidance += "3. **Synthesis**: What new insights emerge from these connections?\n";
+      guidance += "4. **Application**: How can these insights be practically applied?\n";
+    } else if (contextAnalysis.hasCurrentPage) {
+      guidance += "1. **Content Analysis**: What are the core concepts and insights in the current page?\n";
+      guidance += "2. **Context Integration**: How does this relate to broader knowledge patterns?\n";
+      guidance += "3. **Actionable Insights**: What specific steps or considerations emerge?\n";
+    } else {
+      guidance += "1. **Core Analysis**: What are the key insights from the available content?\n";
+      guidance += "2. **Implications**: What are the broader implications or applications?\n";
+      guidance += "3. **Next Steps**: What actions or further exploration would be valuable?\n";
+    }
+
+    return guidance;
+  }
+
+  /**
+   * Analyze context to determine its characteristics and generate appropriate guidance
+   */
+  private static analyzeContext(context: string): {
+    hasSelectedText: boolean;
+    hasCurrentPage: boolean;
+    hasSidebarNotes: boolean;
+    hasBacklinks: boolean;
+    hasVisibleBlocks: boolean;
+    contextType: 'minimal' | 'focused' | 'comprehensive';
+  } {
+    if (!context) {
+      return {
+        hasSelectedText: false,
+        hasCurrentPage: false,
+        hasSidebarNotes: false,
+        hasBacklinks: false,
+        hasVisibleBlocks: false,
+        contextType: 'minimal'
+      };
+    }
+
+    // Analyze content types (removed selectedText analysis)
+    const hasSelectedText = false; // Always false since we removed this feature
+    const hasCurrentPage = context.includes("**Current Page:") || context.includes("**Page Content:");
+    const hasSidebarNotes = context.includes("**Sidebar Notes") || context.includes("**Sidebar:");
+    const hasBacklinks = context.includes("**Linked References");
+    const hasVisibleBlocks = context.includes("**Visible Content:");
+
+    // Determine context complexity
+    let contextType: 'minimal' | 'focused' | 'comprehensive' = 'minimal';
+    const contextSections = [hasCurrentPage, hasSidebarNotes, hasBacklinks, hasVisibleBlocks].filter(Boolean).length;
+    
+    if (contextSections >= 3) {
+      contextType = 'comprehensive';
+    } else if (contextSections >= 1) {
+      contextType = 'focused';
+    }
+
+    return {
+      hasSelectedText,
+      hasCurrentPage,
+      hasSidebarNotes,
+      hasBacklinks,
+      hasVisibleBlocks,
+      contextType
+    };
   }
 
   /**

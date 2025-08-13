@@ -1017,11 +1017,10 @@ export class RoamService {
   static async getPageContext(): Promise<PageContext> {
     // Getting comprehensive page context
 
-    const [currentPage, visibleBlocks, selectedText, sidebarNotes] =
+    const [currentPage, visibleBlocks, sidebarNotes] =
       await Promise.all([
         this.getCurrentPageInfo(),
         Promise.resolve(this.getVisibleBlocks()),
-        Promise.resolve(this.getSelectedText()),
         this.getSidebarNotes(),
       ]);
 
@@ -1048,7 +1047,7 @@ export class RoamService {
     const contextResult = {
       currentPage: currentPage || undefined,
       visibleBlocks,
-      selectedText: selectedText || undefined,
+      selectedText: undefined, // Removed selectedText feature
       dailyNote: undefined,
       linkedReferences,
       sidebarNotes,
@@ -1065,23 +1064,22 @@ export class RoamService {
   static async getToolCallContext(): Promise<PageContext> {
     console.log("🎯 Getting minimal context for tool call...");
 
-    // Only get selected text to avoid context contamination
-    const selectedText = this.getSelectedText();
+    // Removed selected text feature to avoid context contamination
     
     // For debugging: get current page info but don't include it in context
     const currentPage = await this.getCurrentPageInfo();
     
     console.log("🎯 Tool call context summary:", {
-      selectedText: selectedText ? `Yes (${selectedText.length} chars)` : "No",
+      selectedText: "Removed (feature disabled)",
       currentPage: currentPage?.title || "None",
-      strategy: "minimal - selected text only"
+      strategy: "minimal - no context to avoid confusion"
     });
 
     // Return ultra-minimal context to avoid AI confusion
     return {
       currentPage: undefined, // Explicitly skip to avoid date confusion
       visibleBlocks: [], // Skip all visible content
-      selectedText: selectedText || undefined, // Only include if actually selected
+      selectedText: undefined, // Feature removed
       dailyNote: undefined, // Skip daily note context
       linkedReferences: [], // Skip all references
       sidebarNotes: [], // Skip sidebar notes
@@ -1089,34 +1087,34 @@ export class RoamService {
   }
 
   /**
-   * Get model-specific maximum context tokens
+   * Get model-specific maximum context tokens (increased limits for better context usage)
    */
   static getModelTokenLimit(provider: string, model: string): number {
     const modelLimits: { [key: string]: { [key: string]: number } } = {
       openai: {
-        "gpt-4o": 24000, // 128k context window
-        "gpt-4o-mini": 24000, // 128k context window, very cost-effective
-        "gpt-4-turbo": 24000, // 128k context window
-        "gpt-4": 6000, // 8k context window, conservative
-        "gpt-3.5-turbo": 2000, // 4k context window, keep conservative
+        "gpt-4o": 60000, // 128k context window - increased from 24k
+        "gpt-4o-mini": 60000, // 128k context window - increased from 24k  
+        "gpt-4-turbo": 60000, // 128k context window - increased from 24k
+        "gpt-4": 15000, // 8k context window - increased from 6k
+        "gpt-3.5-turbo": 8000, // 4k context window - increased from 2k
       },
       anthropic: {
-        "claude-3-5-sonnet-20241022": 180000, // Claude 3.5 Sonnet - 200k context
-        "claude-3-5-haiku-20241022": 180000, // Claude 3.5 Haiku - 200k context
-        "claude-3-opus-20240229": 180000, // Claude 3 Opus - 200k context
-        "claude-3-sonnet-20240229": 180000, // Claude 3 Sonnet - 200k context
-        "claude-3-haiku-20240307": 180000, // Claude 3 Haiku - 200k context
+        "claude-3-5-sonnet-20241022": 300000, // Claude 3.5 Sonnet - 200k context, increased usage
+        "claude-3-5-haiku-20241022": 300000, // Claude 3.5 Haiku - 200k context, increased usage
+        "claude-3-opus-20240229": 300000, // Claude 3 Opus - 200k context, increased usage
+        "claude-3-sonnet-20240229": 300000, // Claude 3 Sonnet - 200k context, increased usage
+        "claude-3-haiku-20240307": 300000, // Claude 3 Haiku - 200k context, increased usage
       },
       groq: {
-        "llama-3.3-70b-versatile": 24000, // 128k context window, latest model
-        "llama-3.1-70b-versatile": 24000, // 128k context window
-        "llama-3.1-8b-instant": 24000, // 128k context window, ultra fast & cheap
-        "llama3-groq-70b-8192-tool-use-preview": 6000, // 8k context window, tool preview
-        "llama3-groq-8b-8192-tool-use-preview": 6000, // 8k context window, tool preview
+        "llama-3.3-70b-versatile": 60000, // 128k context window - increased from 24k
+        "llama-3.1-70b-versatile": 60000, // 128k context window - increased from 24k
+        "llama-3.1-8b-instant": 60000, // 128k context window - increased from 24k
+        "llama3-groq-70b-8192-tool-use-preview": 15000, // 8k context window - increased from 6k
+        "llama3-groq-8b-8192-tool-use-preview": 15000, // 8k context window - increased from 6k
       },
       xai: {
-        "grok-beta": 24000, // 131k context window
-        "grok-vision-beta": 24000, // 128k context window with vision
+        "grok-beta": 60000, // 131k context window - increased from 24k
+        "grok-vision-beta": 60000, // 128k context window with vision - increased from 24k
       },
     };
 
@@ -1213,11 +1211,287 @@ export class RoamService {
   }
 
   /**
-   * Truncate context to fit within token limit
+   * Intelligently manage context to fit within token limit with priority-based allocation
+   */
+  static smartContextManagement(
+    context: PageContext,
+    maxTokens: number,
+    provider: string,
+    model: string
+  ): string {
+    // Get actual model token limit and use 70% for context (reserve 30% for response)
+    const modelLimit = this.getModelTokenLimit(provider, model);
+    const actualMaxTokens = maxTokens || Math.floor(modelLimit * 0.7);
+    
+    // Define content priority levels with token allocations (removed selectedText)
+    const priorityAllocations = {
+      currentPage: 0.35,      // 35% - page content (increased from 25%)
+      sidebarNotes: 0.25,     // 25% - sidebar context (increased from 20%)
+      visibleBlocks: 0.25,    // 25% - visible content (increased from 15%)
+      linkedReferences: 0.15, // 15% - backlinks (increased from 10%)
+    };
+
+    const sections: Array<{
+      priority: number;
+      title: string;
+      content: string;
+      maxTokens: number;
+      type: keyof typeof priorityAllocations;
+    }> = [];
+
+    // 1. Current Page Content (Highest Priority)
+    if (context.currentPage && context.currentPage.blocks.length > 0) {
+      const pageContent = this.formatBlocksForAI(context.currentPage.blocks, 0);
+      sections.push({
+        priority: 1,
+        title: `**Current Page: "${context.currentPage.title}"**`,
+        content: pageContent,
+        maxTokens: Math.floor(actualMaxTokens * priorityAllocations.currentPage),
+        type: 'currentPage'
+      });
+    }
+
+    // 2. Sidebar Notes (Important context)
+    if (context.sidebarNotes && context.sidebarNotes.length > 0) {
+      const sidebarContent = context.sidebarNotes
+        .slice(0, 3) // Limit to 3 most relevant
+        .map(note => {
+          const noteContent = this.formatBlocksForAI(note.blocks.slice(0, 5), 0); // First 5 blocks per note
+          return `**Sidebar: "${note.title}"**\n${noteContent}`;
+        })
+        .join('\n\n');
+      
+      sections.push({
+        priority: 2,
+        title: `**Sidebar Notes (${Math.min(context.sidebarNotes.length, 3)} open):**`,
+        content: sidebarContent,
+        maxTokens: Math.floor(actualMaxTokens * priorityAllocations.sidebarNotes),
+        type: 'sidebarNotes'
+      });
+    }
+
+    // 3. Visible Blocks (if different from current page)
+    if (context.visibleBlocks.length > 0) {
+      const visibleContent = this.formatBlocksForAI(context.visibleBlocks, 0);
+      sections.push({
+        priority: 3,
+        title: "**Visible Content:**",
+        content: visibleContent,
+        maxTokens: Math.floor(actualMaxTokens * priorityAllocations.visibleBlocks),
+        type: 'visibleBlocks'
+      });
+    }
+
+    // 4. Linked References (Lower priority)
+    if (context.linkedReferences && context.linkedReferences.length > 0) {
+      const referencesContent = context.linkedReferences
+        .slice(0, 5) // Limit to 5 most relevant
+        .map(ref => `- ${ref.string}`)
+        .join('\n');
+      
+      sections.push({
+        priority: 4,
+        title: `**Linked References (${Math.min(context.linkedReferences.length, 5)} references):**`,
+        content: referencesContent,
+        maxTokens: Math.floor(actualMaxTokens * priorityAllocations.linkedReferences),
+        type: 'linkedReferences'
+      });
+    }
+
+    // Build final context with dynamic token allocation
+    let finalContext = "";
+    let usedTokens = 0;
+    let remainingTokens = actualMaxTokens;
+
+    // Sort by priority and process
+    sections.sort((a, b) => a.priority - b.priority);
+
+    // First pass: calculate how much each section actually needs
+    const sectionNeeds: Array<{
+      section: typeof sections[0];
+      actualTokensNeeded: number;
+      allocatedTokens: number;
+    }> = [];
+
+    for (const section of sections) {
+      const sectionHeader = section.title + "\n";
+      const headerTokens = this.estimateTokenCount(sectionHeader);
+      const contentTokens = this.estimateTokenCount(section.content);
+      const totalNeeded = headerTokens + contentTokens;
+      
+      sectionNeeds.push({
+        section,
+        actualTokensNeeded: totalNeeded,
+        allocatedTokens: section.maxTokens
+      });
+    }
+
+    // Second pass: redistribute unused tokens
+    let unusedTokens = 0;
+    for (let i = 0; i < sectionNeeds.length; i++) {
+      const need = sectionNeeds[i];
+      
+      if (need.actualTokensNeeded < need.allocatedTokens) {
+        // This section doesn't need all its allocated tokens
+        const surplus = need.allocatedTokens - need.actualTokensNeeded;
+        unusedTokens += surplus;
+        need.allocatedTokens = need.actualTokensNeeded;
+      }
+    }
+
+    // Distribute unused tokens to sections that can use them, prioritizing higher priority sections
+    if (unusedTokens > 0) {
+      for (let i = 0; i < sectionNeeds.length && unusedTokens > 0; i++) {
+        const need = sectionNeeds[i];
+        
+        if (need.actualTokensNeeded > need.allocatedTokens) {
+          // This section needs more tokens
+          const needed = need.actualTokensNeeded - need.allocatedTokens;
+          const canAllocate = Math.min(needed, unusedTokens);
+          
+          need.allocatedTokens += canAllocate;
+          unusedTokens -= canAllocate;
+        }
+      }
+    }
+
+    // Third pass: build the final context with updated allocations
+    for (const { section, allocatedTokens } of sectionNeeds) {
+      const sectionHeader = section.title + "\n";
+      const headerTokens = this.estimateTokenCount(sectionHeader);
+      
+      if (usedTokens + headerTokens >= actualMaxTokens) break;
+      
+      // Check if we can fit the full content with dynamic allocation
+      const fullSectionTokens = headerTokens + this.estimateTokenCount(section.content);
+      
+      if (usedTokens + fullSectionTokens <= actualMaxTokens && fullSectionTokens <= allocatedTokens) {
+        // Full content fits within dynamic allocation
+        finalContext += sectionHeader + section.content + "\n\n";
+        usedTokens += fullSectionTokens;
+      } else {
+        // Need to truncate this section, but use dynamic allocation
+        const availableTokens = Math.min(
+          allocatedTokens,
+          actualMaxTokens - usedTokens - headerTokens
+        );
+        
+        if (availableTokens > 100) { // Only include if we have meaningful space
+          const truncatedContent = this.intelligentTruncate(
+            section.content,
+            availableTokens,
+            section.type
+          );
+          
+          if (truncatedContent.length > 50) { // Only add if meaningful content remains
+            finalContext += sectionHeader + truncatedContent + "\n\n";
+            usedTokens += headerTokens + this.estimateTokenCount(truncatedContent);
+          }
+        }
+      }
+    }
+
+    // Add context statistics for debugging
+    if (process.env.NODE_ENV === 'development') {
+      const allocationDetails = sectionNeeds.map(need => ({
+        type: need.section.type,
+        allocated: need.allocatedTokens,
+        needed: need.actualTokensNeeded,
+        saved: Math.max(0, need.allocatedTokens - need.actualTokensNeeded)
+      }));
+      
+      console.log(`🧠 Dynamic Token Allocation:`, {
+        totalSections: sections.length,
+        maxTokens: actualMaxTokens,
+        usedTokens,
+        efficiency: `${Math.round((usedTokens / actualMaxTokens) * 100)}%`,
+        redistributedTokens: allocationDetails.reduce((sum, d) => sum + d.saved, 0),
+        model: `${provider}/${model}`,
+        sectionDetails: allocationDetails
+      });
+    }
+
+    return finalContext.trim();
+  }
+
+  /**
+   * Intelligently truncate content based on its type
+   */
+  private static intelligentTruncate(
+    content: string,
+    maxTokens: number,
+    contentType: string
+  ): string {
+    if (this.estimateTokenCount(content) <= maxTokens) {
+      return content;
+    }
+
+    // Different strategies for different content types
+    switch (contentType) {
+      case 'currentPage':
+        // For page content, keep the first few blocks intact
+        return this.truncatePreservingStructure(content, maxTokens, "page content");
+
+      case 'sidebarNotes':
+        // For sidebar notes, summarize each note
+        return this.truncatePreservingStructure(content, maxTokens, "sidebar notes");
+
+      case 'visibleBlocks':
+        // For visible blocks, keep first and last few blocks
+        return this.truncatePreservingStructure(content, maxTokens, "visible content");
+
+      case 'linkedReferences':
+        // For references, keep the most relevant ones
+        const lines = content.split('\n').filter(line => line.trim());
+        const maxLines = Math.floor(maxTokens / 15); // Assume ~15 tokens per reference line
+        if (lines.length <= maxLines) return content;
+        
+        return lines.slice(0, maxLines).join('\n') + 
+               `\n... and ${lines.length - maxLines} more references`;
+
+      default:
+        return this.truncatePreservingStructure(content, maxTokens, "content");
+    }
+  }
+
+  /**
+   * Truncate content while preserving structure and meaning
+   */
+  private static truncatePreservingStructure(
+    content: string,
+    maxTokens: number,
+    contentLabel: string
+  ): string {
+    const paragraphs = content.split('\n\n');
+    let result = "";
+    let tokens = 0;
+
+    // Add paragraphs until we approach the limit
+    for (let i = 0; i < paragraphs.length; i++) {
+      const paragraphTokens = this.estimateTokenCount(paragraphs[i]);
+      
+      if (tokens + paragraphTokens <= maxTokens * 0.9) { // Use 90% to leave room for truncation notice
+        result += paragraphs[i] + '\n\n';
+        tokens += paragraphTokens;
+      } else {
+        // Add truncation notice
+        const remaining = paragraphs.length - i;
+        if (remaining > 0) {
+          result += `... (${remaining} more sections of ${contentLabel} truncated for brevity)`;
+        }
+        break;
+      }
+    }
+
+    return result.trim();
+  }
+
+  /**
+   * Legacy truncate method - kept for backward compatibility
    */
   static truncateContext(
     formattedContext: string,
-    maxTokens: number = 6000
+    maxTokens: number = 15000 // Increased default from 6000
   ): string {
     const currentTokens = this.estimateTokenCount(formattedContext);
 
@@ -1225,81 +1499,33 @@ export class RoamService {
       return formattedContext;
     }
 
-    // Calculate how much we need to reduce
-    const targetLength = Math.floor(
-      formattedContext.length * (maxTokens / currentTokens)
-    );
-
-    // Split into sections
-    const sections = formattedContext.split("\n\n");
-    let result = "";
-    let addedSections = 0;
-
-    // Always include selected text and current page title if they exist
-    const selectedTextSection = sections.find((s) =>
-      s.startsWith("**Selected Text:**")
-    );
-    const currentPageSection = sections.find((s) =>
-      s.startsWith("**Current Page:")
-    );
-
-    if (selectedTextSection) {
-      result += selectedTextSection + "\n\n";
-    }
-
-    if (currentPageSection) {
-      result += currentPageSection + "\n\n";
-      addedSections = 1;
-    }
-
-    // Add other sections until we approach the limit
-    for (const section of sections) {
-      if (section === selectedTextSection || section === currentPageSection)
-        continue;
-
-      const testResult = result + section + "\n\n";
-      if (this.estimateTokenCount(testResult) > targetLength) {
-        // If this is page content, try to include partial content
-        if (
-          section.startsWith("**Page Content:**") ||
-          section.startsWith("**Visible Content:**")
-        ) {
-          const lines = section.split("\n");
-          const header = lines[0];
-          let partialContent = header + "\n";
-
-          for (let i = 1; i < lines.length; i++) {
-            const testPartial =
-              result +
-              partialContent +
-              lines[i] +
-              "\n" +
-              "... (content truncated)\n\n";
-            if (this.estimateTokenCount(testPartial) > targetLength) break;
-            partialContent += lines[i] + "\n";
-          }
-
-          if (partialContent !== header + "\n") {
-            result += partialContent + "... (content truncated)\n\n";
-          }
-        }
-        break;
-      }
-
-      result += section + "\n\n";
-      addedSections++;
-
-      // Limit number of sections to prevent too much context
-      if (addedSections >= 3) break;
-    }
-
-    return result.trim();
+    // Use the new smart truncation for legacy calls
+    console.log("📝 Using legacy truncateContext - consider upgrading to smartContextManagement");
+    return this.truncatePreservingStructure(formattedContext, maxTokens, "context");
   }
 
   /**
-   * Format page context for AI prompt with clickable source references
+   * Format page context for AI prompt with clickable source references (enhanced version)
    */
-  static formatContextForAI(context: PageContext, maxTokens?: number): string {
+  static formatContextForAI(
+    context: PageContext, 
+    maxTokens?: number,
+    provider?: string,
+    model?: string
+  ): string {
+    // Use smart context management if provider/model info is available
+    if (provider && model) {
+      return this.smartContextManagement(context, maxTokens || 0, provider, model);
+    }
+
+    // Fallback to legacy formatting
+    return this.formatContextForAI_Legacy(context, maxTokens);
+  }
+
+  /**
+   * Legacy format method - kept for backward compatibility
+   */
+  static formatContextForAI_Legacy(context: PageContext, maxTokens?: number): string {
     let formattedContext = "";
     const graphName = this.getCurrentGraphName();
     const isDesktop = this.isDesktopApp();
@@ -1313,11 +1539,7 @@ export class RoamService {
     if (isToolCallContext) {
       console.log("🎯 Formatting minimal tool call context");
       
-      if (context.selectedText) {
-        formattedContext += `**Selected Text:**\n${context.selectedText}\n\n`;
-      }
-      
-      // Add minimal guidance
+      // No selected text feature anymore - just add minimal guidance
       formattedContext += `**Context Note:** This is minimal context for tool execution to avoid interference.\n`;
       
       const finalContext = formattedContext.trim();
@@ -1328,9 +1550,7 @@ export class RoamService {
     // Standard context formatting for regular queries
     console.log("📋 Formatting full context for regular query");
 
-    if (context.selectedText) {
-      formattedContext += `**Selected Text:**\n${context.selectedText}\n\n`;
-    }
+    // Removed selectedText feature for better user experience
 
     // Helper function to format URL links
     const formatUrls = (webUrl: string, desktopUrl: string) => {
@@ -1371,43 +1591,6 @@ export class RoamService {
         isDesktop
       );
       formattedContext += "\n";
-    }
-
-    // Add daily note content
-    console.log("Daily note check:", {
-      hasDailyNote: !!context.dailyNote,
-      dailyNoteTitle: context.dailyNote?.title,
-      dailyNoteBlocks: context.dailyNote?.blocks?.length || 0,
-      dailyNoteBlocksContent:
-        context.dailyNote?.blocks?.map((b) => ({
-          uid: b.uid,
-          string: b.string,
-        })) || [],
-    });
-
-    if (context.dailyNote && context.dailyNote.blocks.length > 0) {
-      const dailyUrls = this.generatePageUrl(
-        context.dailyNote.uid,
-        graphName || undefined
-      );
-      const dailyUrlLinks = dailyUrls
-        ? formatUrls(dailyUrls.webUrl, dailyUrls.desktopUrl)
-        : `[[${context.dailyNote.title}]]`;
-
-      formattedContext += `**Today's Daily Note (${context.dailyNote.title}):** ${dailyUrlLinks}\n`;
-      const dailyContent = this.formatBlocksForAIWithClickableReferences(
-        context.dailyNote.blocks,
-        0,
-        graphName,
-        isDesktop
-      );
-      console.log("Formatted daily note content:", dailyContent);
-      formattedContext += dailyContent;
-      formattedContext += "\n";
-    } else if (context.dailyNote) {
-      console.log("Daily note found but no blocks:", context.dailyNote);
-    } else {
-      console.log("No daily note found in context");
     }
 
     // Add linked references
@@ -1472,8 +1655,7 @@ export class RoamService {
 
     const finalContext = formattedContext.trim();
 
-    console.log("📋 Final formatted context for AI:", finalContext);
-    console.log("📋 Context length:", finalContext.length, "characters");
+    console.log("📋 Final formatted context for AI (Legacy):", finalContext.length, "characters");
 
     // Apply truncation if context is too long
     return this.truncateContext(finalContext, maxTokens);

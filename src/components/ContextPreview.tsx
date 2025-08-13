@@ -249,24 +249,39 @@ export const ContextPreview: React.FC<ContextPreviewProps> = ({
         </Popover>
       )}
 
-      {/* Visible Blocks - only show if they are different from current page blocks */}
-      {visibleBlocks.length > 0 && currentPageBlocks.length > 0 && (
-        <Popover
-          content={renderHoverList(visibleBlocks)}
-          position={Position.TOP}
-          interactionKind="hover"
-          minimal
-          hoverOpenDelay={100}
-        >
-          <ContextChip
-            icon="eye-open"
-            text="Visible"
-            count={countNonEmptyBlocks(visibleBlocks)}
-            variant="visible"
-            title={`Visible blocks: ${visibleBlocks.length}`}
-          />
-        </Popover>
-      )}
+      {/* Visible Blocks - show when we have visible content that's different from or supplements the current page */}
+      {(() => {
+        const hasVisibleBlocks = countNonEmptyBlocks(visibleBlocks) > 0;
+        const hasCurrentPageBlocks = countNonEmptyBlocks(currentPageBlocks) > 0;
+        
+        // Show visible blocks when:
+        // 1. We have visible blocks but no current page blocks (user viewing content without a specific page)
+        // 2. We have both, but they might contain different content (visible blocks show what's currently on screen)
+        const shouldShowVisible = hasVisibleBlocks && (
+          !hasCurrentPageBlocks ||  // No current page content, show what's visible
+          !context.currentPage ||   // No current page at all
+          visibleBlocks.length !== currentPageBlocks.length || // Different number of blocks
+          visibleBlocks.some((vb, idx) => currentPageBlocks[idx]?.uid !== vb.uid) // Different blocks
+        );
+        
+        return shouldShowVisible ? (
+          <Popover
+            content={renderHoverList(visibleBlocks)}
+            position={Position.TOP}
+            interactionKind="hover"
+            minimal
+            hoverOpenDelay={100}
+          >
+            <ContextChip
+              icon="eye-open"
+              text="Visible"
+              count={countNonEmptyBlocks(visibleBlocks)}
+              variant="visible"
+              title={`Visible blocks: ${countNonEmptyBlocks(visibleBlocks)} blocks currently on screen`}
+            />
+          </Popover>
+        ) : null;
+      })()}
 
       {/* Sidebar Notes */}
       {hasSidebarNotes && (
