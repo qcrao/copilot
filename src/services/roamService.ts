@@ -214,7 +214,7 @@ export class RoamService {
   }
 
   /**
-   * Get the current page information
+   * Get the current page information - now enhanced to detect visible content
    */
   static async getCurrentPageInfo(): Promise<RoamPage | null> {
     try {
@@ -231,19 +231,56 @@ export class RoamService {
         // Continue to get main window page, sidebar notes will be included in context separately
       }
 
-      // Try to get from main window API (might be async)
-      const apiResult =
-        window.roamAlphaAPI?.ui?.mainWindow?.getOpenPageOrBlockUid?.();
-      if (apiResult && typeof apiResult === "object" && "then" in apiResult) {
-        currentPageUid = await apiResult;
-      } else {
-        currentPageUid = apiResult || null;
+      // NEW: First try to detect the page based on visible content
+      const visibleBlocks = this.getVisibleBlocks();
+      if (visibleBlocks.length > 0) {
+        // Look for a page title in the visible area
+        const titleElements = document.querySelectorAll(".rm-title-display");
+        for (const titleElement of titleElements) {
+          const rect = titleElement.getBoundingClientRect();
+          // Check if title is visible
+          if (
+            rect.bottom > 0 &&
+            rect.top < window.innerHeight &&
+            rect.right > 0 &&
+            rect.left < window.innerWidth
+          ) {
+            const visibleTitle = titleElement.textContent?.trim();
+            if (visibleTitle) {
+              console.log("🔍 Found visible page title:", visibleTitle);
+              title = visibleTitle;
+
+              // Try to get the UID for this title
+              const titleQuery = `
+                [:find ?uid
+                 :where
+                 [?e :node/title "${visibleTitle}"]
+                 [?e :block/uid ?uid]]
+              `;
+              const titleResult = window.roamAlphaAPI.q(titleQuery);
+              if (titleResult && titleResult.length > 0) {
+                currentPageUid = titleResult[0][0];
+                console.log("✅ Using visible page as current:", visibleTitle);
+                break;
+              }
+            }
+          }
+        }
       }
 
-      // Got current page UID from main window API
-
+      // Fallback: Try to get from main window API (might be async)
       if (!currentPageUid) {
-        // Fallback: try to get from URL
+        const apiResult =
+          window.roamAlphaAPI?.ui?.mainWindow?.getOpenPageOrBlockUid?.();
+        if (apiResult && typeof apiResult === "object" && "then" in apiResult) {
+          currentPageUid = await apiResult;
+        } else {
+          currentPageUid = apiResult || null;
+        }
+      }
+
+      // Fallback: try to get from URL
+      if (!currentPageUid) {
         const urlMatch = window.location.href.match(/\/page\/([^/?]+)/);
         if (urlMatch) {
           currentPageUid = decodeURIComponent(urlMatch[1]);

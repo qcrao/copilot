@@ -279,21 +279,23 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
                 hasSignificantChange = true;
                 break;
               }
-              
+
               // Look for block content changes
               if (
                 element.classList?.contains("roam-block") ||
                 element.classList?.contains("rm-block") ||
                 element.classList?.contains("roam-block-container") ||
                 element.classList?.contains("rm-block-main") ||
-                element.querySelector?.(".roam-block, .rm-block, .roam-block-container, .rm-block-main")
+                element.querySelector?.(
+                  ".roam-block, .rm-block, .roam-block-container, .rm-block-main"
+                )
               ) {
                 hasContentChange = true;
               }
             }
           }
         }
-        
+
         // Also check for removed nodes (block deletion)
         if (mutation.type === "childList" && mutation.removedNodes.length > 0) {
           for (let node of mutation.removedNodes) {
@@ -352,11 +354,24 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
       }, 300); // 300ms delay for selection changes
     };
 
+    // Listen for scroll events to update context when user scrolls
+    const handleScroll = () => {
+      console.log("📜 Scroll detected");
+      // Debounce the update to avoid too frequent calls during scrolling
+      if (updateContextTimeoutRef.current) {
+        clearTimeout(updateContextTimeoutRef.current);
+      }
+      updateContextTimeoutRef.current = setTimeout(() => {
+        updatePageContext();
+      }, 500); // 500ms delay for scroll events (longer to avoid spam)
+    };
+
     document.addEventListener("selectionchange", handleSelectionChange);
+    window.addEventListener("scroll", handleScroll, { passive: true });
 
     // Also check periodically as a fallback
     const intervalId = setInterval(checkForPageChange, 2000); // Check every 2 seconds
-    
+
     // Use the new RoamService sidebar monitoring system
     const handleSidebarChange = () => {
       if (updateContextTimeoutRef.current) {
@@ -366,9 +381,10 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
         updatePageContext();
       }, 200); // Quick response for sidebar changes
     };
-    
+
     // Register with RoamService's sidebar monitoring system
-    const cleanupSidebarMonitoring = RoamService.onSidebarChange(handleSidebarChange);
+    const cleanupSidebarMonitoring =
+      RoamService.onSidebarChange(handleSidebarChange);
 
     return () => {
       if (updateContextTimeoutRef.current) {
@@ -377,6 +393,7 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
       }
       window.removeEventListener("hashchange", handleHashChange);
       document.removeEventListener("selectionchange", handleSelectionChange);
+      window.removeEventListener("scroll", handleScroll);
       observer.disconnect();
       cleanupSidebarMonitoring(); // Cleanup the sidebar monitoring
       clearInterval(intervalId);
@@ -730,8 +747,8 @@ ${contextForUser}`;
           const currentModel = multiProviderSettings.currentModel;
           const provider = await AIService.getProviderForModel(currentModel);
           contextString = RoamService.formatContextForAI(
-            filteredContext, 
-            8000, // Reduce system message context  
+            filteredContext,
+            8000, // Reduce system message context
             provider?.provider?.id || "openai",
             currentModel
           );
@@ -758,7 +775,7 @@ ${contextForUser}`;
 
         contextString = filteredContext
           ? RoamService.formatContextForAI(
-              filteredContext, 
+              filteredContext,
               maxContextTokens,
               provider?.provider?.id || "openai",
               currentModel
@@ -1273,11 +1290,13 @@ ${contextForUser}`;
 
     try {
       // Import UserTemplateService dynamically to avoid circular imports
-      const { UserTemplateService } = require("../services/userTemplateService");
-      
+      const {
+        UserTemplateService,
+      } = require("../services/userTemplateService");
+
       // Get all templates (official + custom) - now async
       const allTemplates = await UserTemplateService.getAllTemplates();
-      
+
       // Find the template that matches this prompt (try exact match first)
       let template = allTemplates.find((t: any) => t.prompt === prompt);
 
