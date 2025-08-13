@@ -59,11 +59,16 @@ export const ConversationItem: React.FC<ConversationItemProps> = ({
     } else if (diffDays === 1) {
       return 'Yesterday';
     } else if (diffDays < 7) {
-      return `${diffDays} days ago`;
-    } else {
+      return `${diffDays}d ago`;
+    } else if (diffDays < 30) {
       return date.toLocaleDateString('zh-CN', { 
         month: 'short', 
         day: 'numeric' 
+      });
+    } else {
+      return date.toLocaleDateString('zh-CN', { 
+        year: 'numeric',
+        month: 'short'
       });
     }
   };
@@ -73,24 +78,27 @@ export const ConversationItem: React.FC<ConversationItemProps> = ({
       className={`rr-copilot-conversation-item ${isActive ? 'active' : ''} ${disabled ? 'disabled' : ''}`}
       onClick={disabled ? undefined : onClick}
       style={{
-        padding: "8px 12px",
-        borderRadius: "8px",
+        padding: "10px 14px",
+        borderRadius: "6px", // Softer corners like Roam
         cursor: disabled ? "not-allowed" : "pointer",
-        backgroundColor: isActive ? "#f0f4ff" : "transparent",
-        border: isActive ? "1px solid #e0ebff" : "1px solid transparent",
-        margin: "1px 0",
-        transition: "all 0.2s ease",
+        backgroundColor: isActive ? "#ffffff" : "transparent",
+        border: isActive ? "1px solid #d1d9e0" : "1px solid transparent", 
+        borderLeft: isActive ? "3px solid #5c7cfa" : "3px solid transparent", // Blue accent for active state
+        margin: "2px 6px", // Better spacing
+        transition: "all 0.2s cubic-bezier(0.4, 0, 0.2, 1)", // Smoother easing
         position: "relative",
         display: "flex",
         flexDirection: "column",
         gap: "4px",
-        opacity: disabled ? 0.5 : 1
+        opacity: disabled ? 0.5 : 1,
+        boxShadow: isActive ? "0 1px 3px rgba(0,0,0,0.06)" : "none", // Subtle shadow for active
       }}
       onMouseEnter={(e) => {
         if (disabled) return;
         if (!isActive) {
-          e.currentTarget.style.backgroundColor = "#f9fafb";
-          e.currentTarget.style.border = "1px solid #f3f4f6";
+          e.currentTarget.style.backgroundColor = "#f8f9fa";
+          e.currentTarget.style.border = "1px solid #e8eaed";
+          e.currentTarget.style.borderLeft = "3px solid #e1e5e9";
         }
         // Show delete button on hover
         const deleteBtn = e.currentTarget.querySelector('button[title="Delete conversation"]') as HTMLElement;
@@ -103,6 +111,7 @@ export const ConversationItem: React.FC<ConversationItemProps> = ({
         if (!isActive) {
           e.currentTarget.style.backgroundColor = "transparent";
           e.currentTarget.style.border = "1px solid transparent";
+          e.currentTarget.style.borderLeft = "3px solid transparent";
         }
         // Hide delete button when not hovering
         const deleteBtn = e.currentTarget.querySelector('button[title="Delete conversation"]') as HTMLElement;
@@ -117,9 +126,9 @@ export const ConversationItem: React.FC<ConversationItemProps> = ({
           <div
             style={{
               fontSize: "13px",
-              fontWeight: isActive ? "600" : "500",
-              color: "#1f2937",
-              lineHeight: "1.3",
+              fontWeight: isActive ? "500" : "400", // Softer weight
+              color: isActive ? "#202124" : "#5f6368", // More subtle color hierarchy
+              lineHeight: "1.4",
               overflow: "hidden",
               textOverflow: "ellipsis",
               whiteSpace: "nowrap"
@@ -127,6 +136,18 @@ export const ConversationItem: React.FC<ConversationItemProps> = ({
             title={conversation.title}
           >
             {conversation.title}
+          </div>
+          
+          {/* Date display */}
+          <div
+            style={{
+              fontSize: "11px",
+              color: "#9aa0a6",
+              marginTop: "2px",
+              fontWeight: "400",
+            }}
+          >
+            {formatDate(conversation.lastUpdated)}
           </div>
           
         </div>

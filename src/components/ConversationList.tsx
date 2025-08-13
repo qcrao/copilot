@@ -177,13 +177,13 @@ export const ConversationList: React.FC<ConversationListProps> = ({
         top: "0",
         bottom: "0",
         width: "280px",
-        backgroundColor: "white",
+        backgroundColor: "#fbfcfd", // Softer background like Roam sidebars
         borderLeft: "1px solid #e1e5e9", // Add left border to separate from Roam
         borderRight: "1px solid #e1e5e9", // Match the content-wrapper border color
         display: "flex",
         flexDirection: "column",
         zIndex: 1001,
-        boxShadow: "1px 0 4px rgba(0,0,0,0.08)",
+        boxShadow: "0 0 12px rgba(0,0,0,0.04), 1px 0 4px rgba(0,0,0,0.06)", // Softer, more Roam-like shadow
         transform: isVisible ? "translateX(0)" : "translateX(-100%)",
         transition: "transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
       }}
@@ -193,8 +193,8 @@ export const ConversationList: React.FC<ConversationListProps> = ({
         style={{
           height: "45px", // Match main copilot header height
           padding: "0 16px",
-          borderBottom: "1px solid #f3f4f6",
-          backgroundColor: "#f8f9fa",
+          borderBottom: "1px solid #e8eaed", // More subtle divider
+          backgroundColor: "#f1f3f4", // Match Roam's subtle header background
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
@@ -202,9 +202,9 @@ export const ConversationList: React.FC<ConversationListProps> = ({
         }}
       >
         <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-          <Icon icon="chat" size={16} color="#393a3d" />
+          <Icon icon="chat" size={16} color="#5c7080" />
           <span
-            style={{ fontSize: "14px", fontWeight: "600", color: "#393a3d" }}
+            style={{ fontSize: "13px", fontWeight: "500", color: "#5c7080", letterSpacing: "0.3px" }}
           >
             Chat History
           </span>
@@ -218,7 +218,7 @@ export const ConversationList: React.FC<ConversationListProps> = ({
             onClick={onNewConversation}
             title="New Chat"
             disabled={isLoading}
-            style={{ color: "#393a3d" }}
+            style={{ color: "#5c7080" }}
           />
           <Button
             minimal
@@ -246,7 +246,7 @@ export const ConversationList: React.FC<ConversationListProps> = ({
               icon="trash"
               onClick={handleDeleteAll}
               title="Delete All Conversations"
-              style={{ color: "#393a3d" }}
+              style={{ color: "#5c7080" }}
             />
           )}
           {showDeleteConfirm && (
@@ -285,13 +285,13 @@ export const ConversationList: React.FC<ConversationListProps> = ({
             icon="chevron-left"
             onClick={onToggle}
             title="Hide Chat List"
-            style={{ color: "#393a3d" }}
+            style={{ color: "#5c7080" }}
           />
         </div>
       </div>
 
       {/* Search */}
-      <div style={{ padding: "12px 16px" }}>
+      <div style={{ padding: "10px 16px", backgroundColor: "#fbfcfd" }}>
         <InputGroup
           placeholder="Search conversations..."
           value={state.searchQuery}
@@ -299,7 +299,7 @@ export const ConversationList: React.FC<ConversationListProps> = ({
           leftIcon="search"
           style={{
             fontSize: "13px",
-            height: "36px",
+            height: "34px",
           }}
         />
       </div>
@@ -309,8 +309,7 @@ export const ConversationList: React.FC<ConversationListProps> = ({
         style={{
           flex: 1,
           overflowY: "auto",
-          padding: "0 8px",
-          paddingBottom: "8px",
+          padding: "8px 6px", // Better padding for new item styles
         }}
       >
         {state.isLoading ? (
@@ -376,12 +375,13 @@ export const ConversationList: React.FC<ConversationListProps> = ({
       {/* Footer Stats */}
       <div
         style={{
-          padding: "12px 16px",
-          borderTop: "1px solid #f3f4f6",
-          backgroundColor: "#f8f9fa",
+          padding: "10px 16px",
+          borderTop: "1px solid #e8eaed",
+          backgroundColor: "#f1f3f4",
           fontSize: "11px",
-          color: "#666",
+          color: "#5c7080",
           textAlign: "center",
+          fontWeight: "400",
         }}
       >
         {filteredConversations.length} conversation
