@@ -1,7 +1,8 @@
 // src/components/ContextPreview.tsx
-import React, { useMemo } from "react";
+import React, { useMemo, useState, useEffect } from "react";
 import { Icon, Tag, Card, Popover, Position } from "@blueprintjs/core";
 import { PageContext } from "../types";
+import { RoamService } from "../services/roamService";
 
 interface ContextPreviewProps {
   context: PageContext | null;
@@ -22,18 +23,43 @@ export const ContextPreview: React.FC<ContextPreviewProps> = ({
   onExcludeBlock,
   excludedUids,
 }) => {
+  const [sidebarBacklinks, setSidebarBacklinks] = useState<{ [key: string]: number }>({});
+
+  // Fetch backlinks count for sidebar notes
+  useEffect(() => {
+    if (!context?.sidebarNotes || context.sidebarNotes.length === 0) return;
+
+    const fetchBacklinks = async () => {
+      const backlinkCounts: { [key: string]: number } = {};
+      
+      for (const note of context.sidebarNotes || []) {
+        try {
+          const backlinks = await RoamService.getLinkedReferences(note.title);
+          backlinkCounts[note.uid] = backlinks.length;
+        } catch (error) {
+          console.warn('Error fetching backlinks for', note.title, error);
+          backlinkCounts[note.uid] = 0;
+        }
+      }
+      
+      setSidebarBacklinks(backlinkCounts);
+    };
+
+    fetchBacklinks();
+  }, [context?.sidebarNotes]);
+
   if (!context) return null;
 
   const renderHoverList = (items: { uid: string; string: string }[]) => (
     <div className="rr-context-popover">
       <div className="rr-context-popover__body">
         {items.length === 0 && (
-          <div className="rr-context-popover__empty">No items</div>
+          <div className="rr-context-popover__empty">0 blocks</div>
         )}
         {items.slice(0, 30).map((b) => (
           <div key={b.uid} className="rr-context-hover-row">
             <div className="rr-context-hover-text" title={b.string}>
-              {b.string || "(empty)"}
+              {b.string || "0 blocks"}
             </div>
           </div>
         ))}
@@ -49,6 +75,25 @@ export const ContextPreview: React.FC<ContextPreviewProps> = ({
   const backlinks = context.linkedReferences || [];
   const sidebarNotes = context.sidebarNotes || [];
   
+  // Helper function to check if a page title is a daily note
+  const isDailyNote = (title: string): boolean => {
+    if (!title) return false;
+    const dailyNotePatterns = [
+      /^\w+ \d{1,2}(st|nd|rd|th), \d{4}$/, // "January 1st, 2024"
+      /^\d{1,2}-\d{1,2}-\d{4}$/, // "01-01-2024"
+      /^\d{4}-\d{1,2}-\d{1,2}$/, // "2024-01-01"
+      /^\d{1,2}\/\d{1,2}\/\d{4}$/, // "01/01/2024"
+    ];
+    return dailyNotePatterns.some(pattern => pattern.test(title));
+  };
+
+  // Check if current page is a daily note
+  const isCurrentPageDaily = context.currentPage ? isDailyNote(context.currentPage.title) : false;
+  
+  // Check if daily note is the same as current page
+  const isDailyNoteSameAsCurrentPage = context.currentPage && context.dailyNote && 
+    context.currentPage.uid === context.dailyNote.uid;
+
   // Check if page has any content
   const hasPageContent = currentPageBlocks.length > 0 || visibleBlocks.length > 0 || selectedText || dailyNoteBlocks.length > 0;
   const hasBacklinks = backlinks.length > 0;
@@ -58,7 +103,7 @@ export const ContextPreview: React.FC<ContextPreviewProps> = ({
 
   return (
     <div className="rr-context-preview">
-      {/* Current Page Chip - always show the page name, count shows content blocks */}
+      {/* Current Page Chip - show as daily note if it's a daily note, otherwise as regular page */}
       {context.currentPage && (
         <Popover
           content={renderHoverList(currentPageBlocks)}
@@ -70,10 +115,10 @@ export const ContextPreview: React.FC<ContextPreviewProps> = ({
           <Tag
             minimal
             round
-            className="rr-context-chip rr-context-chip--page"
+            className={isCurrentPageDaily ? "rr-context-chip rr-context-chip--daily" : "rr-context-chip rr-context-chip--page"}
             title={context.currentPage.title}
           >
-            <Icon icon="document" size={12} />
+            <Icon icon={isCurrentPageDaily ? "calendar" : "document"} size={12} />
             <span className="rr-context-chip__text">
               {context.currentPage.title}
             </span>
@@ -117,8 +162,8 @@ export const ContextPreview: React.FC<ContextPreviewProps> = ({
         </Tag>
       )}
 
-      {/* Daily Note */}
-      {context.dailyNote && dailyNoteBlocks.length > 0 && (
+      {/* Daily Note - only show if it's different from current page */}
+      {context.dailyNote && dailyNoteBlocks.length > 0 && !isDailyNoteSameAsCurrentPage && (
         <Popover
           content={renderHoverList(dailyNoteBlocks)}
           position={Position.TOP}
@@ -150,13 +195,16 @@ export const ContextPreview: React.FC<ContextPreviewProps> = ({
                 {sidebarNotes.length === 0 && (
                   <div className="rr-context-popover__empty">No sidebar notes</div>
                 )}
-                {sidebarNotes.slice(0, 10).map((note) => (
-                  <div key={note.uid} className="rr-context-hover-row">
-                    <div className="rr-context-hover-text" title={note.title}>
-                      <strong>{note.title}</strong> ({note.blocks.length} blocks)
+                {sidebarNotes.slice(0, 10).map((note) => {
+                  const backlinkCount = sidebarBacklinks[note.uid] || 0;
+                  return (
+                    <div key={note.uid} className="rr-context-hover-row">
+                      <div className="rr-context-hover-text" title={note.title}>
+                        <strong>{note.title}</strong> ({note.blocks.length} blocks, {backlinkCount} backlinks)
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
                 {sidebarNotes.length > 10 && (
                   <div className="rr-context-hover-row">
                     <div className="rr-context-hover-text">

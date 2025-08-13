@@ -259,11 +259,13 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
       checkForPageChange();
     };
 
-    // Use MutationObserver to watch for DOM changes that might indicate page navigation
+    // Use MutationObserver to watch for DOM changes that might indicate page navigation or content changes
     const observer = new MutationObserver((mutations) => {
-      // Check if the main content area has changed significantly
-      const hasSignificantChange = mutations.some((mutation) => {
-        // Check if new nodes were added to the main content area
+      let hasSignificantChange = false;
+      let hasContentChange = false;
+
+      mutations.forEach((mutation) => {
+        // Check for major page structure changes
         if (mutation.type === "childList" && mutation.addedNodes.length > 0) {
           for (let node of mutation.addedNodes) {
             if (node.nodeType === Node.ELEMENT_NODE) {
@@ -274,17 +276,54 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
                 element.classList?.contains("rm-article-wrapper") ||
                 element.querySelector?.(".roam-article, .rm-article-wrapper")
               ) {
-                return true;
+                hasSignificantChange = true;
+                break;
+              }
+              
+              // Look for block content changes
+              if (
+                element.classList?.contains("roam-block") ||
+                element.classList?.contains("rm-block") ||
+                element.classList?.contains("roam-block-container") ||
+                element.classList?.contains("rm-block-main") ||
+                element.querySelector?.(".roam-block, .rm-block, .roam-block-container, .rm-block-main")
+              ) {
+                hasContentChange = true;
               }
             }
           }
         }
-        return false;
+        
+        // Also check for removed nodes (block deletion)
+        if (mutation.type === "childList" && mutation.removedNodes.length > 0) {
+          for (let node of mutation.removedNodes) {
+            if (node.nodeType === Node.ELEMENT_NODE) {
+              const element = node as Element;
+              if (
+                element.classList?.contains("roam-block") ||
+                element.classList?.contains("rm-block") ||
+                element.classList?.contains("roam-block-container") ||
+                element.classList?.contains("rm-block-main")
+              ) {
+                hasContentChange = true;
+                break;
+              }
+            }
+          }
+        }
       });
 
       if (hasSignificantChange) {
-        console.log("🔄 DOM content change detected");
         checkForPageChange();
+      } else if (hasContentChange) {
+        // Block content change detected, updating context
+        // Debounce content updates with a shorter delay
+        if (updateContextTimeoutRef.current) {
+          clearTimeout(updateContextTimeoutRef.current);
+        }
+        updateContextTimeoutRef.current = setTimeout(() => {
+          updatePageContext();
+        }, 300); // Shorter delay for content changes
       }
     });
 
@@ -306,7 +345,6 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
     
     // Use the new RoamService sidebar monitoring system
     const handleSidebarChange = () => {
-      console.log("🔍 Sidebar change detected, updating context...");
       if (updateContextTimeoutRef.current) {
         clearTimeout(updateContextTimeoutRef.current);
       }

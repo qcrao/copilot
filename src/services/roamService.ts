@@ -375,7 +375,7 @@ export class RoamService {
         return [];
       }
 
-      // Try different query patterns for different types of pages
+      // Try different query patterns for different types of pages (excluding backlinks query)
       const queries = [
         // Standard page children query
         `[:find ?uid ?string ?order
@@ -402,14 +402,6 @@ export class RoamService {
          [?page :block/children ?block]
          [?block :block/uid ?uid]
          [?block :block/string ?string]]`,
-
-        // Try finding all blocks that reference this page
-        `[:find ?uid ?string
-         :where
-         [?block :block/uid ?uid]
-         [?block :block/string ?string]
-         [?block :block/refs ?page]
-         [?page :block/uid "${resolvedPageUid}"]]`,
       ];
 
       let result = null;
