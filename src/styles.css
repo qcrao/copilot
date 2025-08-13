@@ -2110,11 +2110,19 @@ details[style*="thinking"][open] {
 
 .rr-context-chip__text {
   margin-left: 2px;
-  max-width: 140px;
+  max-width: 80px !important;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   font-weight: 500;
+}
+
+/* Constrain Blueprint.js Tag fill element within context chips */
+.rr-context-chip .bp3-fill {
+  max-width: 80px !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
 }
 
 .rr-context-chip__count {
