@@ -1271,15 +1271,27 @@ export class RoamService {
    */
   static async getPageContext(): Promise<PageContext> {
     console.log(
-      "🚀 DEBUG: getPageContext called - modified version with debug logs"
+      "🚀 DEBUG: getPageContext called - optimized visible detection"
     );
     // Getting comprehensive page context
 
-    const [currentPage, visibleBlocks, sidebarNotes] = await Promise.all([
+    const [currentPage, sidebarNotes] = await Promise.all([
       this.getCurrentPageInfo(),
-      Promise.resolve(this.getVisibleBlocks()),
       this.getSidebarNotes(),
     ]);
+
+    // Smart visible blocks detection - only for daily notes pages
+    let visibleBlocks: RoamBlock[] = [];
+    let visibleDailyNotes: RoamPage[] = [];
+
+    const isDailyNotesView = this.isDailyNotesView();
+    if (isDailyNotesView) {
+      console.log("📅 Detected daily notes view - scanning for visible dates");
+      visibleDailyNotes = await this.getVisibleDailyNotes();
+      console.log(`📅 Found ${visibleDailyNotes.length} visible daily notes`);
+    } else {
+      console.log("📄 Regular page view - skipping visible blocks detection");
+    }
 
     // Get linked references if we have a current page
     let linkedReferences: RoamBlock[] = [];
@@ -1314,6 +1326,7 @@ export class RoamService {
       dailyNote: undefined,
       linkedReferences,
       sidebarNotes,
+      visibleDailyNotes, // New: visible daily notes for daily notes view
     };
 
     // Final context ready
@@ -1921,35 +1934,40 @@ export class RoamService {
       }
     }
 
-    // Always add visible blocks if they exist, as they show what user is actually viewing
-    if (context.visibleBlocks.length > 0) {
-      // Check if visible blocks are different from current page blocks
-      const currentPageUids = new Set(
-        context.currentPage?.blocks.map((block) => block.uid) || []
-      );
-      const visibleBlocksFromDifferentPages = context.visibleBlocks.filter(
-        (block) => !currentPageUids.has(block.uid)
-      );
+    // Add visible daily notes if they exist (only for daily notes view)
+    if (context.visibleDailyNotes && context.visibleDailyNotes.length > 0) {
+      formattedContext += `**Visible Daily Notes (${context.visibleDailyNotes.length} dates):**\n`;
 
-      console.log("🔍 Visible blocks analysis:", {
-        totalVisibleBlocks: context.visibleBlocks.length,
-        currentPageUids: Array.from(currentPageUids),
-        visibleBlocksFromDifferentPages: visibleBlocksFromDifferentPages.length,
-        shouldShowVisibleBlocks:
-          !context.currentPage || visibleBlocksFromDifferentPages.length > 0,
-      });
-
-      // Show visible blocks if they're from different pages or if there's no current page
-      if (!context.currentPage || visibleBlocksFromDifferentPages.length > 0) {
-        formattedContext += "**Visible Content:**\n";
-        formattedContext += this.formatBlocksForAIWithClickableReferences(
-          context.visibleBlocks,
-          0,
-          graphName,
-          isDesktop
+      for (const dailyNote of context.visibleDailyNotes.slice(0, 5)) {
+        // Limit to 5 for performance
+        const dailyUrls = this.generatePageUrl(
+          dailyNote.uid,
+          graphName || undefined
         );
+        const dailyUrlLinks = dailyUrls
+          ? formatUrls(dailyUrls.webUrl, dailyUrls.desktopUrl)
+          : `[[${dailyNote.title}]]`;
+
+        formattedContext += `**${dailyNote.title}** ${dailyUrlLinks}\n`;
+
+        if (dailyNote.blocks.length > 0) {
+          const dailyContent = this.formatBlocksForAIWithClickableReferences(
+            dailyNote.blocks.slice(0, 8), // First 8 blocks per daily note
+            0,
+            graphName,
+            isDesktop
+          );
+          formattedContext += dailyContent;
+        }
         formattedContext += "\n";
       }
+
+      if (context.visibleDailyNotes.length > 5) {
+        formattedContext += `... and ${
+          context.visibleDailyNotes.length - 5
+        } more daily notes\n`;
+      }
+      formattedContext += "\n";
     }
 
     // Add linked references
@@ -3156,5 +3174,94 @@ export class RoamService {
       // Alphabetical as final tie-breaker
       return textA.localeCompare(textB);
     });
+  }
+
+  /**
+   * Check if the current view is a daily notes view (showing multiple daily notes)
+   */
+  static isDailyNotesView(): boolean {
+    try {
+      // Check for multiple daily note titles visible
+      const titleElements = document.querySelectorAll(".rm-title-display");
+      let dailyNoteCount = 0;
+
+      for (const titleElement of titleElements) {
+        const title = titleElement.textContent?.trim();
+        if (title && this.isDailyNotePage(title)) {
+          const rect = titleElement.getBoundingClientRect();
+          if (rect.bottom > 0 && rect.top < window.innerHeight) {
+            dailyNoteCount++;
+          }
+        }
+      }
+
+      return dailyNoteCount > 1;
+    } catch (error) {
+      console.error("Error checking daily notes view:", error);
+      return false;
+    }
+  }
+
+  /**
+   * Get all visible daily notes in the current view
+   */
+  static async getVisibleDailyNotes(): Promise<RoamPage[]> {
+    try {
+      const visibleDailyNotes: RoamPage[] = [];
+      const titleElements = document.querySelectorAll(".rm-title-display");
+      const processedTitles = new Set<string>();
+
+      for (const titleElement of titleElements) {
+        const title = titleElement.textContent?.trim();
+        if (
+          title &&
+          this.isDailyNotePage(title) &&
+          !processedTitles.has(title)
+        ) {
+          const rect = titleElement.getBoundingClientRect();
+          // Check if title is visible
+          if (rect.bottom > 0 && rect.top < window.innerHeight) {
+            processedTitles.add(title);
+            console.log("📅 Found visible daily note:", title);
+
+            const page = await this.getPageByTitle(title);
+            if (page) {
+              visibleDailyNotes.push(page);
+            }
+          }
+        }
+      }
+
+      // Sort by date (newest first)
+      visibleDailyNotes.sort((a, b) => {
+        const dateA = this.parseDateFromTitle(a.title);
+        const dateB = this.parseDateFromTitle(b.title);
+        return dateB.getTime() - dateA.getTime();
+      });
+
+      return visibleDailyNotes;
+    } catch (error) {
+      console.error("Error getting visible daily notes:", error);
+      return [];
+    }
+  }
+
+  /**
+   * Parse date from daily note title
+   */
+  static parseDateFromTitle(title: string): Date {
+    try {
+      // Handle Roam's date format: "August 13th, 2025"
+      const match = title.match(/(\w+)\s+(\d{1,2})\w*,\s+(\d{4})/);
+      if (match) {
+        const [, month, day, year] = match;
+        return new Date(`${month} ${day}, ${year}`);
+      }
+
+      // Fallback to other formats
+      return new Date(title);
+    } catch (error) {
+      return new Date();
+    }
   }
 }

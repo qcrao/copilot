@@ -65,6 +65,7 @@ export interface PageContext {
   dailyNote?: RoamPage;
   linkedReferences: RoamBlock[];
   sidebarNotes?: RoamPage[];
+  visibleDailyNotes?: RoamPage[]; // New: visible daily notes for daily notes view
 }
 
 export interface CopilotState {
@@ -185,7 +186,6 @@ export interface PromptTemplate {
   requiresContext: boolean;
   contextType?: "current-page" | "date-range" | "selected-text";
 }
-
 
 export interface PromptTemplateSettings {
   hiddenTemplates: string[]; // Array of template IDs that are hidden
