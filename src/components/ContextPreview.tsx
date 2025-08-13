@@ -119,7 +119,6 @@ export const ContextPreview: React.FC<ContextPreviewProps> = ({
   // Separate page content and backlinks
   const currentPageBlocks = context.currentPage?.blocks || [];
   const visibleBlocks = context.visibleBlocks || [];
-  const selectedText = context.selectedText;
   const dailyNoteBlocks = context.dailyNote?.blocks || [];
   const backlinks = context.linkedReferences || [];
   const sidebarNotes = context.sidebarNotes || [];
@@ -182,7 +181,6 @@ export const ContextPreview: React.FC<ContextPreviewProps> = ({
   // Check if page has any content (only count non-empty blocks)
   const hasPageContent = countNonEmptyBlocks(currentPageBlocks) > 0 || 
                          countNonEmptyBlocks(visibleBlocks) > 0 || 
-                         selectedText || 
                          countNonEmptyBlocks(dailyNoteBlocks) > 0;
   const hasBacklinks = backlinks.length > 0;
   const hasSidebarNotes = sidebarNotes.length > 0;
@@ -191,35 +189,7 @@ export const ContextPreview: React.FC<ContextPreviewProps> = ({
 
   return (
     <div className="rr-context-preview">
-      {/* Selected Text - show first when available */}
-      {selectedText && (
-        <Popover
-          content={
-            <div className="rr-context-popover">
-              <div className="rr-context-popover__body">
-                <div className="rr-context-hover-row">
-                  <div className="rr-context-hover-text" style={{ whiteSpace: 'pre-wrap', maxWidth: '400px', wordBreak: 'break-word' }}>
-                    {selectedText}
-                  </div>
-                </div>
-              </div>
-            </div>
-          }
-          position={Position.TOP}
-          interactionKind="hover"
-          minimal
-          hoverOpenDelay={100}
-        >
-          <ContextChip
-            icon="selection"
-            text="Selected"
-            variant="selected"
-            title={selectedText.length > 100 ? selectedText.substring(0, 100) + "..." : selectedText}
-          />
-        </Popover>
-      )}
-
-      {/* Daily Note - show second, only if it's different from current page */}
+      {/* Daily Note - show first, only if it's different from current page */}
       {context.dailyNote && dailyNoteBlocks.length > 0 && !isDailyNoteSameAsCurrentPage && (
         <Popover
           content={renderHoverList(dailyNoteBlocks)}
