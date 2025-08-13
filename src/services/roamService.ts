@@ -1286,11 +1286,11 @@ export class RoamService {
 
     const isDailyNotesView = this.isDailyNotesView();
     if (isDailyNotesView) {
-      console.log("📅 Detected daily notes view - scanning for visible dates");
+      console.log("📅 Detected daily notes view - scanning for visible daily notes");
       visibleDailyNotes = await this.getVisibleDailyNotes();
       console.log(`📅 Found ${visibleDailyNotes.length} visible daily notes`);
     } else {
-      console.log("📄 Regular page view - skipping visible blocks detection");
+      console.log("📄 Regular page view - no daily notes detected");
     }
 
     // Get linked references if we have a current page
@@ -1329,7 +1329,16 @@ export class RoamService {
       visibleDailyNotes, // New: visible daily notes for daily notes view
     };
 
-    // Final context ready
+    // Debug: Log the final context result
+    console.log('🔍 GETPAGECONTEXT RESULT:', {
+      hasCurrentPage: !!contextResult.currentPage,
+      currentPageTitle: contextResult.currentPage?.title,
+      visibleBlocksCount: contextResult.visibleBlocks.length,
+      hasVisibleDailyNotes: !!contextResult.visibleDailyNotes,
+      visibleDailyNotesCount: contextResult.visibleDailyNotes?.length || 0,
+      visibleDailyNotesTitles: contextResult.visibleDailyNotes?.map(dn => dn.title) || [],
+      sidebarNotesCount: contextResult.sidebarNotes?.length || 0
+    });
 
     return contextResult;
   }
@@ -3177,11 +3186,11 @@ export class RoamService {
   }
 
   /**
-   * Check if the current view is a daily notes view (showing multiple daily notes)
+   * Check if the current view is a daily notes view (showing daily notes)
    */
   static isDailyNotesView(): boolean {
     try {
-      // Check for multiple daily note titles visible
+      // Check for any daily note titles visible (including single daily note pages)
       const titleElements = document.querySelectorAll(".rm-title-display");
       let dailyNoteCount = 0;
 
@@ -3195,7 +3204,7 @@ export class RoamService {
         }
       }
 
-      return dailyNoteCount > 1;
+      return dailyNoteCount >= 1; // Changed from > 1 to >= 1 to include single daily note pages
     } catch (error) {
       console.error("Error checking daily notes view:", error);
       return false;

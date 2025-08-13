@@ -204,6 +204,12 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
               : undefined,
             linkedReferences: filterBlocks(context.linkedReferences) as any,
             sidebarNotes: context.sidebarNotes || [], // 🔧 Fix: Include sidebar notes!
+            visibleDailyNotes: context.visibleDailyNotes
+              ? context.visibleDailyNotes.map(dailyNote => ({
+                  ...dailyNote,
+                  blocks: filterBlocks(dailyNote.blocks),
+                }))
+              : undefined, // 🔧 Fix: Include visible daily notes with filtering!
           } as PageContext;
 
           setPageContext(filtered);

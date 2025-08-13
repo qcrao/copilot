@@ -200,6 +200,15 @@ export const ContextPreview: React.FC<ContextPreviewProps> = ({
   const hasBacklinks = backlinks.length > 0;
   const hasSidebarNotes = sidebarNotes.length > 0;
 
+  // Debug logging for visibleDailyNotes
+  console.log('🔍 CONTEXT PREVIEW DEBUG:', {
+    visibleDailyNotes: context.visibleDailyNotes?.map(dn => ({ title: dn.title, uid: dn.uid, blocksCount: dn.blocks.length })),
+    currentPage: context.currentPage ? { title: context.currentPage.title, uid: context.currentPage.uid } : null,
+    hasPageContent,
+    hasBacklinks,
+    hasSidebarNotes
+  });
+
   if (!hasPageContent && !hasBacklinks && !hasSidebarNotes) return null;
 
   return (
@@ -274,10 +283,25 @@ export const ContextPreview: React.FC<ContextPreviewProps> = ({
         </Popover>
       )}
 
-      {/* Visible Daily Notes - show multiple daily notes when in daily notes view */}
-      {context.visibleDailyNotes &&
-        context.visibleDailyNotes.length > 0 &&
-        context.visibleDailyNotes.map((dailyNote, index) => (
+      {/* Visible Daily Notes - show multiple daily notes when in daily notes view, excluding current page */}
+      {(() => {
+        if (!context.visibleDailyNotes || context.visibleDailyNotes.length === 0) {
+          console.log('🔍 VISIBLE DAILY NOTES: None found');
+          return null;
+        }
+
+        const filteredNotes = context.visibleDailyNotes.filter(dailyNote => 
+          // Don't show daily notes that are already displayed as current page
+          !context.currentPage || dailyNote.uid !== context.currentPage.uid
+        );
+
+        console.log('🔍 VISIBLE DAILY NOTES FILTER:', {
+          original: context.visibleDailyNotes.map(dn => ({ title: dn.title, uid: dn.uid })),
+          currentPageUid: context.currentPage?.uid,
+          filtered: filteredNotes.map(dn => ({ title: dn.title, uid: dn.uid }))
+        });
+
+        return filteredNotes.map((dailyNote, index) => (
           <Popover
             key={dailyNote.uid}
             content={renderHoverList(dailyNote.blocks)}
@@ -296,7 +320,8 @@ export const ContextPreview: React.FC<ContextPreviewProps> = ({
               )} blocks`}
             />
           </Popover>
-        ))}
+        ));
+      })()}
 
       {/* Sidebar Notes */}
       {hasSidebarNotes && (
