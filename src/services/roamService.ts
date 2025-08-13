@@ -7,6 +7,12 @@ export class RoamService {
   private static graphNameCache: { value: string | null; timestamp: number } | null = null;
   private static readonly CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
   
+  // Sidebar monitoring state
+  private static sidebarCache: { notes: RoamPage[]; timestamp: number; checksum: string } | null = null;
+  private static readonly SIDEBAR_CACHE_DURATION = 2000; // 2 seconds cache for sidebar
+  private static sidebarObserver: MutationObserver | null = null;
+  private static sidebarChangeCallbacks: Set<() => void> = new Set();
+  
   /**
    * Get the current graph name
    */
@@ -617,24 +623,205 @@ export class RoamService {
   }
 
   /**
-   * Get sidebar notes (pages opened in right sidebar)
+   * Register a callback for sidebar changes
+   */
+  static onSidebarChange(callback: () => void): () => void {
+    this.sidebarChangeCallbacks.add(callback);
+    this.startSidebarMonitoring();
+    
+    // Return cleanup function
+    return () => {
+      this.sidebarChangeCallbacks.delete(callback);
+      if (this.sidebarChangeCallbacks.size === 0) {
+        this.stopSidebarMonitoring();
+      }
+    };
+  }
+
+  /**
+   * Start monitoring the sidebar for changes
+   */
+  private static startSidebarMonitoring(): void {
+    if (this.sidebarObserver) return; // Already monitoring
+
+    try {
+      // Create a mutation observer to watch for sidebar changes
+      this.sidebarObserver = new MutationObserver((mutations) => {
+        let shouldUpdate = false;
+        
+        for (const mutation of mutations) {
+          // Check if the mutation affects the sidebar
+          if (mutation.target && this.isSidebarRelated(mutation.target as Element)) {
+            shouldUpdate = true;
+            break;
+          }
+          
+          // Check added/removed nodes
+          if (mutation.addedNodes.length > 0 || mutation.removedNodes.length > 0) {
+            for (const node of [...Array.from(mutation.addedNodes), ...Array.from(mutation.removedNodes)]) {
+              if (node.nodeType === Node.ELEMENT_NODE && this.isSidebarRelated(node as Element)) {
+                shouldUpdate = true;
+                break;
+              }
+            }
+          }
+          
+          if (shouldUpdate) break;
+        }
+        
+        if (shouldUpdate) {
+          // Debounce the updates
+          this.debouncedSidebarUpdate();
+        }
+      });
+
+      // Start observing the document body for sidebar changes
+      this.sidebarObserver.observe(document.body, {
+        childList: true,
+        subtree: true,
+        attributes: true,
+        attributeFilter: ['class', 'style', 'data-block-uid', 'data-page-uid']
+      });
+
+      if (process.env.NODE_ENV === 'development') {
+        console.log('🔍 Started sidebar monitoring');
+      }
+    } catch (error) {
+      console.warn('Failed to start sidebar monitoring:', error);
+    }
+  }
+
+  /**
+   * Stop monitoring the sidebar
+   */
+  private static stopSidebarMonitoring(): void {
+    if (this.sidebarObserver) {
+      this.sidebarObserver.disconnect();
+      this.sidebarObserver = null;
+      if (process.env.NODE_ENV === 'development') {
+        console.log('🔍 Stopped sidebar monitoring');
+      }
+    }
+  }
+
+  /**
+   * Check if an element is related to the sidebar
+   */
+  private static isSidebarRelated(element: Element): boolean {
+    if (!element || !element.closest) return false;
+    
+    // Check for various sidebar-related selectors
+    const sidebarSelectors = [
+      '#roam-right-sidebar-content',
+      '.roam-sidebar-container',
+      '[data-testid="right-sidebar"]',
+      '.rm-sidebar-window',
+      '.sidebar-content'
+    ];
+    
+    return sidebarSelectors.some(selector => element.closest(selector));
+  }
+
+  private static sidebarUpdateTimeout: number | null = null;
+  
+  /**
+   * Debounced sidebar update function
+   */
+  private static debouncedSidebarUpdate(): void {
+    if (this.sidebarUpdateTimeout) {
+      clearTimeout(this.sidebarUpdateTimeout);
+    }
+    
+    this.sidebarUpdateTimeout = window.setTimeout(async () => {
+      await this.checkSidebarChanges();
+    }, 300); // 300ms debounce
+  }
+
+  /**
+   * Check if sidebar has actually changed and notify callbacks
+   */
+  private static async checkSidebarChanges(): Promise<void> {
+    try {
+      const currentNotes = await this.getSidebarNotesInternal();
+      const currentChecksum = this.generateSidebarChecksum(currentNotes);
+      
+      // Compare with cached version
+      if (!this.sidebarCache || this.sidebarCache.checksum !== currentChecksum) {
+        if (process.env.NODE_ENV === 'development') {
+          console.log('🔍 Sidebar changed - notifying callbacks');
+        }
+        this.sidebarCache = {
+          notes: currentNotes,
+          timestamp: Date.now(),
+          checksum: currentChecksum
+        };
+        
+        // Notify all registered callbacks
+        this.sidebarChangeCallbacks.forEach(callback => {
+          try {
+            callback();
+          } catch (error) {
+            console.warn('Error in sidebar change callback:', error);
+          }
+        });
+      }
+    } catch (error) {
+      console.warn('Error checking sidebar changes:', error);
+    }
+  }
+
+  /**
+   * Generate a checksum for sidebar notes to detect changes
+   */
+  private static generateSidebarChecksum(notes: RoamPage[]): string {
+    const simplified = notes.map(note => ({
+      uid: note.uid,
+      title: note.title,
+      blockCount: note.blocks.length
+    }));
+    return JSON.stringify(simplified);
+  }
+
+  /**
+   * Get sidebar notes (pages opened in right sidebar) with caching
    */
   static async getSidebarNotes(): Promise<RoamPage[]> {
+    // Check cache first (short-lived cache for performance)
+    if (this.sidebarCache && 
+        Date.now() - this.sidebarCache.timestamp < this.SIDEBAR_CACHE_DURATION) {
+      return this.sidebarCache.notes;
+    }
+    
+    const notes = await this.getSidebarNotesInternal();
+    
+    // Update cache
+    this.sidebarCache = {
+      notes,
+      timestamp: Date.now(),
+      checksum: this.generateSidebarChecksum(notes)
+    };
+    
+    return notes;
+  }
+
+  /**
+   * Internal method to get sidebar notes without caching
+   */
+  private static async getSidebarNotesInternal(): Promise<RoamPage[]> {
     try {
-      console.log("🔍 Getting sidebar notes...");
+      // Getting sidebar notes from API
 
       // Try to get sidebar windows from Roam API first (more reliable)
       if (!window.roamAlphaAPI?.ui?.rightSidebar?.getWindows) {
-        console.log("❌ Sidebar getWindows API not available, trying DOM fallback");
+        // Sidebar getWindows API not available, trying DOM fallback
         return this.getSidebarNotesFromDOM();
       }
 
       const sidebarWindows = window.roamAlphaAPI.ui.rightSidebar.getWindows();
-      console.log("🔍 Sidebar windows from API:", sidebarWindows);
-      console.log("🔍 Raw sidebar windows data:", JSON.stringify(sidebarWindows, null, 2));
+      // Got sidebar windows from API
 
       if (!sidebarWindows || sidebarWindows.length === 0) {
-        console.log("❌ No sidebar windows found via API, trying DOM fallback");
+        // No sidebar windows found via API, trying DOM fallback
         return this.getSidebarNotesFromDOM();
       }
 
@@ -643,17 +830,14 @@ export class RoamService {
       
       for (const sidebarWindow of sidebarWindows) {
         try {
-          console.log("🔍 Processing sidebar window:", sidebarWindow);
-          console.log("🔍 Window keys:", Object.keys(sidebarWindow));
-          console.log("🔍 Window page-uid:", sidebarWindow["page-uid"]);
-          console.log("🔍 Window block-uid:", sidebarWindow["block-uid"]);
+          // Processing sidebar window
           
           if (sidebarWindow["page-uid"]) {
             // This is a page window
             const pageUid = sidebarWindow["page-uid"];
             if (!processedUids.has(pageUid)) {
               processedUids.add(pageUid);
-              console.log("🔍 Found page window with UID:", pageUid);
+              // Found page window
               
               // Add a small delay to ensure the page is fully loaded
               await new Promise(resolve => setTimeout(resolve, 100));
@@ -676,7 +860,7 @@ export class RoamService {
                 pageTitle = titleResult[0][0];
               } else {
                 // Fallback: try to get title from blocks
-                console.log("🔍 Trying to get title from daily note format");
+                // Trying to get title from daily note format
                 const dailyQuery = `
                   [:find ?title
                    :where
@@ -696,22 +880,22 @@ export class RoamService {
                   blocks,
                 };
                 sidebarNotes.push(page);
-                console.log("✅ Added page to sidebar notes:", pageTitle);
+                // Added page to sidebar notes
               }
             }
           } else if (sidebarWindow["block-uid"]) {
             // This is a block window, get the parent page
             const blockUid = sidebarWindow["block-uid"];
-            console.log("🔍 Found block window with UID:", blockUid);
+            // Found block window
             
             const parentPageTitle = await this.getParentPageTitleForBlock(blockUid);
             if (parentPageTitle) {
-              console.log("🔍 Block belongs to page:", parentPageTitle);
+              // Block belongs to page
               const page = await this.getPageByTitle(parentPageTitle);
               if (page && !processedUids.has(page.uid)) {
                 processedUids.add(page.uid);
                 sidebarNotes.push(page);
-                console.log("✅ Added block's page to sidebar notes:", parentPageTitle);
+                // Added block's page to sidebar notes
               }
             }
           }
@@ -720,13 +904,9 @@ export class RoamService {
         }
       }
 
-      console.log(`✅ Found ${sidebarNotes.length} sidebar notes via API`);
-      
       // If API didn't find any notes, try DOM fallback
       if (sidebarNotes.length === 0) {
-        console.log("🔄 No sidebar notes from API, trying DOM fallback...");
         const domNotes = await this.getSidebarNotesFromDOM();
-        console.log(`🔍 DOM fallback found ${domNotes.length} notes`);
         return domNotes;
       }
       
@@ -742,8 +922,6 @@ export class RoamService {
    */
   static async getSidebarNotesFromDOM(): Promise<RoamPage[]> {
     try {
-      console.log("🔍 Getting sidebar notes from DOM...");
-      
       const sidebarNotes: RoamPage[] = [];
       
       // Look for the right sidebar - check common selectors
@@ -752,15 +930,11 @@ export class RoamService {
                           document.querySelector("[data-testid='right-sidebar']");
       
       if (!rightSidebar) {
-        console.log("❌ No right sidebar found in DOM");
         return [];
       }
       
-      console.log("✅ Found right sidebar container");
-      
       // Look for page title elements in the sidebar
       const pageTitleElements = rightSidebar.querySelectorAll(".rm-title-display");
-      console.log(`🔍 Found ${pageTitleElements.length} page title elements in sidebar`);
       
       const processedTitles = new Set<string>();
       
@@ -770,12 +944,10 @@ export class RoamService {
           
           if (pageTitle && pageTitle !== "" && !processedTitles.has(pageTitle)) {
             processedTitles.add(pageTitle);
-            console.log("🔍 Found sidebar page title:", pageTitle);
             
             const page = await this.getPageByTitle(pageTitle);
             if (page) {
               sidebarNotes.push(page);
-              console.log("✅ Added page to sidebar notes:", pageTitle);
             }
           }
         } catch (elementError) {
@@ -783,7 +955,7 @@ export class RoamService {
         }
       }
 
-      console.log(`✅ Found ${sidebarNotes.length} sidebar notes via DOM`);
+      // Found sidebar notes via DOM
       return sidebarNotes;
     } catch (error) {
       console.error("❌ Error getting sidebar notes from DOM:", error);
