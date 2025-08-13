@@ -876,18 +876,42 @@ export class RoamService {
               }
             }
           } else if (sidebarWindow["block-uid"]) {
-            // This is a block window, get the parent page
+            // This is a block window, create a block-specific entry
             const blockUid = sidebarWindow["block-uid"];
             // Found block window
             
-            const parentPageTitle = await this.getParentPageTitleForBlock(blockUid);
-            if (parentPageTitle) {
-              // Block belongs to page
-              const page = await this.getPageByTitle(parentPageTitle);
-              if (page && !processedUids.has(page.uid)) {
-                processedUids.add(page.uid);
-                sidebarNotes.push(page);
-                // Added block's page to sidebar notes
+            if (!processedUids.has(blockUid)) {
+              processedUids.add(blockUid);
+              
+              // Get the specific block content
+              const blockQuery = `
+                [:find ?string ?pageTitle
+                 :where
+                 [?block :block/uid "${blockUid}"]
+                 [?block :block/string ?string]
+                 [?block :block/page ?page]
+                 [?page :node/title ?pageTitle]]
+              `;
+              
+              const blockResult = window.roamAlphaAPI.q(blockQuery);
+              if (blockResult && blockResult.length > 0) {
+                const [blockString, pageTitle] = blockResult[0];
+                
+                // Create a block-specific entry
+                const blockEntry: RoamPage = {
+                  title: blockString && blockString.trim() 
+                    ? blockString.substring(0, 100) + (blockString.length > 100 ? "..." : "")
+                    : `Block from ${pageTitle}`,
+                  uid: blockUid,
+                  blocks: [{
+                    uid: blockUid,
+                    string: blockString || "",
+                    children: []
+                  }]
+                };
+                
+                sidebarNotes.push(blockEntry);
+                // Added specific block to sidebar notes
               }
             }
           }
