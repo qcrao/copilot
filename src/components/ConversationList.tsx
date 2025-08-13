@@ -178,6 +178,7 @@ export const ConversationList: React.FC<ConversationListProps> = ({
         bottom: "0",
         width: "280px",
         backgroundColor: "white",
+        borderLeft: "1px solid #e1e5e9", // Add left border to separate from Roam
         borderRight: "1px solid #e1e5e9", // Match the content-wrapper border color
         display: "flex",
         flexDirection: "column",
