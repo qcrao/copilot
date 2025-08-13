@@ -5,7 +5,15 @@ import { RoamTemplateService } from "./roamTemplateService";
 const TEMPLATE_SETTINGS_KEY = "copilot-template-settings";
 
 const DEFAULT_SETTINGS: PromptTemplateSettings = {
-  hiddenTemplates: [],
+  hiddenTemplates: [
+    "creative-writing",
+    "knowledge-network", 
+    "task-planner",
+    "learning-review",
+    "meeting-insights",
+    "research-assistant",
+    "idea-synthesizer"
+  ],
 };
 
 export class TemplateSettingsService {

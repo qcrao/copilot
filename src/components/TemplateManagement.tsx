@@ -136,7 +136,9 @@ export const TemplateManagement: React.FC<TemplateManagementProps> = ({
   const handleReset = async () => {
     try {
       await TemplateSettingsService.resetToDefaults();
-      setHiddenTemplates([]);
+      // Get the actual default hidden templates after reset
+      const defaultHiddenTemplates = await TemplateSettingsService.getHiddenTemplates();
+      setHiddenTemplates(defaultHiddenTemplates);
       onSettingsChanged();
     } catch (error) {
       console.error("Failed to reset templates:", error);
