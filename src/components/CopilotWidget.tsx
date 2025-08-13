@@ -431,9 +431,19 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
         // Save immediately for new conversation to prevent race condition
         requestAnimationFrame(async () => {
           try {
+            // Extract context for title generation
+            const contextForTitle = pageContext ? 
+              pageContext.currentPage?.title || 
+              (pageContext.visibleBlocks && pageContext.visibleBlocks.length > 0 ? 
+                pageContext.visibleBlocks[0]?.string : '') ||
+              pageContext.selectedText ||
+              'Current Page'
+              : undefined;
+              
             await ConversationService.saveConversationWithId(
               newConversationId,
-              updatedMessages
+              updatedMessages,
+              contextForTitle
             );
             console.log(
               "Immediately saved new conversation:",
@@ -1152,16 +1162,35 @@ ${contextForUser}`;
                 latestConversationId
               );
               // If update fails, the conversation doesn't exist yet, so create it
+              // Extract context for title generation
+              const contextForTitle = pageContext ? 
+                pageContext.currentPage?.title || 
+                (pageContext.visibleBlocks && pageContext.visibleBlocks.length > 0 ? 
+                  pageContext.visibleBlocks[0]?.string : '') ||
+                pageContext.selectedText ||
+                'Current Page'
+                : undefined;
+                
               await ConversationService.saveConversationWithId(
                 latestConversationId,
-                messages
+                messages,
+                contextForTitle
               );
             }
           } else {
             // This should rarely happen now due to immediate ID generation
             console.warn("No conversation ID found, creating new conversation");
+            // Extract context for title generation
+            const contextForTitle = pageContext ? 
+              pageContext.currentPage?.title || 
+              (pageContext.visibleBlocks && pageContext.visibleBlocks.length > 0 ? 
+                pageContext.visibleBlocks[0]?.string : '') ||
+              pageContext.selectedText ||
+              'Current Page'
+              : undefined;
+              
             const newConversationId =
-              await ConversationService.saveConversation(messages);
+              await ConversationService.saveConversation(messages, contextForTitle);
             if (!isUnmounting) {
               conversationIdRef.current = newConversationId;
               setCurrentConversationId(newConversationId);

@@ -6,6 +6,7 @@ import {
   ChatMessage,
   CompressedMessage
 } from "../types";
+import { PROMPT_TEMPLATES } from "../data/promptTemplates";
 
 export class ConversationService {
   private static readonly MAIN_PAGE_TITLE = "Roam Copilot Conversations";
@@ -29,8 +30,40 @@ export class ConversationService {
   /**
    * Generate conversation title from first user message
    */
-  private static generateTitle(firstMessage: string): string {
-    // Clean the message by removing reference symbols and normalizing whitespace
+  private static generateTitle(firstMessage: string, context?: string): string {
+    // Check if the message matches any template prompt
+    const matchingTemplate = PROMPT_TEMPLATES.find(template => {
+      // Check if the message starts with or contains significant parts of the template prompt
+      const templateStart = template.prompt.substring(0, 200).trim();
+      const messageStart = firstMessage.substring(0, 200).trim();
+      
+      // Simple heuristic: if the message contains key phrases from the template
+      const templateKeywords = templateStart.split(/\s+/).filter(word => word.length > 4).slice(0, 5);
+      const matchCount = templateKeywords.filter(keyword => 
+        messageStart.toLowerCase().includes(keyword.toLowerCase())
+      ).length;
+      
+      return matchCount >= 3; // At least 3 keywords match
+    });
+
+    if (matchingTemplate) {
+      // For template-based conversations, use format: [Template Name] context_excerpt
+      let contextExcerpt = '';
+      if (context) {
+        // Extract a meaningful excerpt from context (page title, visible blocks, etc.)
+        const lines = context.split('\n').filter(line => line.trim() && !line.startsWith('#'));
+        if (lines.length > 0) {
+          contextExcerpt = lines[0].trim();
+          if (contextExcerpt.length > 25) {
+            contextExcerpt = contextExcerpt.substring(0, 22) + '...';
+          }
+        }
+      }
+      
+      return `[${matchingTemplate.title}] ${contextExcerpt || 'Analysis'}`;
+    }
+
+    // For non-template messages, use original logic
     const cleanMessage = firstMessage.trim()
       .replace(/\[\[([^\]]+)\]\]/g, '$1') // Remove [[ ]] but keep the content
       .replace(/\(\(([^\)]+)\)\)/g, '$1') // Remove (( )) but keep the content  
@@ -281,14 +314,14 @@ export class ConversationService {
   /**
    * Save new conversation
    */
-  static async saveConversation(messages: ChatMessage[]): Promise<string> {
+  static async saveConversation(messages: ChatMessage[], context?: string): Promise<string> {
     if (messages.length === 0) {
       throw new Error("Cannot save empty conversation");
     }
 
     try {
       const conversationId = this.generateConversationId();
-      return await this.saveConversationWithId(conversationId, messages);
+      return await this.saveConversationWithId(conversationId, messages, context);
     } catch (error) {
       console.error("Error saving conversation:", error);
       throw new Error("Failed to save conversation");
@@ -298,14 +331,14 @@ export class ConversationService {
   /**
    * Save new conversation with specific ID
    */
-  static async saveConversationWithId(conversationId: string, messages: ChatMessage[]): Promise<string> {
+  static async saveConversationWithId(conversationId: string, messages: ChatMessage[], context?: string): Promise<string> {
     if (messages.length === 0) {
       throw new Error("Cannot save empty conversation");
     }
 
     try {
       const firstUserMessage = messages.find(m => m.role === 'user');
-      const title = firstUserMessage ? this.generateTitle(firstUserMessage.content) : 'New Chat';
+      const title = firstUserMessage ? this.generateTitle(firstUserMessage.content, context) : 'New Chat';
       
       const metadata: ConversationMetadata = {
         id: conversationId,

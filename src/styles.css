@@ -190,6 +190,18 @@
   border-left: 1px solid #e1e5e9;
 }
 
+/* Ensure content wrapper border is visible even when conversation list is open */
+.roam-copilot-expanded .roam-copilot-content-wrapper {
+  position: relative;
+  z-index: 1;
+}
+
+/* When conversation list is visible, ensure clear separation */
+.rr-copilot-conversation-list-panel + .roam-copilot-content-wrapper {
+  border-left: 1px solid #e1e5e9;
+  margin-left: 0;
+}
+
 /* Override chatscope styles to match our theme */
 .roam-copilot-expanded .cs-main-container {
   height: 100% !important;

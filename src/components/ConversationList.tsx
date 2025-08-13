@@ -178,7 +178,7 @@ export const ConversationList: React.FC<ConversationListProps> = ({
         bottom: "0",
         width: "280px",
         backgroundColor: "white",
-        borderRight: "1px solid rgba(0, 0, 0, 0.06)",
+        borderRight: "1px solid #e1e5e9", // Match the content-wrapper border color
         display: "flex",
         flexDirection: "column",
         zIndex: 1001,
@@ -190,12 +190,14 @@ export const ConversationList: React.FC<ConversationListProps> = ({
       {/* Header */}
       <div
         style={{
-          padding: "16px",
+          height: "45px", // Match main copilot header height
+          padding: "0 16px",
           borderBottom: "1px solid #f3f4f6",
           backgroundColor: "#f8f9fa",
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
+          flexShrink: 0, // Prevent shrinking like main header
         }}
       >
         <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
