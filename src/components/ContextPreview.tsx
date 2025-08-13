@@ -204,6 +204,28 @@ export const ContextPreview: React.FC<ContextPreviewProps> = ({
         </Popover>
       )}
 
+      {/* Backlinks */}
+      {hasBacklinks && (
+        <Popover
+          content={renderHoverList(backlinks)}
+          position={Position.TOP}
+          interactionKind="hover"
+          minimal
+          hoverOpenDelay={100}
+        >
+          <Tag
+            minimal
+            round
+            className="rr-context-chip rr-context-chip--backlinks"
+            title={`Backlinks: ${backlinks.length}`}
+          >
+            <Icon icon="link" size={12} />
+            <span className="rr-context-chip__text">Backlinks</span>
+            <span className="rr-context-chip__count">{backlinks.length}</span>
+          </Tag>
+        </Popover>
+      )}
+
       {/* Sidebar Notes */}
       {hasSidebarNotes && (
         <Popover
@@ -247,28 +269,6 @@ export const ContextPreview: React.FC<ContextPreviewProps> = ({
             <Icon icon="panel-stats" size={12} />
             <span className="rr-context-chip__text">Sidebar</span>
             <span className="rr-context-chip__count">{sidebarNotes.length}</span>
-          </Tag>
-        </Popover>
-      )}
-
-      {/* Backlinks */}
-      {hasBacklinks && (
-        <Popover
-          content={renderHoverList(backlinks)}
-          position={Position.TOP}
-          interactionKind="hover"
-          minimal
-          hoverOpenDelay={100}
-        >
-          <Tag
-            minimal
-            round
-            className="rr-context-chip rr-context-chip--backlinks"
-            title={`Backlinks: ${backlinks.length}`}
-          >
-            <Icon icon="link" size={12} />
-            <span className="rr-context-chip__text">Backlinks</span>
-            <span className="rr-context-chip__count">{backlinks.length}</span>
           </Tag>
         </Popover>
       )}
