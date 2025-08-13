@@ -21,10 +21,10 @@ const ContextChip: React.FC<ContextChipProps> = ({
   count, 
   variant, 
   title, 
-  maxTextWidth = 80,
+  maxTextWidth = 120,
   children 
 }) => {
-  const needsTextTruncation = variant === 'page' || variant === 'daily';
+  const needsTextTruncation = variant === 'page';
   
   return (
     <div className={`rr-context-chip rr-context-chip--${variant}`} title={title}>
@@ -137,6 +137,41 @@ export const ContextPreview: React.FC<ContextPreviewProps> = ({
     return dailyNotePatterns.some(pattern => pattern.test(title));
   };
 
+  // Helper function to remove year from daily note title
+  const removeYearFromTitle = (title: string): string => {
+    if (!title) return title;
+    
+    // Remove year from "January 1st, 2024" -> "January 1st"
+    const monthDayPattern = /^(\w+ \d{1,2}(?:st|nd|rd|th)),? \d{4}$/;
+    const monthDayMatch = title.match(monthDayPattern);
+    if (monthDayMatch) {
+      return monthDayMatch[1];
+    }
+    
+    // Remove year from "01-01-2024" -> "01-01"
+    const numericPattern = /^(\d{1,2}-\d{1,2})-\d{4}$/;
+    const numericMatch = title.match(numericPattern);
+    if (numericMatch) {
+      return numericMatch[1];
+    }
+    
+    // Remove year from "2024-01-01" -> "01-01"
+    const isoPattern = /^\d{4}-(\d{1,2}-\d{1,2})$/;
+    const isoMatch = title.match(isoPattern);
+    if (isoMatch) {
+      return isoMatch[1];
+    }
+    
+    // Remove year from "01/01/2024" -> "01/01"
+    const slashPattern = /^(\d{1,2}\/\d{1,2})\/\d{4}$/;
+    const slashMatch = title.match(slashPattern);
+    if (slashMatch) {
+      return slashMatch[1];
+    }
+    
+    return title; // Return original if no pattern matches
+  };
+
   // Check if current page is a daily note
   const isCurrentPageDaily = context.currentPage ? isDailyNote(context.currentPage.title) : false;
   
@@ -156,6 +191,25 @@ export const ContextPreview: React.FC<ContextPreviewProps> = ({
 
   return (
     <div className="rr-context-preview">
+      {/* Daily Note - show first, only if it's different from current page */}
+      {context.dailyNote && dailyNoteBlocks.length > 0 && !isDailyNoteSameAsCurrentPage && (
+        <Popover
+          content={renderHoverList(dailyNoteBlocks)}
+          position={Position.TOP}
+          interactionKind="hover"
+          minimal
+          hoverOpenDelay={100}
+        >
+          <ContextChip
+            icon="calendar"
+            text={removeYearFromTitle(context.dailyNote.title)}
+            count={countNonEmptyBlocks(dailyNoteBlocks)}
+            variant="daily"
+            title={context.dailyNote.title}
+          />
+        </Popover>
+      )}
+
       {/* Current Page Chip - show as daily note if it's a daily note, otherwise as regular page */}
       {context.currentPage && (
         <Popover
@@ -167,12 +221,32 @@ export const ContextPreview: React.FC<ContextPreviewProps> = ({
         >
           <ContextChip
             icon={isCurrentPageDaily ? "calendar" : "document"}
-            text={context.currentPage.title}
+            text={isCurrentPageDaily ? removeYearFromTitle(context.currentPage.title) : context.currentPage.title}
             count={currentPageBlocks.length > 0 
               ? countNonEmptyBlocks(currentPageBlocks) 
               : countNonEmptyBlocks(visibleBlocks)}
             variant={isCurrentPageDaily ? "daily" : "page"}
             title={context.currentPage.title}
+            maxTextWidth={120}
+          />
+        </Popover>
+      )}
+
+      {/* Backlinks - moved after page */}
+      {hasBacklinks && (
+        <Popover
+          content={renderHoverList(backlinks)}
+          position={Position.TOP}
+          interactionKind="hover"
+          minimal
+          hoverOpenDelay={100}
+        >
+          <ContextChip
+            icon="link"
+            text="Backlinks"
+            count={backlinks.length}
+            variant="backlinks"
+            title={`Backlinks: ${backlinks.length}`}
           />
         </Popover>
       )}
@@ -204,44 +278,6 @@ export const ContextPreview: React.FC<ContextPreviewProps> = ({
           variant="selected"
           title={selectedText.length > 100 ? selectedText.substring(0, 100) + "..." : selectedText}
         />
-      )}
-
-      {/* Daily Note - only show if it's different from current page */}
-      {context.dailyNote && dailyNoteBlocks.length > 0 && !isDailyNoteSameAsCurrentPage && (
-        <Popover
-          content={renderHoverList(dailyNoteBlocks)}
-          position={Position.TOP}
-          interactionKind="hover"
-          minimal
-          hoverOpenDelay={100}
-        >
-          <ContextChip
-            icon="calendar"
-            text={context.dailyNote.title}
-            count={countNonEmptyBlocks(dailyNoteBlocks)}
-            variant="daily"
-            title={context.dailyNote.title}
-          />
-        </Popover>
-      )}
-
-      {/* Backlinks */}
-      {hasBacklinks && (
-        <Popover
-          content={renderHoverList(backlinks)}
-          position={Position.TOP}
-          interactionKind="hover"
-          minimal
-          hoverOpenDelay={100}
-        >
-          <ContextChip
-            icon="link"
-            text="Backlinks"
-            count={backlinks.length}
-            variant="backlinks"
-            title={`Backlinks: ${backlinks.length}`}
-          />
-        </Popover>
       )}
 
       {/* Sidebar Notes */}
