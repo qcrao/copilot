@@ -50,22 +50,32 @@ export const ContextPreview: React.FC<ContextPreviewProps> = ({
 
   if (!context) return null;
 
-  const renderHoverList = (items: { uid: string; string: string }[]) => (
-    <div className="rr-context-popover">
-      <div className="rr-context-popover__body">
-        {items.length === 0 && (
-          <div className="rr-context-popover__empty">0 blocks</div>
-        )}
-        {items.slice(0, 30).map((b) => (
-          <div key={b.uid} className="rr-context-hover-row">
-            <div className="rr-context-hover-text" title={b.string}>
-              {b.string || "0 blocks"}
+  // Helper function to count non-empty blocks
+  const countNonEmptyBlocks = (blocks: { uid: string; string: string }[]) => {
+    return blocks.filter(block => block.string && block.string.trim().length > 0).length;
+  };
+
+  const renderHoverList = (items: { uid: string; string: string }[]) => {
+    // Filter out empty blocks completely
+    const nonEmptyBlocks = items.filter(block => block.string && block.string.trim().length > 0);
+    
+    return (
+      <div className="rr-context-popover">
+        <div className="rr-context-popover__body">
+          {nonEmptyBlocks.length === 0 && (
+            <div className="rr-context-popover__empty">0 blocks</div>
+          )}
+          {nonEmptyBlocks.slice(0, 30).map((b) => (
+            <div key={b.uid} className="rr-context-hover-row">
+              <div className="rr-context-hover-text" title={b.string}>
+                {b.string}
+              </div>
             </div>
-          </div>
-        ))}
+          ))}
+        </div>
       </div>
-    </div>
-  );
+    );
+  };
 
   // Separate page content and backlinks
   const currentPageBlocks = context.currentPage?.blocks || [];
@@ -74,6 +84,7 @@ export const ContextPreview: React.FC<ContextPreviewProps> = ({
   const dailyNoteBlocks = context.dailyNote?.blocks || [];
   const backlinks = context.linkedReferences || [];
   const sidebarNotes = context.sidebarNotes || [];
+  
   
   // Helper function to check if a page title is a daily note
   const isDailyNote = (title: string): boolean => {
@@ -94,8 +105,11 @@ export const ContextPreview: React.FC<ContextPreviewProps> = ({
   const isDailyNoteSameAsCurrentPage = context.currentPage && context.dailyNote && 
     context.currentPage.uid === context.dailyNote.uid;
 
-  // Check if page has any content
-  const hasPageContent = currentPageBlocks.length > 0 || visibleBlocks.length > 0 || selectedText || dailyNoteBlocks.length > 0;
+  // Check if page has any content (only count non-empty blocks)
+  const hasPageContent = countNonEmptyBlocks(currentPageBlocks) > 0 || 
+                         countNonEmptyBlocks(visibleBlocks) > 0 || 
+                         selectedText || 
+                         countNonEmptyBlocks(dailyNoteBlocks) > 0;
   const hasBacklinks = backlinks.length > 0;
   const hasSidebarNotes = sidebarNotes.length > 0;
 
@@ -106,7 +120,7 @@ export const ContextPreview: React.FC<ContextPreviewProps> = ({
       {/* Current Page Chip - show as daily note if it's a daily note, otherwise as regular page */}
       {context.currentPage && (
         <Popover
-          content={renderHoverList(currentPageBlocks)}
+          content={renderHoverList(currentPageBlocks.length > 0 ? currentPageBlocks : visibleBlocks)}
           position={Position.TOP}
           interactionKind="hover"
           minimal
@@ -122,13 +136,17 @@ export const ContextPreview: React.FC<ContextPreviewProps> = ({
             <span className="rr-context-chip__text">
               {context.currentPage.title}
             </span>
-            <span className="rr-context-chip__count">{currentPageBlocks.length}</span>
+            <span className="rr-context-chip__count">
+              {currentPageBlocks.length > 0 
+                ? countNonEmptyBlocks(currentPageBlocks) 
+                : countNonEmptyBlocks(visibleBlocks)}
+            </span>
           </Tag>
         </Popover>
       )}
 
-      {/* Visible Blocks */}
-      {visibleBlocks.length > 0 && (
+      {/* Visible Blocks - only show if they are different from current page blocks */}
+      {visibleBlocks.length > 0 && currentPageBlocks.length > 0 && (
         <Popover
           content={renderHoverList(visibleBlocks)}
           position={Position.TOP}
@@ -144,7 +162,7 @@ export const ContextPreview: React.FC<ContextPreviewProps> = ({
           >
             <Icon icon="eye-open" size={12} />
             <span className="rr-context-chip__text">Visible</span>
-            <span className="rr-context-chip__count">{visibleBlocks.length}</span>
+            <span className="rr-context-chip__count">{countNonEmptyBlocks(visibleBlocks)}</span>
           </Tag>
         </Popover>
       )}
@@ -181,7 +199,7 @@ export const ContextPreview: React.FC<ContextPreviewProps> = ({
             <span className="rr-context-chip__text">
               {context.dailyNote.title}
             </span>
-            <span className="rr-context-chip__count">{dailyNoteBlocks.length}</span>
+            <span className="rr-context-chip__count">{countNonEmptyBlocks(dailyNoteBlocks)}</span>
           </Tag>
         </Popover>
       )}
