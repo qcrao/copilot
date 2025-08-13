@@ -1,31 +1,46 @@
 // src/services/roamService.ts
-import { RoamBlock, RoamPage, PageContext, UniversalSearchResult, UniversalSearchResponse } from "../types";
+import {
+  RoamBlock,
+  RoamPage,
+  PageContext,
+  UniversalSearchResult,
+  UniversalSearchResponse,
+} from "../types";
 import { LLMUtil } from "../utils/llmUtil";
 
 export class RoamService {
   // Cache for frequently accessed data
-  private static graphNameCache: { value: string | null; timestamp: number } | null = null;
+  private static graphNameCache: {
+    value: string | null;
+    timestamp: number;
+  } | null = null;
   private static readonly CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
-  
+
   // Sidebar monitoring state
-  private static sidebarCache: { notes: RoamPage[]; timestamp: number; checksum: string } | null = null;
+  private static sidebarCache: {
+    notes: RoamPage[];
+    timestamp: number;
+    checksum: string;
+  } | null = null;
   private static readonly SIDEBAR_CACHE_DURATION = 2000; // 2 seconds cache for sidebar
   private static sidebarObserver: MutationObserver | null = null;
   private static sidebarChangeCallbacks: Set<() => void> = new Set();
-  
+
   /**
    * Get the current graph name
    */
   static getCurrentGraphName(): string | null {
     // Check cache first
-    if (this.graphNameCache && 
-        Date.now() - this.graphNameCache.timestamp < this.CACHE_DURATION) {
+    if (
+      this.graphNameCache &&
+      Date.now() - this.graphNameCache.timestamp < this.CACHE_DURATION
+    ) {
       return this.graphNameCache.value;
     }
-    
+
     try {
       // Getting graph name from URL (only log in development)
-      if (process.env.NODE_ENV === 'development') {
+      if (process.env.NODE_ENV === "development") {
         console.log("Getting graph name from URL:", window.location.href);
       }
 
@@ -103,7 +118,7 @@ export class RoamService {
         "Could not determine graph name from URL:",
         window.location.href
       );
-      
+
       // Cache the null result to avoid repeated expensive operations
       this.graphNameCache = { value: null, timestamp: Date.now() };
       return null;
@@ -208,7 +223,7 @@ export class RoamService {
       let title = "";
 
       // First, check if we have sidebar notes (they take priority as context)
-      // Instead of trying to pick one "active" page, we'll let all sidebar notes 
+      // Instead of trying to pick one "active" page, we'll let all sidebar notes
       // contribute to context via the getSidebarNotes() method in getPageContext()
       const sidebarNotes = await this.getSidebarNotes();
       if (sidebarNotes && sidebarNotes.length > 0) {
@@ -314,44 +329,48 @@ export class RoamService {
   static async getActiveSidebarPageFromDOM(): Promise<RoamPage | null> {
     try {
       console.log("🔍 Checking DOM for active sidebar page...");
-      
+
       // Look for the right sidebar
-      const rightSidebar = document.querySelector("#roam-right-sidebar-content") || 
-                          document.querySelector(".roam-sidebar-container") ||
-                          document.querySelector("[data-testid='right-sidebar']");
-      
+      const rightSidebar =
+        document.querySelector("#roam-right-sidebar-content") ||
+        document.querySelector(".roam-sidebar-container") ||
+        document.querySelector("[data-testid='right-sidebar']");
+
       if (!rightSidebar) {
         console.log("❌ No right sidebar found in DOM");
         return null;
       }
-      
+
       // Look for all visible page titles in the sidebar
       const titleElements = rightSidebar.querySelectorAll(".rm-title-display");
-      
+
       if (titleElements.length > 0) {
         // Get all visible titles
-        const visibleTitles = Array.from(titleElements).filter(el => {
+        const visibleTitles = Array.from(titleElements).filter((el) => {
           const rect = el.getBoundingClientRect();
           return rect.width > 0 && rect.height > 0;
         });
-        
+
         if (visibleTitles.length > 0) {
-          // Just return the first visible one for fallback, 
+          // Just return the first visible one for fallback,
           // but the real value is in getSidebarNotes() which gets all of them
           const firstVisibleTitle = visibleTitles[0];
           const pageTitle = firstVisibleTitle.textContent?.trim();
-          
+
           if (pageTitle) {
             console.log("🔍 Found fallback sidebar page title:", pageTitle);
             const page = await this.getPageByTitle(pageTitle);
             if (page) {
-              console.log("✅ Successfully got fallback sidebar page from DOM:", pageTitle);
+              console.log(
+                "✅ Successfully got fallback sidebar page from DOM:",
+                pageTitle
+              );
               return page;
             }
           }
         }
       }
-      
+
       console.log("❌ No sidebar page titles found in DOM");
       return null;
     } catch (error) {
@@ -485,45 +504,214 @@ export class RoamService {
     const visibleBlocks: RoamBlock[] = [];
 
     try {
-      // Get all visible block elements with performance optimization
-      const blockElements = document.querySelectorAll(
-        ".roam-block[data-block-uid]"
+      // First, let's debug what elements actually exist in the DOM
+      console.log("🔍 DEBUG: Analyzing DOM structure...");
+
+      // Check for any elements with data-block-uid attribute
+      const allBlockUidElements = document.querySelectorAll("[data-block-uid]");
+      console.log(
+        `🔍 Found ${allBlockUidElements.length} elements with data-block-uid`
       );
-      
+
+      // Check for common Roam class patterns
+      const roamBlocks = document.querySelectorAll(".roam-block");
+      const rmBlocks = document.querySelectorAll(".rm-block");
+      const roamArticle = document.querySelectorAll(".roam-article");
+      const rmMainElement = document.querySelectorAll(".rm-main");
+      const roamLogPages = document.querySelectorAll(".roam-log-page");
+      const rmBlockChildren = document.querySelectorAll(".rm-block-children");
+      const rmTitleDisplay = document.querySelectorAll(".rm-title-display");
+
+      console.log("🔍 DOM elements found:", {
+        roamBlocks: roamBlocks.length,
+        rmBlocks: rmBlocks.length,
+        roamArticle: roamArticle.length,
+        rmMainElement: rmMainElement.length,
+        roamLogPages: roamLogPages.length,
+        rmBlockChildren: rmBlockChildren.length,
+        rmTitleDisplay: rmTitleDisplay.length,
+        allWithBlockUid: allBlockUidElements.length,
+      });
+
+      // If we have elements with data-block-uid, let's see what classes they have
+      if (allBlockUidElements.length > 0) {
+        const sampleElement = allBlockUidElements[0];
+        console.log("🔍 Sample element classes:", sampleElement.className);
+        console.log("🔍 Sample element tagName:", sampleElement.tagName);
+      } else if (roamBlocks.length > 0) {
+        // Since we found .roam-block elements, let's analyze them
+        const sampleRoamBlock = roamBlocks[0];
+        console.log("🔍 Sample .roam-block element:");
+        console.log("🔍 - classes:", sampleRoamBlock.className);
+        console.log("🔍 - tagName:", sampleRoamBlock.tagName);
+        console.log(
+          "🔍 - attributes:",
+          Array.from(sampleRoamBlock.attributes).map(
+            (attr) => `${attr.name}="${attr.value}"`
+          )
+        );
+        console.log(
+          "🔍 - textContent preview:",
+          sampleRoamBlock.textContent?.substring(0, 100)
+        );
+      }
+
+      // Try multiple selectors to catch all possible block elements in Roam
+      const blockSelectors = [
+        ".rm-block", // Start with rm-block which seems more relevant
+        ".roam-log-page .rm-block", // Blocks within log pages
+        ".rm-block-children .rm-block", // Blocks within block children
+        ".roam-block",
+        ".roam-log-page", // Try the log pages themselves
+        ".rm-block-children", // Try block children containers
+        "[data-block-uid]",
+        ".roam-block[data-block-uid]",
+        ".rm-block[data-block-uid]",
+        ".rm-block-main[data-block-uid]",
+        ".rm-block-text[data-block-uid]",
+        ".controls[data-block-uid]",
+      ];
+
+      let blockElements: NodeListOf<Element> | null = null;
+      for (const selector of blockSelectors) {
+        blockElements = document.querySelectorAll(selector);
+        if (blockElements.length > 0) {
+          console.log(
+            `🔍 Found ${blockElements.length} blocks using selector: ${selector}`
+          );
+          break;
+        }
+      }
+
       // Early return if no blocks found
-      if (blockElements.length === 0) {
+      if (!blockElements || blockElements.length === 0) {
+        console.log("❌ No block elements found in DOM");
         return visibleBlocks;
       }
 
       // Use requestAnimationFrame for better performance
       const processBlocks = () => {
-        blockElements.forEach((element) => {
-          const uid = element.getAttribute("data-block-uid");
-          const textElement = element.querySelector(".rm-block-text");
+        blockElements!.forEach((element) => {
+          // Try multiple ways to get the block UID
+          let uid = element.getAttribute("data-block-uid");
+          if (!uid) {
+            uid = element.getAttribute("blockuid");
+          }
+          if (!uid) {
+            uid = element.getAttribute("data-uid");
+          }
+          if (!uid) {
+            // Try to find UID in child elements
+            const uidElement = element.querySelector(
+              "[data-block-uid], [blockuid], [data-uid]"
+            );
+            if (uidElement) {
+              uid =
+                uidElement.getAttribute("data-block-uid") ||
+                uidElement.getAttribute("blockuid") ||
+                uidElement.getAttribute("data-uid");
+            }
+          }
+          if (!uid) {
+            // Generate a temporary UID based on content or position for debugging
+            uid = `temp-${
+              element.textContent?.substring(0, 20)?.replace(/\s+/g, "-") ||
+              Math.random().toString(36).substr(2, 9)
+            }`;
+            console.log("🔍 No UID found, using temporary UID:", uid);
+          }
+
+          // Try multiple ways to get the block text based on actual Roam structure
+          let textElement = element.querySelector(".rm-block-text");
+          if (!textElement) {
+            textElement = element.querySelector(".roam-block-text");
+          }
+          if (!textElement) {
+            textElement = element.querySelector(".rm-title-display"); // For title elements
+          }
+          if (!textElement) {
+            textElement = element.querySelector("[contenteditable]");
+          }
+          if (!textElement) {
+            textElement = element.querySelector(".rm-block-input");
+          }
+          if (!textElement) {
+            textElement = element.querySelector("textarea");
+          }
+          if (!textElement) {
+            textElement = element.querySelector("span");
+          }
+          if (!textElement) {
+            textElement = element.querySelector("div");
+          }
+          if (!textElement) {
+            // If no text element found, use the element itself if it has text
+            if (element.textContent && element.textContent.trim()) {
+              textElement = element;
+            }
+          }
 
           if (uid && textElement) {
             const string = textElement.textContent || "";
 
-            // Only include blocks that are actually visible (more lenient)
+            // Only include blocks that are actually visible and have meaningful content
             const rect = element.getBoundingClientRect();
-            // Include blocks that are at least partially visible
-            if (
-              rect.bottom > 0 && // Bottom is below the top of viewport
-              rect.top < window.innerHeight && // Top is above the bottom of viewport
-              rect.right > 0 && // Right edge is to the right of left edge of viewport
-              rect.left < window.innerWidth // Left edge is to the left of right edge of viewport
-            ) {
+
+            // Be more precise about visibility - must be substantially visible
+            const isVisible =
+              rect.bottom > 50 && // Bottom is at least 50px below the top of viewport
+              rect.top < window.innerHeight - 50 && // Top is at least 50px above the bottom of viewport
+              rect.right > 50 && // Right edge is at least 50px from left edge
+              rect.left < window.innerWidth - 50 && // Left edge is at least 50px from right edge
+              rect.height > 10 && // Must have some meaningful height
+              rect.width > 10; // Must have some meaningful width
+
+            // Debug visibility calculation for first few elements
+            if (visibleBlocks.length < 3) {
+              console.log(`🔍 Block visibility check:`, {
+                uid: uid.substring(0, 20),
+                hasText: string.trim().length > 0,
+                textPreview: string.substring(0, 50),
+                rect: {
+                  top: rect.top,
+                  bottom: rect.bottom,
+                  left: rect.left,
+                  right: rect.right,
+                  width: rect.width,
+                  height: rect.height,
+                },
+                windowHeight: window.innerHeight,
+                windowWidth: window.innerWidth,
+                isVisible,
+              });
+            }
+
+            if (isVisible && string.trim().length > 0) {
               visibleBlocks.push({
                 uid,
                 string,
                 children: [], // We'll focus on the main visible content for now
               });
             }
+          } else {
+            // Debug why block was skipped
+            if (visibleBlocks.length < 3) {
+              console.log(`🔍 Block skipped:`, {
+                hasUid: !!uid,
+                hasTextElement: !!textElement,
+                elementTagName: element.tagName,
+                elementClasses: element.className,
+              });
+            }
           }
         });
       };
-      
+
       processBlocks();
+
+      console.log(
+        `🔍 Processed ${blockElements.length} DOM elements, found ${visibleBlocks.length} visible blocks`
+      );
     } catch (error) {
       console.error("Error getting visible blocks:", error);
     }
@@ -540,10 +728,12 @@ export class RoamService {
       if (!selection || selection.rangeCount === 0) {
         return "";
       }
-      
+
       const selectedText = selection.toString().trim();
       // Limit selection length to prevent memory issues
-      return selectedText.length > 5000 ? selectedText.substring(0, 5000) + "..." : selectedText;
+      return selectedText.length > 5000
+        ? selectedText.substring(0, 5000) + "..."
+        : selectedText;
     } catch (error) {
       console.error("Error getting selected text:", error);
       return "";
@@ -566,20 +756,22 @@ export class RoamService {
       const today = new Date();
       const todayISO = today.toISOString().split("T")[0];
       const roamDateFormat = LLMUtil.convertToRoamDateFormat(todayISO);
-      
+
       console.log("Looking for today's daily note:", roamDateFormat);
 
       const dateFormats = [
         roamDateFormat, // Standard Roam format: "July 10th, 2025"
         todayISO, // yyyy-mm-dd
-        today.toLocaleDateString("en-US", {
-          month: "2-digit",
-          day: "2-digit", 
-          year: "numeric",
-        }).replace(/\//g, "-"), // MM-dd-yyyy
+        today
+          .toLocaleDateString("en-US", {
+            month: "2-digit",
+            day: "2-digit",
+            year: "numeric",
+          })
+          .replace(/\//g, "-"), // MM-dd-yyyy
         today.toLocaleDateString("en-US", {
           month: "long",
-          day: "numeric", 
+          day: "numeric",
           year: "numeric",
         }), // Month dd, yyyy (without ordinal)
       ];
@@ -620,7 +812,7 @@ export class RoamService {
   static onSidebarChange(callback: () => void): () => void {
     this.sidebarChangeCallbacks.add(callback);
     this.startSidebarMonitoring();
-    
+
     // Return cleanup function
     return () => {
       this.sidebarChangeCallbacks.delete(callback);
@@ -640,27 +832,39 @@ export class RoamService {
       // Create a mutation observer to watch for sidebar changes
       this.sidebarObserver = new MutationObserver((mutations) => {
         let shouldUpdate = false;
-        
+
         for (const mutation of mutations) {
           // Check if the mutation affects the sidebar
-          if (mutation.target && this.isSidebarRelated(mutation.target as Element)) {
+          if (
+            mutation.target &&
+            this.isSidebarRelated(mutation.target as Element)
+          ) {
             shouldUpdate = true;
             break;
           }
-          
+
           // Check added/removed nodes
-          if (mutation.addedNodes.length > 0 || mutation.removedNodes.length > 0) {
-            for (const node of [...Array.from(mutation.addedNodes), ...Array.from(mutation.removedNodes)]) {
-              if (node.nodeType === Node.ELEMENT_NODE && this.isSidebarRelated(node as Element)) {
+          if (
+            mutation.addedNodes.length > 0 ||
+            mutation.removedNodes.length > 0
+          ) {
+            for (const node of [
+              ...Array.from(mutation.addedNodes),
+              ...Array.from(mutation.removedNodes),
+            ]) {
+              if (
+                node.nodeType === Node.ELEMENT_NODE &&
+                this.isSidebarRelated(node as Element)
+              ) {
                 shouldUpdate = true;
                 break;
               }
             }
           }
-          
+
           if (shouldUpdate) break;
         }
-        
+
         if (shouldUpdate) {
           // Debounce the updates
           this.debouncedSidebarUpdate();
@@ -672,14 +876,14 @@ export class RoamService {
         childList: true,
         subtree: true,
         attributes: true,
-        attributeFilter: ['class', 'style', 'data-block-uid', 'data-page-uid']
+        attributeFilter: ["class", "style", "data-block-uid", "data-page-uid"],
       });
 
-      if (process.env.NODE_ENV === 'development') {
-        console.log('🔍 Started sidebar monitoring');
+      if (process.env.NODE_ENV === "development") {
+        console.log("🔍 Started sidebar monitoring");
       }
     } catch (error) {
-      console.warn('Failed to start sidebar monitoring:', error);
+      console.warn("Failed to start sidebar monitoring:", error);
     }
   }
 
@@ -690,8 +894,8 @@ export class RoamService {
     if (this.sidebarObserver) {
       this.sidebarObserver.disconnect();
       this.sidebarObserver = null;
-      if (process.env.NODE_ENV === 'development') {
-        console.log('🔍 Stopped sidebar monitoring');
+      if (process.env.NODE_ENV === "development") {
+        console.log("🔍 Stopped sidebar monitoring");
       }
     }
   }
@@ -701,21 +905,21 @@ export class RoamService {
    */
   private static isSidebarRelated(element: Element): boolean {
     if (!element || !element.closest) return false;
-    
+
     // Check for various sidebar-related selectors
     const sidebarSelectors = [
-      '#roam-right-sidebar-content',
-      '.roam-sidebar-container',
+      "#roam-right-sidebar-content",
+      ".roam-sidebar-container",
       '[data-testid="right-sidebar"]',
-      '.rm-sidebar-window',
-      '.sidebar-content'
+      ".rm-sidebar-window",
+      ".sidebar-content",
     ];
-    
-    return sidebarSelectors.some(selector => element.closest(selector));
+
+    return sidebarSelectors.some((selector) => element.closest(selector));
   }
 
   private static sidebarUpdateTimeout: number | null = null;
-  
+
   /**
    * Debounced sidebar update function
    */
@@ -723,7 +927,7 @@ export class RoamService {
     if (this.sidebarUpdateTimeout) {
       clearTimeout(this.sidebarUpdateTimeout);
     }
-    
+
     this.sidebarUpdateTimeout = window.setTimeout(async () => {
       await this.checkSidebarChanges();
     }, 300); // 300ms debounce
@@ -736,29 +940,32 @@ export class RoamService {
     try {
       const currentNotes = await this.getSidebarNotesInternal();
       const currentChecksum = this.generateSidebarChecksum(currentNotes);
-      
+
       // Compare with cached version
-      if (!this.sidebarCache || this.sidebarCache.checksum !== currentChecksum) {
-        if (process.env.NODE_ENV === 'development') {
-          console.log('🔍 Sidebar changed - notifying callbacks');
+      if (
+        !this.sidebarCache ||
+        this.sidebarCache.checksum !== currentChecksum
+      ) {
+        if (process.env.NODE_ENV === "development") {
+          console.log("🔍 Sidebar changed - notifying callbacks");
         }
         this.sidebarCache = {
           notes: currentNotes,
           timestamp: Date.now(),
-          checksum: currentChecksum
+          checksum: currentChecksum,
         };
-        
+
         // Notify all registered callbacks
-        this.sidebarChangeCallbacks.forEach(callback => {
+        this.sidebarChangeCallbacks.forEach((callback) => {
           try {
             callback();
           } catch (error) {
-            console.warn('Error in sidebar change callback:', error);
+            console.warn("Error in sidebar change callback:", error);
           }
         });
       }
     } catch (error) {
-      console.warn('Error checking sidebar changes:', error);
+      console.warn("Error checking sidebar changes:", error);
     }
   }
 
@@ -766,10 +973,10 @@ export class RoamService {
    * Generate a checksum for sidebar notes to detect changes
    */
   private static generateSidebarChecksum(notes: RoamPage[]): string {
-    const simplified = notes.map(note => ({
+    const simplified = notes.map((note) => ({
       uid: note.uid,
       title: note.title,
-      blockCount: note.blocks.length
+      blockCount: note.blocks.length,
     }));
     return JSON.stringify(simplified);
   }
@@ -779,20 +986,22 @@ export class RoamService {
    */
   static async getSidebarNotes(): Promise<RoamPage[]> {
     // Check cache first (short-lived cache for performance)
-    if (this.sidebarCache && 
-        Date.now() - this.sidebarCache.timestamp < this.SIDEBAR_CACHE_DURATION) {
+    if (
+      this.sidebarCache &&
+      Date.now() - this.sidebarCache.timestamp < this.SIDEBAR_CACHE_DURATION
+    ) {
       return this.sidebarCache.notes;
     }
-    
+
     const notes = await this.getSidebarNotesInternal();
-    
+
     // Update cache
     this.sidebarCache = {
       notes,
       timestamp: Date.now(),
-      checksum: this.generateSidebarChecksum(notes)
+      checksum: this.generateSidebarChecksum(notes),
     };
-    
+
     return notes;
   }
 
@@ -819,24 +1028,24 @@ export class RoamService {
 
       const sidebarNotes: RoamPage[] = [];
       const processedUids = new Set<string>();
-      
+
       for (const sidebarWindow of sidebarWindows) {
         try {
           // Processing sidebar window
-          
+
           if (sidebarWindow["page-uid"]) {
             // This is a page window
             const pageUid = sidebarWindow["page-uid"];
             if (!processedUids.has(pageUid)) {
               processedUids.add(pageUid);
               // Found page window
-              
+
               // Add a small delay to ensure the page is fully loaded
-              await new Promise(resolve => setTimeout(resolve, 100));
-              
+              await new Promise((resolve) => setTimeout(resolve, 100));
+
               // Get page by UID
               const blocks = await this.getPageBlocks(pageUid);
-              
+
               // Try to get the page title
               const titleQuery = `
                 [:find ?title
@@ -844,10 +1053,10 @@ export class RoamService {
                  [?e :block/uid "${pageUid}"]
                  [?e :node/title ?title]]
               `;
-              
+
               const titleResult = window.roamAlphaAPI.q(titleQuery);
               let pageTitle = "";
-              
+
               if (titleResult && titleResult.length > 0) {
                 pageTitle = titleResult[0][0];
               } else {
@@ -864,7 +1073,7 @@ export class RoamService {
                   pageTitle = dailyResult[0][0];
                 }
               }
-              
+
               if (pageTitle) {
                 const page: RoamPage = {
                   title: pageTitle,
@@ -879,10 +1088,10 @@ export class RoamService {
             // This is a block window, create a block-specific entry
             const blockUid = sidebarWindow["block-uid"];
             // Found block window
-            
+
             if (!processedUids.has(blockUid)) {
               processedUids.add(blockUid);
-              
+
               // Get the specific block content
               const blockQuery = `
                 [:find ?string ?pageTitle
@@ -892,24 +1101,28 @@ export class RoamService {
                  [?block :block/page ?page]
                  [?page :node/title ?pageTitle]]
               `;
-              
+
               const blockResult = window.roamAlphaAPI.q(blockQuery);
               if (blockResult && blockResult.length > 0) {
                 const [blockString, pageTitle] = blockResult[0];
-                
+
                 // Create a block-specific entry
                 const blockEntry: RoamPage = {
-                  title: blockString && blockString.trim() 
-                    ? blockString.substring(0, 100) + (blockString.length > 100 ? "..." : "")
-                    : `Block from ${pageTitle}`,
+                  title:
+                    blockString && blockString.trim()
+                      ? blockString.substring(0, 100) +
+                        (blockString.length > 100 ? "..." : "")
+                      : `Block from ${pageTitle}`,
                   uid: blockUid,
-                  blocks: [{
-                    uid: blockUid,
-                    string: blockString || "",
-                    children: []
-                  }]
+                  blocks: [
+                    {
+                      uid: blockUid,
+                      string: blockString || "",
+                      children: [],
+                    },
+                  ],
                 };
-                
+
                 sidebarNotes.push(blockEntry);
                 // Added specific block to sidebar notes
               }
@@ -925,7 +1138,7 @@ export class RoamService {
         const domNotes = await this.getSidebarNotesFromDOM();
         return domNotes;
       }
-      
+
       return sidebarNotes;
     } catch (error) {
       console.error("❌ Error getting sidebar notes:", error);
@@ -939,28 +1152,34 @@ export class RoamService {
   static async getSidebarNotesFromDOM(): Promise<RoamPage[]> {
     try {
       const sidebarNotes: RoamPage[] = [];
-      
+
       // Look for the right sidebar - check common selectors
-      const rightSidebar = document.querySelector("#roam-right-sidebar-content") || 
-                          document.querySelector(".roam-sidebar-container") ||
-                          document.querySelector("[data-testid='right-sidebar']");
-      
+      const rightSidebar =
+        document.querySelector("#roam-right-sidebar-content") ||
+        document.querySelector(".roam-sidebar-container") ||
+        document.querySelector("[data-testid='right-sidebar']");
+
       if (!rightSidebar) {
         return [];
       }
-      
+
       // Look for page title elements in the sidebar
-      const pageTitleElements = rightSidebar.querySelectorAll(".rm-title-display");
-      
+      const pageTitleElements =
+        rightSidebar.querySelectorAll(".rm-title-display");
+
       const processedTitles = new Set<string>();
-      
+
       for (const titleElement of pageTitleElements) {
         try {
           const pageTitle = titleElement.textContent?.trim();
-          
-          if (pageTitle && pageTitle !== "" && !processedTitles.has(pageTitle)) {
+
+          if (
+            pageTitle &&
+            pageTitle !== "" &&
+            !processedTitles.has(pageTitle)
+          ) {
             processedTitles.add(pageTitle);
-            
+
             const page = await this.getPageByTitle(pageTitle);
             if (page) {
               sidebarNotes.push(page);
@@ -978,7 +1197,6 @@ export class RoamService {
       return [];
     }
   }
-
 
   /**
    * Get linked references for a page
@@ -1015,14 +1233,16 @@ export class RoamService {
    * Get comprehensive page context for AI
    */
   static async getPageContext(): Promise<PageContext> {
+    console.log(
+      "🚀 DEBUG: getPageContext called - modified version with debug logs"
+    );
     // Getting comprehensive page context
 
-    const [currentPage, visibleBlocks, sidebarNotes] =
-      await Promise.all([
-        this.getCurrentPageInfo(),
-        Promise.resolve(this.getVisibleBlocks()),
-        this.getSidebarNotes(),
-      ]);
+    const [currentPage, visibleBlocks, sidebarNotes] = await Promise.all([
+      this.getCurrentPageInfo(),
+      Promise.resolve(this.getVisibleBlocks()),
+      this.getSidebarNotes(),
+    ]);
 
     // Get linked references if we have a current page
     let linkedReferences: RoamBlock[] = [];
@@ -1030,17 +1250,23 @@ export class RoamService {
       linkedReferences = await this.getLinkedReferences(currentPage.title);
     }
 
-    // Log page context summary only in development
-    if (process.env.NODE_ENV === 'development') {
-      console.log("Page context summary:", {
-        currentPage: currentPage?.title || "None",
-        visibleBlocks: visibleBlocks.length,
-        sidebarNotes: sidebarNotes.length,
-      });
-    }
-    
+    // Log page context summary
+    console.log("📋 Page context summary:", {
+      currentPage: currentPage?.title || "None",
+      currentPageBlocks: currentPage?.blocks.length || 0,
+      visibleBlocks: visibleBlocks.length,
+      visibleBlocksPreview: visibleBlocks
+        .slice(0, 3)
+        .map((b) => b.string.substring(0, 50) + "..."),
+      sidebarNotes: sidebarNotes.length,
+    });
+
     // Debug sidebar notes only in development mode
-    if (process.env.NODE_ENV === 'development' && sidebarNotes && sidebarNotes.length === 0) {
+    if (
+      process.env.NODE_ENV === "development" &&
+      sidebarNotes &&
+      sidebarNotes.length === 0
+    ) {
       console.log("❌ No sidebar notes in context");
     }
 
@@ -1052,9 +1278,9 @@ export class RoamService {
       linkedReferences,
       sidebarNotes,
     };
-    
+
     // Final context ready
-    
+
     return contextResult;
   }
 
@@ -1065,14 +1291,14 @@ export class RoamService {
     console.log("🎯 Getting minimal context for tool call...");
 
     // Removed selected text feature to avoid context contamination
-    
+
     // For debugging: get current page info but don't include it in context
     const currentPage = await this.getCurrentPageInfo();
-    
+
     console.log("🎯 Tool call context summary:", {
       selectedText: "Removed (feature disabled)",
       currentPage: currentPage?.title || "None",
-      strategy: "minimal - no context to avoid confusion"
+      strategy: "minimal - no context to avoid confusion",
     });
 
     // Return ultra-minimal context to avoid AI confusion
@@ -1093,7 +1319,7 @@ export class RoamService {
     const modelLimits: { [key: string]: { [key: string]: number } } = {
       openai: {
         "gpt-4o": 60000, // 128k context window - increased from 24k
-        "gpt-4o-mini": 60000, // 128k context window - increased from 24k  
+        "gpt-4o-mini": 60000, // 128k context window - increased from 24k
         "gpt-4-turbo": 60000, // 128k context window - increased from 24k
         "gpt-4": 15000, // 8k context window - increased from 6k
         "gpt-3.5-turbo": 8000, // 4k context window - increased from 2k
@@ -1222,12 +1448,12 @@ export class RoamService {
     // Get actual model token limit and use 70% for context (reserve 30% for response)
     const modelLimit = this.getModelTokenLimit(provider, model);
     const actualMaxTokens = maxTokens || Math.floor(modelLimit * 0.7);
-    
+
     // Define content priority levels with token allocations (removed selectedText)
     const priorityAllocations = {
-      currentPage: 0.35,      // 35% - page content (increased from 25%)
-      sidebarNotes: 0.25,     // 25% - sidebar context (increased from 20%)
-      visibleBlocks: 0.25,    // 25% - visible content (increased from 15%)
+      currentPage: 0.35, // 35% - page content (increased from 25%)
+      sidebarNotes: 0.25, // 25% - sidebar context (increased from 20%)
+      visibleBlocks: 0.25, // 25% - visible content (increased from 15%)
       linkedReferences: 0.15, // 15% - backlinks (increased from 10%)
     };
 
@@ -1246,8 +1472,10 @@ export class RoamService {
         priority: 1,
         title: `**Current Page: "${context.currentPage.title}"**`,
         content: pageContent,
-        maxTokens: Math.floor(actualMaxTokens * priorityAllocations.currentPage),
-        type: 'currentPage'
+        maxTokens: Math.floor(
+          actualMaxTokens * priorityAllocations.currentPage
+        ),
+        type: "currentPage",
       });
     }
 
@@ -1255,46 +1483,72 @@ export class RoamService {
     if (context.sidebarNotes && context.sidebarNotes.length > 0) {
       const sidebarContent = context.sidebarNotes
         .slice(0, 3) // Limit to 3 most relevant
-        .map(note => {
-          const noteContent = this.formatBlocksForAI(note.blocks.slice(0, 5), 0); // First 5 blocks per note
+        .map((note) => {
+          const noteContent = this.formatBlocksForAI(
+            note.blocks.slice(0, 5),
+            0
+          ); // First 5 blocks per note
           return `**Sidebar: "${note.title}"**\n${noteContent}`;
         })
-        .join('\n\n');
-      
+        .join("\n\n");
+
       sections.push({
         priority: 2,
-        title: `**Sidebar Notes (${Math.min(context.sidebarNotes.length, 3)} open):**`,
+        title: `**Sidebar Notes (${Math.min(
+          context.sidebarNotes.length,
+          3
+        )} open):**`,
         content: sidebarContent,
-        maxTokens: Math.floor(actualMaxTokens * priorityAllocations.sidebarNotes),
-        type: 'sidebarNotes'
+        maxTokens: Math.floor(
+          actualMaxTokens * priorityAllocations.sidebarNotes
+        ),
+        type: "sidebarNotes",
       });
     }
 
-    // 3. Visible Blocks (if different from current page)
+    // 3. Visible Blocks (always include if they exist and show different content)
     if (context.visibleBlocks.length > 0) {
-      const visibleContent = this.formatBlocksForAI(context.visibleBlocks, 0);
-      sections.push({
-        priority: 3,
-        title: "**Visible Content:**",
-        content: visibleContent,
-        maxTokens: Math.floor(actualMaxTokens * priorityAllocations.visibleBlocks),
-        type: 'visibleBlocks'
-      });
+      // Check if visible blocks are different from current page blocks
+      const currentPageUids = new Set(
+        context.currentPage?.blocks.map((block) => block.uid) || []
+      );
+      const visibleBlocksFromDifferentPages = context.visibleBlocks.filter(
+        (block) => !currentPageUids.has(block.uid)
+      );
+
+      // Include visible blocks if they're from different pages or if there's no current page
+      if (!context.currentPage || visibleBlocksFromDifferentPages.length > 0) {
+        const visibleContent = this.formatBlocksForAI(context.visibleBlocks, 0);
+        sections.push({
+          priority: 3,
+          title: "**Visible Content:**",
+          content: visibleContent,
+          maxTokens: Math.floor(
+            actualMaxTokens * priorityAllocations.visibleBlocks
+          ),
+          type: "visibleBlocks",
+        });
+      }
     }
 
     // 4. Linked References (Lower priority)
     if (context.linkedReferences && context.linkedReferences.length > 0) {
       const referencesContent = context.linkedReferences
         .slice(0, 5) // Limit to 5 most relevant
-        .map(ref => `- ${ref.string}`)
-        .join('\n');
-      
+        .map((ref) => `- ${ref.string}`)
+        .join("\n");
+
       sections.push({
         priority: 4,
-        title: `**Linked References (${Math.min(context.linkedReferences.length, 5)} references):**`,
+        title: `**Linked References (${Math.min(
+          context.linkedReferences.length,
+          5
+        )} references):**`,
         content: referencesContent,
-        maxTokens: Math.floor(actualMaxTokens * priorityAllocations.linkedReferences),
-        type: 'linkedReferences'
+        maxTokens: Math.floor(
+          actualMaxTokens * priorityAllocations.linkedReferences
+        ),
+        type: "linkedReferences",
       });
     }
 
@@ -1308,7 +1562,7 @@ export class RoamService {
 
     // First pass: calculate how much each section actually needs
     const sectionNeeds: Array<{
-      section: typeof sections[0];
+      section: (typeof sections)[0];
       actualTokensNeeded: number;
       allocatedTokens: number;
     }> = [];
@@ -1318,11 +1572,11 @@ export class RoamService {
       const headerTokens = this.estimateTokenCount(sectionHeader);
       const contentTokens = this.estimateTokenCount(section.content);
       const totalNeeded = headerTokens + contentTokens;
-      
+
       sectionNeeds.push({
         section,
         actualTokensNeeded: totalNeeded,
-        allocatedTokens: section.maxTokens
+        allocatedTokens: section.maxTokens,
       });
     }
 
@@ -1330,7 +1584,7 @@ export class RoamService {
     let unusedTokens = 0;
     for (let i = 0; i < sectionNeeds.length; i++) {
       const need = sectionNeeds[i];
-      
+
       if (need.actualTokensNeeded < need.allocatedTokens) {
         // This section doesn't need all its allocated tokens
         const surplus = need.allocatedTokens - need.actualTokensNeeded;
@@ -1343,12 +1597,12 @@ export class RoamService {
     if (unusedTokens > 0) {
       for (let i = 0; i < sectionNeeds.length && unusedTokens > 0; i++) {
         const need = sectionNeeds[i];
-        
+
         if (need.actualTokensNeeded > need.allocatedTokens) {
           // This section needs more tokens
           const needed = need.actualTokensNeeded - need.allocatedTokens;
           const canAllocate = Math.min(needed, unusedTokens);
-          
+
           need.allocatedTokens += canAllocate;
           unusedTokens -= canAllocate;
         }
@@ -1359,13 +1613,17 @@ export class RoamService {
     for (const { section, allocatedTokens } of sectionNeeds) {
       const sectionHeader = section.title + "\n";
       const headerTokens = this.estimateTokenCount(sectionHeader);
-      
+
       if (usedTokens + headerTokens >= actualMaxTokens) break;
-      
+
       // Check if we can fit the full content with dynamic allocation
-      const fullSectionTokens = headerTokens + this.estimateTokenCount(section.content);
-      
-      if (usedTokens + fullSectionTokens <= actualMaxTokens && fullSectionTokens <= allocatedTokens) {
+      const fullSectionTokens =
+        headerTokens + this.estimateTokenCount(section.content);
+
+      if (
+        usedTokens + fullSectionTokens <= actualMaxTokens &&
+        fullSectionTokens <= allocatedTokens
+      ) {
         // Full content fits within dynamic allocation
         finalContext += sectionHeader + section.content + "\n\n";
         usedTokens += fullSectionTokens;
@@ -1375,39 +1633,45 @@ export class RoamService {
           allocatedTokens,
           actualMaxTokens - usedTokens - headerTokens
         );
-        
-        if (availableTokens > 100) { // Only include if we have meaningful space
+
+        if (availableTokens > 100) {
+          // Only include if we have meaningful space
           const truncatedContent = this.intelligentTruncate(
             section.content,
             availableTokens,
             section.type
           );
-          
-          if (truncatedContent.length > 50) { // Only add if meaningful content remains
+
+          if (truncatedContent.length > 50) {
+            // Only add if meaningful content remains
             finalContext += sectionHeader + truncatedContent + "\n\n";
-            usedTokens += headerTokens + this.estimateTokenCount(truncatedContent);
+            usedTokens +=
+              headerTokens + this.estimateTokenCount(truncatedContent);
           }
         }
       }
     }
 
     // Add context statistics for debugging
-    if (process.env.NODE_ENV === 'development') {
-      const allocationDetails = sectionNeeds.map(need => ({
+    if (process.env.NODE_ENV === "development") {
+      const allocationDetails = sectionNeeds.map((need) => ({
         type: need.section.type,
         allocated: need.allocatedTokens,
         needed: need.actualTokensNeeded,
-        saved: Math.max(0, need.allocatedTokens - need.actualTokensNeeded)
+        saved: Math.max(0, need.allocatedTokens - need.actualTokensNeeded),
       }));
-      
+
       console.log(`🧠 Dynamic Token Allocation:`, {
         totalSections: sections.length,
         maxTokens: actualMaxTokens,
         usedTokens,
         efficiency: `${Math.round((usedTokens / actualMaxTokens) * 100)}%`,
-        redistributedTokens: allocationDetails.reduce((sum, d) => sum + d.saved, 0),
+        redistributedTokens: allocationDetails.reduce(
+          (sum, d) => sum + d.saved,
+          0
+        ),
         model: `${provider}/${model}`,
-        sectionDetails: allocationDetails
+        sectionDetails: allocationDetails,
       });
     }
 
@@ -1428,26 +1692,40 @@ export class RoamService {
 
     // Different strategies for different content types
     switch (contentType) {
-      case 'currentPage':
+      case "currentPage":
         // For page content, keep the first few blocks intact
-        return this.truncatePreservingStructure(content, maxTokens, "page content");
+        return this.truncatePreservingStructure(
+          content,
+          maxTokens,
+          "page content"
+        );
 
-      case 'sidebarNotes':
+      case "sidebarNotes":
         // For sidebar notes, summarize each note
-        return this.truncatePreservingStructure(content, maxTokens, "sidebar notes");
+        return this.truncatePreservingStructure(
+          content,
+          maxTokens,
+          "sidebar notes"
+        );
 
-      case 'visibleBlocks':
+      case "visibleBlocks":
         // For visible blocks, keep first and last few blocks
-        return this.truncatePreservingStructure(content, maxTokens, "visible content");
+        return this.truncatePreservingStructure(
+          content,
+          maxTokens,
+          "visible content"
+        );
 
-      case 'linkedReferences':
+      case "linkedReferences":
         // For references, keep the most relevant ones
-        const lines = content.split('\n').filter(line => line.trim());
+        const lines = content.split("\n").filter((line) => line.trim());
         const maxLines = Math.floor(maxTokens / 15); // Assume ~15 tokens per reference line
         if (lines.length <= maxLines) return content;
-        
-        return lines.slice(0, maxLines).join('\n') + 
-               `\n... and ${lines.length - maxLines} more references`;
+
+        return (
+          lines.slice(0, maxLines).join("\n") +
+          `\n... and ${lines.length - maxLines} more references`
+        );
 
       default:
         return this.truncatePreservingStructure(content, maxTokens, "content");
@@ -1462,16 +1740,17 @@ export class RoamService {
     maxTokens: number,
     contentLabel: string
   ): string {
-    const paragraphs = content.split('\n\n');
+    const paragraphs = content.split("\n\n");
     let result = "";
     let tokens = 0;
 
     // Add paragraphs until we approach the limit
     for (let i = 0; i < paragraphs.length; i++) {
       const paragraphTokens = this.estimateTokenCount(paragraphs[i]);
-      
-      if (tokens + paragraphTokens <= maxTokens * 0.9) { // Use 90% to leave room for truncation notice
-        result += paragraphs[i] + '\n\n';
+
+      if (tokens + paragraphTokens <= maxTokens * 0.9) {
+        // Use 90% to leave room for truncation notice
+        result += paragraphs[i] + "\n\n";
         tokens += paragraphTokens;
       } else {
         // Add truncation notice
@@ -1500,22 +1779,33 @@ export class RoamService {
     }
 
     // Use the new smart truncation for legacy calls
-    console.log("📝 Using legacy truncateContext - consider upgrading to smartContextManagement");
-    return this.truncatePreservingStructure(formattedContext, maxTokens, "context");
+    console.log(
+      "📝 Using legacy truncateContext - consider upgrading to smartContextManagement"
+    );
+    return this.truncatePreservingStructure(
+      formattedContext,
+      maxTokens,
+      "context"
+    );
   }
 
   /**
    * Format page context for AI prompt with clickable source references (enhanced version)
    */
   static formatContextForAI(
-    context: PageContext, 
+    context: PageContext,
     maxTokens?: number,
     provider?: string,
     model?: string
   ): string {
     // Use smart context management if provider/model info is available
     if (provider && model) {
-      return this.smartContextManagement(context, maxTokens || 0, provider, model);
+      return this.smartContextManagement(
+        context,
+        maxTokens || 0,
+        provider,
+        model
+      );
     }
 
     // Fallback to legacy formatting
@@ -1525,25 +1815,34 @@ export class RoamService {
   /**
    * Legacy format method - kept for backward compatibility
    */
-  static formatContextForAI_Legacy(context: PageContext, maxTokens?: number): string {
+  static formatContextForAI_Legacy(
+    context: PageContext,
+    maxTokens?: number
+  ): string {
     let formattedContext = "";
     const graphName = this.getCurrentGraphName();
     const isDesktop = this.isDesktopApp();
 
     // For tool calls, use ultra-minimal context
-    const isToolCallContext = !context.currentPage && !context.dailyNote && 
-                             context.visibleBlocks.length === 0 && 
-                             context.linkedReferences.length === 0 &&
-                             (!context.sidebarNotes || context.sidebarNotes.length === 0);
+    const isToolCallContext =
+      !context.currentPage &&
+      !context.dailyNote &&
+      context.visibleBlocks.length === 0 &&
+      context.linkedReferences.length === 0 &&
+      (!context.sidebarNotes || context.sidebarNotes.length === 0);
 
     if (isToolCallContext) {
       console.log("🎯 Formatting minimal tool call context");
-      
+
       // No selected text feature anymore - just add minimal guidance
       formattedContext += `**Context Note:** This is minimal context for tool execution to avoid interference.\n`;
-      
+
       const finalContext = formattedContext.trim();
-      console.log("🎯 Minimal context length:", finalContext.length, "characters");
+      console.log(
+        "🎯 Minimal context length:",
+        finalContext.length,
+        "characters"
+      );
       return finalContext;
     }
 
@@ -1561,6 +1860,7 @@ export class RoamService {
       }
     };
 
+    // Add current page information if available
     if (context.currentPage) {
       const pageUrls = this.generatePageUrl(
         context.currentPage.uid,
@@ -1582,15 +1882,37 @@ export class RoamService {
         );
         formattedContext += "\n";
       }
-    } else if (context.visibleBlocks.length > 0) {
-      formattedContext += "**Visible Content:**\n";
-      formattedContext += this.formatBlocksForAIWithClickableReferences(
-        context.visibleBlocks,
-        0,
-        graphName,
-        isDesktop
+    }
+
+    // Always add visible blocks if they exist, as they show what user is actually viewing
+    if (context.visibleBlocks.length > 0) {
+      // Check if visible blocks are different from current page blocks
+      const currentPageUids = new Set(
+        context.currentPage?.blocks.map((block) => block.uid) || []
       );
-      formattedContext += "\n";
+      const visibleBlocksFromDifferentPages = context.visibleBlocks.filter(
+        (block) => !currentPageUids.has(block.uid)
+      );
+
+      console.log("🔍 Visible blocks analysis:", {
+        totalVisibleBlocks: context.visibleBlocks.length,
+        currentPageUids: Array.from(currentPageUids),
+        visibleBlocksFromDifferentPages: visibleBlocksFromDifferentPages.length,
+        shouldShowVisibleBlocks:
+          !context.currentPage || visibleBlocksFromDifferentPages.length > 0,
+      });
+
+      // Show visible blocks if they're from different pages or if there's no current page
+      if (!context.currentPage || visibleBlocksFromDifferentPages.length > 0) {
+        formattedContext += "**Visible Content:**\n";
+        formattedContext += this.formatBlocksForAIWithClickableReferences(
+          context.visibleBlocks,
+          0,
+          graphName,
+          isDesktop
+        );
+        formattedContext += "\n";
+      }
     }
 
     // Add linked references
@@ -1618,7 +1940,8 @@ export class RoamService {
     // Add sidebar notes
     if (context.sidebarNotes && context.sidebarNotes.length > 0) {
       formattedContext += `**Sidebar Notes (${context.sidebarNotes.length} open):**\n`;
-      for (const sidebarNote of context.sidebarNotes.slice(0, 5)) { // Limit to first 5 to avoid context bloat
+      for (const sidebarNote of context.sidebarNotes.slice(0, 5)) {
+        // Limit to first 5 to avoid context bloat
         const sidebarUrls = this.generatePageUrl(
           sidebarNote.uid,
           graphName || undefined
@@ -1628,7 +1951,7 @@ export class RoamService {
           : `[[${sidebarNote.title}]]`;
 
         formattedContext += `**Sidebar: "${sidebarNote.title}"** ${sidebarUrlLinks}\n`;
-        
+
         if (sidebarNote.blocks.length > 0) {
           const sidebarContent = this.formatBlocksForAIWithClickableReferences(
             sidebarNote.blocks.slice(0, 10), // Limit to first 10 blocks per sidebar note
@@ -1641,7 +1964,9 @@ export class RoamService {
         formattedContext += "\n";
       }
       if (context.sidebarNotes.length > 5) {
-        formattedContext += `... and ${context.sidebarNotes.length - 5} more sidebar notes\n`;
+        formattedContext += `... and ${
+          context.sidebarNotes.length - 5
+        } more sidebar notes\n`;
       }
       formattedContext += "\n";
     }
@@ -1655,7 +1980,11 @@ export class RoamService {
 
     const finalContext = formattedContext.trim();
 
-    console.log("📋 Final formatted context for AI (Legacy):", finalContext.length, "characters");
+    console.log(
+      "📋 Final formatted context for AI (Legacy):",
+      finalContext.length,
+      "characters"
+    );
 
     // Apply truncation if context is too long
     return this.truncateContext(finalContext, maxTokens);
@@ -1840,7 +2169,11 @@ export class RoamService {
           const uid = result[0][0];
           const blocks = await this.getPageBlocks(uid);
 
-          console.log("✅ Found daily note:", { format, uid, blockCount: blocks.length });
+          console.log("✅ Found daily note:", {
+            format,
+            uid,
+            blockCount: blocks.length,
+          });
           return {
             title: format,
             uid,
@@ -2135,7 +2468,9 @@ export class RoamService {
         );
         notes = referencedBlocks;
         if (notes.length === 0) {
-          warnings.push(`No blocks found referencing "${params.referencedPage}"`);
+          warnings.push(
+            `No blocks found referencing "${params.referencedPage}"`
+          );
         }
       }
 
@@ -2195,7 +2530,10 @@ export class RoamService {
   /**
    * Search for pages by title (for bracket autocomplete)
    */
-  static async searchPages(searchTerm: string, limit: number = 10): Promise<Array<{ title: string; uid: string }>> {
+  static async searchPages(
+    searchTerm: string,
+    limit: number = 10
+  ): Promise<Array<{ title: string; uid: string }>> {
     try {
       if (!searchTerm.trim()) {
         // Return some recent pages when no search term
@@ -2220,36 +2558,54 @@ export class RoamService {
       }
 
       // Filter and convert result to page objects
-      const allPages = result.map(([title, uid]: [string, string]) => ({ title, uid }));
-      
+      const allPages = result.map(([title, uid]: [string, string]) => ({
+        title,
+        uid,
+      }));
+
       // Debug: show a few page titles to understand the data
-      console.log(`Sample page titles:`, allPages.slice(0, 10).map(p => p.title));
-      
-      // Debug: look for pages that might contain our search term
-      const candidatePages = allPages.filter(page => 
-        page.title.toLowerCase().includes('claude') || 
-        page.title.toLowerCase().includes('code')
+      console.log(
+        `Sample page titles:`,
+        allPages.slice(0, 10).map((p) => p.title)
       );
-      console.log(`Pages containing 'claude' or 'code':`, candidatePages.map(p => p.title));
-      
+
+      // Debug: look for pages that might contain our search term
+      const candidatePages = allPages.filter(
+        (page) =>
+          page.title.toLowerCase().includes("claude") ||
+          page.title.toLowerCase().includes("code")
+      );
+      console.log(
+        `Pages containing 'claude' or 'code':`,
+        candidatePages.map((p) => p.title)
+      );
+
       // More flexible search: split search term and match each part
-      const searchWords = lowerSearchTerm.split(/[-\s]+/).filter(word => word.length > 0);
+      const searchWords = lowerSearchTerm
+        .split(/[-\s]+/)
+        .filter((word) => word.length > 0);
       console.log(`Search words:`, searchWords);
-      
-      const pages = allPages.filter(page => {
+
+      const pages = allPages.filter((page) => {
         const pageTitle = page.title.toLowerCase();
         // Match if all search words are found in the title
-        const matches = searchWords.every(word => pageTitle.includes(word));
-        
+        const matches = searchWords.every((word) => pageTitle.includes(word));
+
         // Debug specific pages for troubleshooting
-        if (pageTitle.includes('claude')) {
-          console.log(`Checking page "${page.title}": searchWords=[${searchWords.join(', ')}], matches=${matches}`);
+        if (pageTitle.includes("claude")) {
+          console.log(
+            `Checking page "${page.title}": searchWords=[${searchWords.join(
+              ", "
+            )}], matches=${matches}`
+          );
         }
-        
+
         return matches;
       });
 
-      console.log(`Found ${pages.length} matching pages out of ${result.length} total pages`);
+      console.log(
+        `Found ${pages.length} matching pages out of ${result.length} total pages`
+      );
 
       if (pages.length === 0) {
         console.log(`No pages found for search term: "${searchTerm}"`);
@@ -2260,22 +2616,33 @@ export class RoamService {
       pages.sort((a, b) => {
         const aTitle = a.title.toLowerCase();
         const bTitle = b.title.toLowerCase();
-        
+
         // Exact match
         if (aTitle === lowerSearchTerm && bTitle !== lowerSearchTerm) return -1;
         if (bTitle === lowerSearchTerm && aTitle !== lowerSearchTerm) return 1;
-        
+
         // Starts with
-        if (aTitle.startsWith(lowerSearchTerm) && !bTitle.startsWith(lowerSearchTerm)) return -1;
-        if (bTitle.startsWith(lowerSearchTerm) && !aTitle.startsWith(lowerSearchTerm)) return 1;
-        
+        if (
+          aTitle.startsWith(lowerSearchTerm) &&
+          !bTitle.startsWith(lowerSearchTerm)
+        )
+          return -1;
+        if (
+          bTitle.startsWith(lowerSearchTerm) &&
+          !aTitle.startsWith(lowerSearchTerm)
+        )
+          return 1;
+
         // Alphabetical for similar relevance
         return aTitle.localeCompare(bTitle);
       });
 
       const limitedResults = pages.slice(0, limit);
-      console.log(`Returning ${limitedResults.length} results:`, limitedResults.map(p => p.title));
-      
+      console.log(
+        `Returning ${limitedResults.length} results:`,
+        limitedResults.map((p) => p.title)
+      );
+
       return limitedResults;
     } catch (error) {
       console.error("Error searching pages:", error);
@@ -2286,7 +2653,9 @@ export class RoamService {
   /**
    * Get all page titles (for initial page list)
    */
-  static async getAllPageTitles(limit: number = 50): Promise<Array<{ title: string; uid: string }>> {
+  static async getAllPageTitles(
+    limit: number = 50
+  ): Promise<Array<{ title: string; uid: string }>> {
     try {
       console.log("🔍 Getting all page titles");
 
@@ -2306,14 +2675,16 @@ export class RoamService {
       // Convert to page objects and sort alphabetically
       const pages = result.map(([title, uid]: [string, string]) => ({
         title,
-        uid
+        uid,
       }));
 
       pages.sort((a, b) => a.title.localeCompare(b.title));
 
       const limitedResults = pages.slice(0, limit);
-      console.log(`Found ${pages.length} pages, returning ${limitedResults.length}`);
-      
+      console.log(
+        `Found ${pages.length} pages, returning ${limitedResults.length}`
+      );
+
       return limitedResults;
     } catch (error) {
       console.error("Error getting all page titles:", error);
@@ -2325,9 +2696,14 @@ export class RoamService {
    * Universal search that combines page titles and block content search
    * Used for @ symbol triggered search feature
    */
-  static async universalSearch(searchTerm: string, limit: number = 10): Promise<UniversalSearchResponse> {
+  static async universalSearch(
+    searchTerm: string,
+    limit: number = 10
+  ): Promise<UniversalSearchResponse> {
     const startTime = Date.now();
-    console.log(`🔍 UniversalSearch called with: "${searchTerm}", limit: ${limit}`);
+    console.log(
+      `🔍 UniversalSearch called with: "${searchTerm}", limit: ${limit}`
+    );
 
     if (!searchTerm || searchTerm.trim().length === 0) {
       return {
@@ -2347,11 +2723,16 @@ export class RoamService {
 
       // Combine and sort results by relevance
       const allResults = [...pageResults, ...blockResults];
-      const sortedResults = this.sortUniversalSearchResults(allResults, searchTerm);
+      const sortedResults = this.sortUniversalSearchResults(
+        allResults,
+        searchTerm
+      );
       const limitedResults = sortedResults.slice(0, limit);
 
       const executionTime = Date.now() - startTime;
-      console.log(`🔍 UniversalSearch completed: ${limitedResults.length} results in ${executionTime}ms`);
+      console.log(
+        `🔍 UniversalSearch completed: ${limitedResults.length} results in ${executionTime}ms`
+      );
 
       return {
         results: limitedResults,
@@ -2373,7 +2754,10 @@ export class RoamService {
   /**
    * Enhanced page search that matches Roam's native search behavior
    */
-  private static async searchPagesForUniversal(searchTerm: string, limit: number): Promise<UniversalSearchResult[]> {
+  private static async searchPagesForUniversal(
+    searchTerm: string,
+    limit: number
+  ): Promise<UniversalSearchResult[]> {
     try {
       if (!window.roamAlphaAPI?.q) {
         console.warn("Roam API not available for page search");
@@ -2381,7 +2765,7 @@ export class RoamService {
       }
 
       const lowerSearchTerm = searchTerm.toLowerCase().trim();
-      
+
       // Use the proven working method: get all pages first, then filter in JavaScript
       const allPagesQuery = `
         [:find ?title ?uid
@@ -2391,7 +2775,7 @@ export class RoamService {
       `;
 
       const result = await window.roamAlphaAPI.q(allPagesQuery);
-      
+
       if (!result || result.length === 0) {
         console.log("No pages found in database");
         return [];
@@ -2406,21 +2790,23 @@ export class RoamService {
       console.log(`🔍 Found ${allPages.length} total pages`);
 
       // Filter pages that match the search term
-      const matchingPages = allPages.filter(page => {
+      const matchingPages = allPages.filter((page) => {
         const pageTitle = page.title.toLowerCase();
         return pageTitle.includes(lowerSearchTerm);
       });
 
-      console.log(`🔍 Found ${matchingPages.length} matching pages for "${searchTerm}"`);
+      console.log(
+        `🔍 Found ${matchingPages.length} matching pages for "${searchTerm}"`
+      );
 
       // Apply Roam-like relevance sorting
       const sortedPages = this.sortPagesByRelevance(matchingPages, searchTerm);
       const limitedPages = sortedPages.slice(0, limit);
 
-      return limitedPages.map(page => {
+      return limitedPages.map((page) => {
         const isDaily = this.isDailyNotePage(page.title);
         return {
-          type: isDaily ? "daily-note" as const : "page" as const,
+          type: isDaily ? ("daily-note" as const) : ("page" as const),
           uid: page.uid,
           title: page.title,
           preview: page.title,
@@ -2436,28 +2822,35 @@ export class RoamService {
   /**
    * Enhanced block search that matches Roam's native search behavior
    */
-  private static async searchBlocksForUniversal(searchTerm: string, limit: number): Promise<UniversalSearchResult[]> {
+  private static async searchBlocksForUniversal(
+    searchTerm: string,
+    limit: number
+  ): Promise<UniversalSearchResult[]> {
     try {
       // Use the existing working searchNotesFullText method
       const blockResults = await this.searchNotesFullText(searchTerm);
-      
+
       if (!blockResults || blockResults.length === 0) {
         console.log(`🔍 No blocks found for "${searchTerm}"`);
         return [];
       }
 
-      console.log(`🔍 Found ${blockResults.length} matching blocks for "${searchTerm}"`);
+      console.log(
+        `🔍 Found ${blockResults.length} matching blocks for "${searchTerm}"`
+      );
 
       // Apply relevance sorting
       const sortedBlocks = this.sortBlocksByRelevance(blockResults, searchTerm);
       const limitedBlocks = sortedBlocks.slice(0, limit);
-      
+
       // Get parent page titles for blocks in parallel
       const resultsWithPages = await Promise.all(
         limitedBlocks.map(async (block) => {
-          const parentPageTitle = await this.getParentPageTitleForBlock(block.uid);
+          const parentPageTitle = await this.getParentPageTitleForBlock(
+            block.uid
+          );
           const preview = this.formatBlockPreview(block.string, 80);
-          
+
           return {
             type: "block" as const,
             uid: block.uid,
@@ -2479,7 +2872,9 @@ export class RoamService {
   /**
    * Get the parent page title for a block UID
    */
-  static async getParentPageTitleForBlock(blockUid: string): Promise<string | undefined> {
+  static async getParentPageTitleForBlock(
+    blockUid: string
+  ): Promise<string | undefined> {
     try {
       if (!window.roamAlphaAPI?.q) {
         console.warn("Roam API not available for getting parent page title");
@@ -2496,7 +2891,7 @@ export class RoamService {
       `;
 
       const result = await window.roamAlphaAPI.q(pageQuery);
-      
+
       if (result && result.length > 0) {
         return result[0][0] as string;
       }
@@ -2512,14 +2907,18 @@ export class RoamService {
       `;
 
       const hierarchyResult = await window.roamAlphaAPI.q(hierarchyQuery);
-      
+
       if (hierarchyResult && hierarchyResult.length > 0) {
         return hierarchyResult[0][0] as string;
       }
 
       return undefined;
     } catch (error) {
-      console.error("Error getting parent page title for block:", blockUid, error);
+      console.error(
+        "Error getting parent page title for block:",
+        blockUid,
+        error
+      );
       return undefined;
     }
   }
@@ -2536,25 +2935,28 @@ export class RoamService {
       /^\d{4}-\d{1,2}-\d{1,2}$/, // "2024-01-01"
       /^\d{1,2}\/\d{1,2}\/\d{4}$/, // "01/01/2024"
     ];
-    
-    return dailyNotePatterns.some(pattern => pattern.test(title));
+
+    return dailyNotePatterns.some((pattern) => pattern.test(title));
   }
 
   /**
    * Format block content for preview display
    */
-  private static formatBlockPreview(content: string, maxLength: number = 60): string {
+  private static formatBlockPreview(
+    content: string,
+    maxLength: number = 60
+  ): string {
     if (!content) return "";
-    
+
     // Remove Roam markup for cleaner preview
     let cleaned = content
-      .replace(/\[\[([^\]]+)\]\]/g, '$1') // Remove page links
-      .replace(/\(\(([^)]+)\)\)/g, '') // Remove block references
-      .replace(/#\[\[([^\]]+)\]\]/g, '#$1') // Simplify hashtags
-      .replace(/\*\*([^*]+)\*\*/g, '$1') // Remove bold
-      .replace(/\*([^*]+)\*/g, '$1') // Remove italic
-      .replace(/~~([^~]+)~~/g, '$1') // Remove strikethrough
-      .replace(/`([^`]+)`/g, '$1') // Remove code
+      .replace(/\[\[([^\]]+)\]\]/g, "$1") // Remove page links
+      .replace(/\(\(([^)]+)\)\)/g, "") // Remove block references
+      .replace(/#\[\[([^\]]+)\]\]/g, "#$1") // Simplify hashtags
+      .replace(/\*\*([^*]+)\*\*/g, "$1") // Remove bold
+      .replace(/\*([^*]+)\*/g, "$1") // Remove italic
+      .replace(/~~([^~]+)~~/g, "$1") // Remove strikethrough
+      .replace(/`([^`]+)`/g, "$1") // Remove code
       .trim();
 
     if (cleaned.length <= maxLength) {
@@ -2569,57 +2971,69 @@ export class RoamService {
    */
   private static highlightSearchTerm(text: string, searchTerm: string): string {
     if (!searchTerm || !text) return text;
-    
-    const regex = new RegExp(`(${searchTerm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
-    return text.replace(regex, '<mark>$1</mark>');
+
+    const regex = new RegExp(
+      `(${searchTerm.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")})`,
+      "gi"
+    );
+    return text.replace(regex, "<mark>$1</mark>");
   }
 
   /**
    * Sort pages by relevance using Roam-like algorithm
    */
-  private static sortPagesByRelevance(pages: Array<{title: string; uid: string}>, searchTerm: string): Array<{title: string; uid: string}> {
+  private static sortPagesByRelevance(
+    pages: Array<{ title: string; uid: string }>,
+    searchTerm: string
+  ): Array<{ title: string; uid: string }> {
     const lowerSearchTerm = searchTerm.toLowerCase().trim();
-    
+
     return pages.sort((a, b) => {
       const titleA = a.title.toLowerCase();
       const titleB = b.title.toLowerCase();
-      
+
       // Exact match has highest priority
       if (titleA === lowerSearchTerm && titleB !== lowerSearchTerm) return -1;
       if (titleB === lowerSearchTerm && titleA !== lowerSearchTerm) return 1;
-      
+
       // Case-insensitive exact match
       if (titleA === lowerSearchTerm && titleB === lowerSearchTerm) {
         return a.title.localeCompare(b.title);
       }
-      
+
       // Starts with search term
       const startsA = titleA.startsWith(lowerSearchTerm);
       const startsB = titleB.startsWith(lowerSearchTerm);
       if (startsA && !startsB) return -1;
       if (!startsA && startsB) return 1;
-      
+
       if (startsA && startsB) {
         // Both start with search term, prefer shorter titles
         return titleA.length - titleB.length;
       }
-      
+
       // Word boundary matching (search term at start of a word)
-      const wordBoundaryA = new RegExp(`\\b${lowerSearchTerm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`, 'i').test(titleA);
-      const wordBoundaryB = new RegExp(`\\b${lowerSearchTerm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`, 'i').test(titleB);
+      const wordBoundaryA = new RegExp(
+        `\\b${lowerSearchTerm.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`,
+        "i"
+      ).test(titleA);
+      const wordBoundaryB = new RegExp(
+        `\\b${lowerSearchTerm.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`,
+        "i"
+      ).test(titleB);
       if (wordBoundaryA && !wordBoundaryB) return -1;
       if (!wordBoundaryA && wordBoundaryB) return 1;
-      
+
       // Position of match (earlier position = higher relevance)
       const posA = titleA.indexOf(lowerSearchTerm);
       const posB = titleB.indexOf(lowerSearchTerm);
       if (posA !== posB) return posA - posB;
-      
+
       // Prefer shorter titles
       if (titleA.length !== titleB.length) {
         return titleA.length - titleB.length;
       }
-      
+
       // Alphabetical as final tie-breaker
       return titleA.localeCompare(titleB);
     });
@@ -2628,33 +3042,44 @@ export class RoamService {
   /**
    * Sort blocks by relevance using Roam-like algorithm
    */
-  private static sortBlocksByRelevance(blocks: Array<{uid: string; string: string}>, searchTerm: string): Array<{uid: string; string: string}> {
+  private static sortBlocksByRelevance(
+    blocks: Array<{ uid: string; string: string }>,
+    searchTerm: string
+  ): Array<{ uid: string; string: string }> {
     const lowerSearchTerm = searchTerm.toLowerCase().trim();
-    
+
     return blocks.sort((a, b) => {
       const contentA = a.string.toLowerCase();
       const contentB = b.string.toLowerCase();
-      
+
       // Exact match has highest priority
-      if (contentA === lowerSearchTerm && contentB !== lowerSearchTerm) return -1;
-      if (contentB === lowerSearchTerm && contentA !== lowerSearchTerm) return 1;
-      
+      if (contentA === lowerSearchTerm && contentB !== lowerSearchTerm)
+        return -1;
+      if (contentB === lowerSearchTerm && contentA !== lowerSearchTerm)
+        return 1;
+
       // Word boundary matching
-      const wordBoundaryA = new RegExp(`\\b${lowerSearchTerm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`, 'i').test(contentA);
-      const wordBoundaryB = new RegExp(`\\b${lowerSearchTerm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`, 'i').test(contentB);
+      const wordBoundaryA = new RegExp(
+        `\\b${lowerSearchTerm.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`,
+        "i"
+      ).test(contentA);
+      const wordBoundaryB = new RegExp(
+        `\\b${lowerSearchTerm.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`,
+        "i"
+      ).test(contentB);
       if (wordBoundaryA && !wordBoundaryB) return -1;
       if (!wordBoundaryA && wordBoundaryB) return 1;
-      
+
       // Position of match (earlier position = higher relevance)
       const posA = contentA.indexOf(lowerSearchTerm);
       const posB = contentB.indexOf(lowerSearchTerm);
       if (posA !== posB) return posA - posB;
-      
+
       // Prefer shorter content (more focused)
       if (contentA.length !== contentB.length) {
         return contentA.length - contentB.length;
       }
-      
+
       // Alphabetical as final tie-breaker
       return contentA.localeCompare(contentB);
     });
@@ -2663,31 +3088,34 @@ export class RoamService {
   /**
    * Sort universal search results by relevance
    */
-  private static sortUniversalSearchResults(results: UniversalSearchResult[], searchTerm: string): UniversalSearchResult[] {
+  private static sortUniversalSearchResults(
+    results: UniversalSearchResult[],
+    searchTerm: string
+  ): UniversalSearchResult[] {
     const lowerSearchTerm = searchTerm.toLowerCase();
-    
+
     return results.sort((a, b) => {
       // Get text to compare for each result
       const textA = (a.title || a.preview || "").toLowerCase();
       const textB = (b.title || b.preview || "").toLowerCase();
-      
+
       // Exact match first
       const exactA = textA === lowerSearchTerm;
       const exactB = textB === lowerSearchTerm;
       if (exactA && !exactB) return -1;
       if (!exactA && exactB) return 1;
-      
+
       // Starts with search term
       const startsA = textA.startsWith(lowerSearchTerm);
       const startsB = textB.startsWith(lowerSearchTerm);
       if (startsA && !startsB) return -1;
       if (!startsA && startsB) return 1;
-      
+
       // Type preference: pages > daily-notes > blocks
-      const typeOrder = { "page": 0, "daily-note": 1, "block": 2 };
+      const typeOrder = { page: 0, "daily-note": 1, block: 2 };
       const typeCompare = typeOrder[a.type] - typeOrder[b.type];
       if (typeCompare !== 0) return typeCompare;
-      
+
       // Alphabetical as final tie-breaker
       return textA.localeCompare(textB);
     });
