@@ -415,24 +415,22 @@ export function initPanelConfig(extensionAPI: any) {
       {
         id: "copilot-response-language",
         name: "Response Language",
-        description: "Language for AI responses",
+        description: React.createElement(
+          React.Fragment,
+          {},
+          "Language for AI responses",
+          React.createElement("br"),
+          React.createElement("small", {}, "You can enter any language (e.g., English, Chinese, Japanese, French, etc.)")
+        ),
         action: {
-          type: "select",
-          items: [
-            "English",
-            "Chinese",
-            "Japanese",
-            "Korean",
-            "French",
-            "Spanish",
-            "German",
-          ],
+          type: "input",
+          placeholder: "English",
           value: multiProviderSettings.responseLanguage || "English",
           onChange: (evt: any) => {
             const value = evt?.target?.value;
-            if (value) {
-              multiProviderSettings.responseLanguage = value;
-              extensionAPI.settings.set("copilot-response-language", value);
+            if (value !== undefined) {
+              multiProviderSettings.responseLanguage = value || "English";
+              extensionAPI.settings.set("copilot-response-language", multiProviderSettings.responseLanguage);
             }
           },
         },
