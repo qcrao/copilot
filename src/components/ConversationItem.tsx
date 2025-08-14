@@ -52,9 +52,12 @@ export const ConversationItem: React.FC<ConversationItemProps> = ({
     const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
     
     if (diffDays === 0) {
-      return date.toLocaleTimeString('zh-CN', { 
+      return date.toLocaleString('zh-CN', { 
+        month: '2-digit', 
+        day: '2-digit',
         hour: '2-digit', 
-        minute: '2-digit' 
+        minute: '2-digit',
+        second: '2-digit'
       });
     } else if (diffDays === 1) {
       return 'Yesterday';

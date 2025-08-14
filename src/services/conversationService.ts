@@ -30,9 +30,19 @@ export class ConversationService {
   /**
    * Generate conversation title from first user message
    */
-  private static generateTitle(firstMessage: string, context?: string): string {
+  private static async generateTitle(firstMessage: string, context?: string): Promise<string> {
+    // Get all templates including custom ones
+    let allTemplates = [...PROMPT_TEMPLATES];
+    try {
+      const { UserTemplateService } = require("./userTemplateService");
+      const customTemplates = await UserTemplateService.getCustomTemplates();
+      allTemplates = [...PROMPT_TEMPLATES, ...customTemplates];
+    } catch (error) {
+      console.warn("Failed to load custom templates for title generation:", error);
+    }
+
     // Check if the message matches any template prompt
-    const matchingTemplate = PROMPT_TEMPLATES.find(template => {
+    const matchingTemplate = allTemplates.find(template => {
       // Check if the message starts with or contains significant parts of the template prompt
       const templateStart = template.prompt.substring(0, 200).trim();
       const messageStart = firstMessage.substring(0, 200).trim();
@@ -338,7 +348,7 @@ export class ConversationService {
 
     try {
       const firstUserMessage = messages.find(m => m.role === 'user');
-      const title = firstUserMessage ? this.generateTitle(firstUserMessage.content, context) : 'New Chat';
+      const title = firstUserMessage ? await this.generateTitle(firstUserMessage.content, context) : 'New Chat';
       
       const metadata: ConversationMetadata = {
         id: conversationId,
