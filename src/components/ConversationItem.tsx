@@ -46,33 +46,35 @@ export const ConversationItem: React.FC<ConversationItemProps> = ({
   };
 
   const formatDate = (dateString: string): string => {
-    const date = new Date(dateString);
+    const messageDate = new Date(dateString);
     const now = new Date();
-    const diffMs = now.getTime() - date.getTime();
-    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
     
-    if (diffDays === 0) {
-      return date.toLocaleString('zh-CN', { 
-        month: '2-digit', 
-        day: '2-digit',
-        hour: '2-digit', 
-        minute: '2-digit',
-        second: '2-digit'
-      });
-    } else if (diffDays === 1) {
-      return 'Yesterday';
-    } else if (diffDays < 7) {
-      return `${diffDays}d ago`;
-    } else if (diffDays < 30) {
-      return date.toLocaleDateString('zh-CN', { 
-        month: 'short', 
-        day: 'numeric' 
-      });
+    // Reset time to compare dates only
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+    const msgDate = new Date(messageDate.getFullYear(), messageDate.getMonth(), messageDate.getDate());
+    
+    const timeString = messageDate.toLocaleTimeString([], { 
+      hour: 'numeric', 
+      minute: '2-digit',
+      hour12: true 
+    });
+    
+    if (msgDate.getTime() === today.getTime()) {
+      // Today - just show time
+      return timeString;
+    } else if (msgDate.getTime() === yesterday.getTime()) {
+      // Yesterday
+      return `Yesterday, ${timeString}`;
     } else {
-      return date.toLocaleDateString('zh-CN', { 
-        year: 'numeric',
-        month: 'short'
+      // Other dates - show full date
+      const dateString = messageDate.toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric', 
+        year: 'numeric'
       });
+      return `${dateString}, ${timeString}`;
     }
   };
 
