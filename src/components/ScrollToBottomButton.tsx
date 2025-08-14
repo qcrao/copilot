@@ -16,17 +16,17 @@ export const ScrollToBottomButton: React.FC<ScrollToBottomButtonProps> = ({
   hasNewMessages = false,
   className = ''
 }) => {
-  if (!visible) return null;
-
   return (
     <div 
       className={`rr-copilot-scroll-to-bottom ${className}`}
       style={{
         position: 'absolute',
-        bottom: '20px',
-        right: '20px',
+        bottom: '16px',
+        right: '16px',
         zIndex: 10,
-        animation: visible ? 'fadeInUp 0.2s ease-out' : 'fadeOutDown 0.2s ease-in',
+        transition: 'all 0.25s cubic-bezier(0.4, 0.0, 0.2, 1)',
+        transform: visible ? 'translateY(0) scale(1)' : 'translateY(16px) scale(0.8)',
+        opacity: visible ? 1 : 0,
         pointerEvents: visible ? 'auto' : 'none'
       }}
     >
@@ -63,16 +63,18 @@ export const ScrollToBottomButton: React.FC<ScrollToBottomButtonProps> = ({
           border: hasNewMessages ? 'none' : '1px solid rgba(0, 0, 0, 0.1)',
           backdropFilter: 'blur(8px)',
           transition: 'all 0.2s ease',
-          transform: visible ? 'translateY(0)' : 'translateY(10px)',
-          opacity: visible ? 1 : 0,
-          borderRadius: '50%' // Add round styling manually
+          borderRadius: '50%',
+          width: '48px',
+          height: '48px',
+          minWidth: '48px',
+          minHeight: '48px'
         }}
         onMouseEnter={(e) => {
-          e.currentTarget.style.transform = 'translateY(-2px) scale(1.05)';
+          e.currentTarget.style.transform = 'translateY(-2px)';
           e.currentTarget.style.boxShadow = '0 4px 20px rgba(0, 0, 0, 0.25)';
         }}
         onMouseLeave={(e) => {
-          e.currentTarget.style.transform = 'translateY(0) scale(1)';
+          e.currentTarget.style.transform = 'translateY(0)';
           e.currentTarget.style.boxShadow = '0 2px 12px rgba(0, 0, 0, 0.15)';
         }}
       />

@@ -1,5 +1,5 @@
 // src/components/MessageList.tsx
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Icon } from "@blueprintjs/core";
 import { ChatMessage } from '../types';
 import { CollapsibleMessage } from './CollapsibleMessage';
@@ -400,6 +400,8 @@ export const MessageList: React.FC<MessageListProps> = ({
   currentModel,
   currentProvider
 }) => {
+  const [showScrollButton, setShowScrollButton] = useState(false);
+  
   // Create dependencies for scroll tracking
   const scrollDependencies = [
     messages.length, // New messages
@@ -419,44 +421,93 @@ export const MessageList: React.FC<MessageListProps> = ({
     scrollActions.scrollToBottom(true); // Force scroll
   };
   
-  // Check if user is near bottom for scroll button visibility
-  const isNearBottom = scrollActions.isNearBottom();
+  // Enhanced ref callback to monitor scroll position
+  const enhancedRefCallback = useCallback((node: HTMLDivElement | null) => {
+    containerRefCallback(node);
+    
+    if (node) {
+      // Function to check scroll position and update button visibility
+      const updateScrollButtonVisibility = () => {
+        const { scrollTop, scrollHeight, clientHeight } = node;
+        const isAtBottom = scrollHeight - scrollTop - clientHeight <= 50;
+        const hasEnoughContent = scrollHeight > clientHeight + 100; // Has scrollable content
+        
+        setShowScrollButton(!isAtBottom && hasEnoughContent && messages.length > 1);
+      };
+      
+      // Initial check
+      updateScrollButtonVisibility();
+      
+      // Add scroll listener
+      const handleScroll = () => {
+        updateScrollButtonVisibility();
+      };
+      
+      node.addEventListener('scroll', handleScroll, { passive: true });
+      
+      // Cleanup function
+      return () => {
+        node.removeEventListener('scroll', handleScroll);
+      };
+    }
+  }, [containerRefCallback, messages.length]);
+  
+  // Update scroll button visibility when messages change
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      const container = document.querySelector('.rr-copilot-message-list') as HTMLDivElement;
+      if (container) {
+        const { scrollTop, scrollHeight, clientHeight } = container;
+        const isAtBottom = scrollHeight - scrollTop - clientHeight <= 50;
+        const hasEnoughContent = scrollHeight > clientHeight + 100;
+        
+        setShowScrollButton(!isAtBottom && hasEnoughContent && messages.length > 1);
+      }
+    }, 100); // Small delay to ensure DOM is updated
+    
+    return () => clearTimeout(timer);
+  }, [messages.length, isLoading]);
 
   return (
     <div 
-      ref={containerRefCallback}
-      className="rr-copilot-message-list" 
       style={{
         height: '100%',
-        overflowY: 'auto',
-        padding: '12px 14px',
-        scrollBehavior: 'auto',
-        position: 'relative' // For scroll button positioning
+        position: 'relative' // Container for absolute positioned button
       }}
     >
-      {/* Render Messages */}
-      {messages.map((message, index) => (
-        <MessageItem
-          key={message.id}
-          message={message}
-          index={index}
-          onCopyMessage={onCopyMessage}
-          copiedMessageIndex={copiedMessageIndex}
-        />
-      ))}
+      <div 
+        ref={enhancedRefCallback}
+        className="rr-copilot-message-list" 
+        style={{
+          height: '100%',
+          overflowY: 'auto',
+          padding: '12px 14px',
+          scrollBehavior: 'auto'
+        }}
+      >
+        {/* Render Messages */}
+        {messages.map((message, index) => (
+          <MessageItem
+            key={message.id}
+            message={message}
+            index={index}
+            onCopyMessage={onCopyMessage}
+            copiedMessageIndex={copiedMessageIndex}
+          />
+        ))}
 
-      {/* Loading Indicator - only show if no streaming messages */}
-      {isLoading && !messages.some(msg => msg.isStreaming) && (
-        <LoadingIndicator currentModel={currentModel} currentProvider={currentProvider} />
-      )}
+        {/* Loading Indicator - only show if no streaming messages */}
+        {isLoading && !messages.some(msg => msg.isStreaming) && (
+          <LoadingIndicator currentModel={currentModel} currentProvider={currentProvider} />
+        )}
+      </div>
       
-      {/* Scroll to bottom button - show when not at bottom and has content */}
+      {/* Scroll to bottom button - positioned outside scroll container */}
       <ScrollToBottomButton
-        visible={!isNearBottom && messages.length > 0}
-        hasNewMessages={false} // Simplified - no complex new message detection
+        visible={showScrollButton}
+        hasNewMessages={false}
         onClick={handleScrollToBottom}
       />
-      
     </div>
   );
 };

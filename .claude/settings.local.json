@@ -32,8 +32,10 @@
       "Bash(rg -A 5 -B 5 \"strong\" /Users/qcrao/copilot/src/components/EnhancedMessageRenderer.tsx)",
       "Bash(rg -n \"strong\\|bold.*:\" /Users/qcrao/copilot/src/components/EnhancedMessageRenderer.tsx)",
       "WebFetch(domain:ai-sdk.dev)",
-      "WebFetch(domain:gist.github.com)"
+      "WebFetch(domain:gist.github.com)",
+      "WebSearch"
     ],
-    "deny": []
+    "deny": [],
+    "defaultMode": "acceptEdits"
   }
 }
