@@ -156,7 +156,8 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
         // Dynamic throttling based on context: daily notes need faster updates when scrolling
         const isDailyNotesView = window.location.href.includes('/page/Daily Notes') || 
                                 document.querySelector('.roam-log-page') !== null;
-        const MIN_UPDATE_INTERVAL = isDailyNotesView ? 400 : 1000; // Faster updates for daily notes
+        // Make context refresh more responsive while avoiding thrash
+        const MIN_UPDATE_INTERVAL = isDailyNotesView ? 180 : 700;
 
         if (timeSinceLastUpdate < MIN_UPDATE_INTERVAL) {
           console.log(
@@ -235,7 +236,7 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
     }
   }, [isOpen, updatePageContext]);
 
-  // Monitor page changes to update context for preview
+    // Monitor page changes to update context for preview
   useEffect(() => {
     if (!isOpen) return; // Only monitor when widget is open
 
@@ -369,7 +370,7 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
       // Dynamic delay based on content type: daily notes need faster updates
       const isDailyNotesView = window.location.href.includes('/page/Daily Notes') || 
                               document.querySelector('.roam-log-page') !== null;
-      const scrollDelay = isDailyNotesView ? 200 : 500; // Faster scroll response for daily notes
+      const scrollDelay = isDailyNotesView ? 120 : 250; // Faster scroll response
       
       // Debounce the update to avoid too frequent calls during scrolling
       if (updateContextTimeoutRef.current) {
@@ -382,6 +383,16 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
 
     document.addEventListener("selectionchange", handleSelectionChange);
     window.addEventListener("scroll", handleScroll, { passive: true });
+
+    // Some Roam layouts use a scrollable main container. Observe it as well.
+    const mainScrollable =
+      (document.querySelector('.roam-main') as HTMLElement) ||
+      (document.querySelector('.rm-main') as HTMLElement) ||
+      (document.querySelector('.roam-article') as HTMLElement) ||
+      (document.querySelector('[data-testid="main-content"]') as HTMLElement);
+    if (mainScrollable) {
+      mainScrollable.addEventListener('scroll', handleScroll, { passive: true });
+    }
 
     // Also check periodically as a fallback
     const intervalId = setInterval(checkForPageChange, 2000); // Check every 2 seconds
@@ -408,6 +419,9 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
       window.removeEventListener("hashchange", handleHashChange);
       document.removeEventListener("selectionchange", handleSelectionChange);
       window.removeEventListener("scroll", handleScroll);
+      if (mainScrollable) {
+        mainScrollable.removeEventListener('scroll', handleScroll);
+      }
       observer.disconnect();
       cleanupSidebarMonitoring(); // Cleanup the sidebar monitoring
       clearInterval(intervalId);

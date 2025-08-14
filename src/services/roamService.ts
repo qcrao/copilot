@@ -218,6 +218,13 @@ export class RoamService {
    */
   static async getCurrentPageInfo(): Promise<RoamPage | null> {
     try {
+      // If we're in aggregated daily notes view, there is no single current page
+      // Avoid returning a stale page from previous navigation
+      const isAggregatedDaily = this.isAggregatedDailyNotesView();
+      if (isAggregatedDaily) {
+        return null;
+      }
+
       // Try multiple methods to get current page
       let currentPageUid = null;
       let title = "";
@@ -675,18 +682,22 @@ export class RoamService {
             
             // Calculate effective main window width when sidebar is open
             const effectiveWidth = sidebarVisible ? 
-              window.innerWidth * 0.6 : // When sidebar is open, main content uses ~60% of width
+              window.innerWidth * 0.6 :
               window.innerWidth;
 
-            // Be more precise about visibility - must be substantially visible
-            // Fixed: adjust right boundary calculation for sidebar presence
+            // Improved visibility: use visibility ratio instead of strict margins
+            const viewportHeight = window.innerHeight;
+            const viewportWidth = effectiveWidth;
+            const visibleHeight = Math.min(rect.bottom, viewportHeight) - Math.max(rect.top, 0);
+            const visibleWidth = Math.min(rect.right, viewportWidth) - Math.max(rect.left, 0);
+            const area = Math.max(1, rect.width * rect.height);
+            const visibleArea = Math.max(0, visibleHeight) * Math.max(0, visibleWidth);
+            const visibilityRatio = visibleArea / area;
+
             const isVisible =
-              rect.bottom > 50 && // Bottom is at least 50px below the top of viewport
-              rect.top < window.innerHeight - 50 && // Top is at least 50px above the bottom of viewport
-              rect.right > 50 && // Right edge is at least 50px from left edge
-              rect.left < effectiveWidth - 50 && // Left edge considers sidebar width
-              rect.height > 10 && // Must have some meaningful height
-              rect.width > 10; // Must have some meaningful width
+              visibilityRatio > 0.15 && // At least 15% of block visible
+              rect.height > 8 &&
+              rect.width > 8;
 
             // Debug visibility calculation for first few elements
             if (visibleBlocks.length < 3) {
@@ -702,10 +713,11 @@ export class RoamService {
                   width: rect.width,
                   height: rect.height,
                 },
-                windowHeight: window.innerHeight,
+                windowHeight: viewportHeight,
                 windowWidth: window.innerWidth,
                 effectiveWidth,
                 sidebarVisible,
+                visibilityRatio: Number(visibilityRatio.toFixed(2)),
                 isVisible,
               });
             }
@@ -714,7 +726,7 @@ export class RoamService {
               visibleBlocks.push({
                 uid,
                 string,
-                children: [], // We'll focus on the main visible content for now
+                children: [],
               });
             }
           } else {
@@ -1262,7 +1274,7 @@ export class RoamService {
     );
     // Getting comprehensive page context
 
-    const [currentPage, sidebarNotes] = await Promise.all([
+    let [currentPage, sidebarNotes] = await Promise.all([
       this.getCurrentPageInfo(),
       this.getSidebarNotes(),
     ]);
@@ -1276,6 +1288,10 @@ export class RoamService {
       console.log("📅 Detected daily notes view - scanning for visible daily notes");
       visibleDailyNotes = await this.getVisibleDailyNotes();
       console.log(`📅 Found ${visibleDailyNotes.length} visible daily notes`);
+      // In daily notes view, avoid keeping a stale page in context
+      if (visibleDailyNotes.length > 0) {
+        currentPage = null;
+      }
     } else {
       console.log("📄 Regular page view - getting visible blocks");
       visibleBlocks = this.getVisibleBlocks();
@@ -3203,9 +3219,34 @@ export class RoamService {
         }
       }
 
-      return dailyNoteCount >= 1; // Changed from > 1 to >= 1 to include single daily note pages
+      return dailyNoteCount >= 1; // Single or multiple daily notes visible
     } catch (error) {
       console.error("Error checking daily notes view:", error);
+      return false;
+    }
+  }
+
+  /**
+   * Detect aggregated daily notes view (multiple daily notes visible)
+   */
+  static isAggregatedDailyNotesView(): boolean {
+    try {
+      const titleElements = document.querySelectorAll(".rm-title-display");
+      let dailyNoteCount = 0;
+
+      for (const titleElement of titleElements) {
+        const title = titleElement.textContent?.trim();
+        if (title && this.isDailyNotePage(title)) {
+          const rect = titleElement.getBoundingClientRect();
+          if (rect.bottom > 0 && rect.top < window.innerHeight) {
+            dailyNoteCount++;
+          }
+        }
+      }
+
+      return dailyNoteCount > 1;
+    } catch (error) {
+      console.error("Error checking aggregated daily notes view:", error);
       return false;
     }
   }
