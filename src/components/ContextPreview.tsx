@@ -96,11 +96,23 @@ export const ContextPreview: React.FC<ContextPreviewProps> = ({
 
   if (!context) return null;
 
-  // Helper function to count non-empty blocks
-  const countNonEmptyBlocks = (blocks: { uid: string; string: string }[]) => {
-    return blocks.filter(
-      (block) => block.string && block.string.trim().length > 0
-    ).length;
+  // Helper function to count non-empty blocks recursively (includes children)
+  const countNonEmptyBlocks = (blocks: { uid: string; string: string; children?: any[] }[]): number => {
+    let count = 0;
+    
+    for (const block of blocks) {
+      // Count this block if it has content
+      if (block.string && block.string.trim().length > 0) {
+        count += 1;
+      }
+      
+      // Recursively count children blocks
+      if (block.children && block.children.length > 0) {
+        count += countNonEmptyBlocks(block.children);
+      }
+    }
+    
+    return count;
   };
 
   const renderHoverList = (items: { uid: string; string: string }[]) => {
@@ -238,7 +250,11 @@ export const ContextPreview: React.FC<ContextPreviewProps> = ({
       {context.currentPage && (
         <Popover
           content={renderHoverList(
-            currentPageBlocks.length > 0 ? currentPageBlocks : visibleBlocks
+            // For pages with proper structure, show actual blocks (even if empty)
+            // Only use visibleBlocks when we have no page structure info
+            context.currentPage 
+              ? currentPageBlocks 
+              : visibleBlocks
           )}
           position={Position.TOP}
           interactionKind="hover"
@@ -253,8 +269,10 @@ export const ContextPreview: React.FC<ContextPreviewProps> = ({
                 : context.currentPage.title
             }
             count={
-              currentPageBlocks.length > 0
-                ? countNonEmptyBlocks(currentPageBlocks)
+              // For pages with proper structure (even if 0 blocks), show the actual count
+              // Only use visibleBlocks as fallback when we have no page structure info
+              context.currentPage 
+                ? countNonEmptyBlocks(currentPageBlocks) 
                 : countNonEmptyBlocks(visibleBlocks)
             }
             variant={isCurrentPageDaily ? "daily" : "page"}

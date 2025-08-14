@@ -153,11 +153,14 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
       if (!forceUpdate) {
         const now = Date.now();
         const timeSinceLastUpdate = now - lastContextUpdate;
-        const MIN_UPDATE_INTERVAL = 1000; // 1 second minimum between updates
+        // Dynamic throttling based on context: daily notes need faster updates when scrolling
+        const isDailyNotesView = window.location.href.includes('/page/Daily Notes') || 
+                                document.querySelector('.roam-log-page') !== null;
+        const MIN_UPDATE_INTERVAL = isDailyNotesView ? 400 : 1000; // Faster updates for daily notes
 
         if (timeSinceLastUpdate < MIN_UPDATE_INTERVAL) {
           console.log(
-            `⏳ Context update throttled (${timeSinceLastUpdate}ms since last update)`
+            `⏳ Context update throttled (${timeSinceLastUpdate}ms since last update, daily notes: ${isDailyNotesView})`
           );
           return;
         }
@@ -363,13 +366,18 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
     // Listen for scroll events to update context when user scrolls
     const handleScroll = () => {
       console.log("📜 Scroll detected");
+      // Dynamic delay based on content type: daily notes need faster updates
+      const isDailyNotesView = window.location.href.includes('/page/Daily Notes') || 
+                              document.querySelector('.roam-log-page') !== null;
+      const scrollDelay = isDailyNotesView ? 200 : 500; // Faster scroll response for daily notes
+      
       // Debounce the update to avoid too frequent calls during scrolling
       if (updateContextTimeoutRef.current) {
         clearTimeout(updateContextTimeoutRef.current);
       }
       updateContextTimeoutRef.current = setTimeout(() => {
         updatePageContext();
-      }, 500); // 500ms delay for scroll events (longer to avoid spam)
+      }, scrollDelay);
     };
 
     document.addEventListener("selectionchange", handleSelectionChange);

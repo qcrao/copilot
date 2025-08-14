@@ -605,7 +605,7 @@ export class RoamService {
 
       // Use requestAnimationFrame for better performance
       const processBlocks = () => {
-        blockElements!.forEach((element) => {
+        for (const element of blockElements!) {
           // Try multiple ways to get the block UID
           let uid = element.getAttribute("data-block-uid");
           if (!uid) {
@@ -627,12 +627,9 @@ export class RoamService {
             }
           }
           if (!uid) {
-            // Generate a temporary UID based on content or position for debugging
-            uid = `temp-${
-              element.textContent?.substring(0, 20)?.replace(/\s+/g, "-") ||
-              Math.random().toString(36).substr(2, 9)
-            }`;
-            console.log("🔍 No UID found, using temporary UID:", uid);
+            // Skip elements without real block UIDs - they're not actual Roam blocks
+            console.log("🔍 No UID found, skipping non-block element:", element.className);
+            continue;
           }
 
           // Try multiple ways to get the block text based on actual Roam structure
@@ -731,7 +728,7 @@ export class RoamService {
               });
             }
           }
-        });
+        }
       };
 
       processBlocks();
@@ -1292,10 +1289,10 @@ export class RoamService {
       }
     }
 
-    // Get linked references if we have a current page
+    // Get linked references if we have a current page (using comprehensive method)
     let linkedReferences: RoamBlock[] = [];
     if (currentPage) {
-      linkedReferences = await this.getLinkedReferences(currentPage.title);
+      linkedReferences = await this.getBlocksReferencingPage(currentPage.title);
     }
 
     // Log page context summary
@@ -2355,25 +2352,28 @@ export class RoamService {
       console.log("Getting blocks referencing page:", pageTitle);
 
       // Multiple query strategies for better coverage
+      // Escape page title for safe use in Datalog queries
+      const escapedPageTitle = pageTitle.replace(/"/g, '\\"');
+      
       const queries = [
         // Standard page reference [[PageTitle]]
         `[:find ?uid ?string
          :where
          [?block :block/string ?string]
          [?block :block/uid ?uid]
-         [(clojure.string/includes? ?string "[[${pageTitle}]]")]`,
+         [(clojure.string/includes? ?string "[[${escapedPageTitle}]]")]]`,
 
-        // Tag reference #PageTitle
-        `[:find ?uid ?string
+        // Tag reference #PageTitle (only if page title has no spaces)
+        ...(pageTitle.includes(' ') ? [] : [`[:find ?uid ?string
          :where
          [?block :block/string ?string]
          [?block :block/uid ?uid]
-         [(clojure.string/includes? ?string "#${pageTitle}")]`,
+         [(clojure.string/includes? ?string "#${escapedPageTitle}")]`]),
 
-        // Direct reference relationship
+        // Direct reference relationship (most reliable)
         `[:find ?uid ?string
          :where
-         [?page :node/title "${pageTitle}"]
+         [?page :node/title "${escapedPageTitle}"]
          [?block :block/refs ?page]
          [?block :block/uid ?uid]
          [?block :block/string ?string]]`,
@@ -3227,8 +3227,13 @@ export class RoamService {
           !processedTitles.has(title)
         ) {
           const rect = titleElement.getBoundingClientRect();
-          // Check if title is visible
-          if (rect.bottom > 0 && rect.top < window.innerHeight) {
+          // More precise visibility check for daily notes (must be substantially visible)
+          const isVisible = rect.bottom > 50 && 
+                           rect.top < window.innerHeight - 50 && 
+                           rect.width > 0 && 
+                           rect.height > 10; // Must have meaningful size
+          
+          if (isVisible) {
             processedTitles.add(title);
             console.log("📅 Found visible daily note:", title);
 
