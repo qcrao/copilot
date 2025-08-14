@@ -204,22 +204,18 @@ export const ConversationList: React.FC<ConversationListProps> = ({
         <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
           <Icon icon="chat" size={16} color="#5c7080" />
           <span
-            style={{ fontSize: "13px", fontWeight: "500", color: "#5c7080", letterSpacing: "0.3px" }}
+            style={{
+              fontSize: "13px",
+              fontWeight: "500",
+              color: "#5c7080",
+              letterSpacing: "0.3px",
+            }}
           >
             Chat History
           </span>
         </div>
 
         <div style={{ display: "flex", gap: "4px" }}>
-          <Button
-            minimal
-            small
-            icon="plus"
-            onClick={onNewConversation}
-            title="New Chat"
-            disabled={isLoading}
-            style={{ color: "#5c7080" }}
-          />
           <Button
             minimal
             small
@@ -259,10 +255,12 @@ export const ConversationList: React.FC<ConversationListProps> = ({
                 disabled={isDeleting}
                 style={{
                   minWidth: "20px",
-                  minHeight: "20px"
+                  minHeight: "20px",
                 }}
                 title="Confirm Delete All"
-                className={`${isDeleting ? "rr-copilot-refresh-spinning" : ""} rr-copilot-delete-confirm`}
+                className={`${
+                  isDeleting ? "rr-copilot-refresh-spinning" : ""
+                } rr-copilot-delete-confirm`}
               />
               <Button
                 minimal
@@ -273,7 +271,7 @@ export const ConversationList: React.FC<ConversationListProps> = ({
                 style={{
                   minWidth: "20px",
                   minHeight: "20px",
-                  color: "#666"
+                  color: "#666",
                 }}
                 title="Cancel"
               />
