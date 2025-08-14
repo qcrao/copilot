@@ -3227,20 +3227,29 @@ export class RoamService {
           !processedTitles.has(title)
         ) {
           const rect = titleElement.getBoundingClientRect();
-          // More precise visibility check for daily notes (must be substantially visible)
-          const isVisible = rect.bottom > 50 && 
-                           rect.top < window.innerHeight - 50 && 
+          // Permissive visibility check - any visible part counts as visible
+          const viewportHeight = window.innerHeight;
+          
+          const visibleHeight = Math.min(rect.bottom, viewportHeight) - Math.max(rect.top, 0);
+          const totalHeight = rect.height;
+          const visibilityRatio = totalHeight > 0 ? visibleHeight / totalHeight : 0;
+          
+          const isVisible = rect.top < viewportHeight && 
+                           rect.bottom > 0 && 
                            rect.width > 0 && 
-                           rect.height > 10; // Must have meaningful size
+                           rect.height > 10 && 
+                           visibilityRatio > 0.1; // Any part visible (more than 10%)
           
           if (isVisible) {
             processedTitles.add(title);
-            console.log("📅 Found visible daily note:", title);
+            console.log("📅 Found visible daily note:", title, `(${(visibilityRatio * 100).toFixed(1)}% visible, rect: top=${rect.top}, bottom=${rect.bottom}, viewport=${viewportHeight})`);
 
             const page = await this.getPageByTitle(title);
             if (page) {
               visibleDailyNotes.push(page);
             }
+          } else {
+            console.log("📅 Daily note not sufficiently visible:", title, `(${(visibilityRatio * 100).toFixed(1)}% visible, rect: top=${rect.top}, bottom=${rect.bottom}, viewport=${viewportHeight})`);
           }
         }
       }

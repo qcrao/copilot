@@ -222,6 +222,11 @@ export const ContextPreview: React.FC<ContextPreviewProps> = ({
     ? isDailyNote(context.currentPage.title)
     : false;
 
+  // Check if current page is actually visible (for daily notes)
+  const isCurrentPageActuallyVisible = isCurrentPageDaily 
+    ? context.visibleDailyNotes?.some(dn => dn.uid === context.currentPage?.uid) || false
+    : true; // Non-daily pages are always considered "visible" when they're current
+
   // Check if daily note is the same as current page
   const isDailyNoteSameAsCurrentPage =
     context.currentPage &&
@@ -240,6 +245,8 @@ export const ContextPreview: React.FC<ContextPreviewProps> = ({
   console.log('🔍 CONTEXT PREVIEW DEBUG:', {
     visibleDailyNotes: context.visibleDailyNotes?.map(dn => ({ title: dn.title, uid: dn.uid, blocksCount: dn.blocks.length })),
     currentPage: context.currentPage ? { title: context.currentPage.title, uid: context.currentPage.uid } : null,
+    isCurrentPageDaily,
+    isCurrentPageActuallyVisible,
     hasPageContent,
     hasBacklinks,
     hasSidebarNotes
@@ -276,7 +283,7 @@ export const ContextPreview: React.FC<ContextPreviewProps> = ({
         )}
 
       {/* Current Page Chip - show as daily note if it's a daily note, otherwise as regular page */}
-      {context.currentPage && (
+      {context.currentPage && isCurrentPageActuallyVisible && (
         <Popover
           content={renderHoverList(
             // For pages with proper structure, show actual blocks (even if empty)
