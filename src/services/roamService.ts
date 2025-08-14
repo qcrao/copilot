@@ -1280,7 +1280,7 @@ export class RoamService {
       this.getSidebarNotes(),
     ]);
 
-    // Smart visible blocks detection - only for daily notes pages
+    // Smart visible blocks detection
     let visibleBlocks: RoamBlock[] = [];
     let visibleDailyNotes: RoamPage[] = [];
 
@@ -1290,7 +1290,9 @@ export class RoamService {
       visibleDailyNotes = await this.getVisibleDailyNotes();
       console.log(`📅 Found ${visibleDailyNotes.length} visible daily notes`);
     } else {
-      console.log("📄 Regular page view - no daily notes detected");
+      console.log("📄 Regular page view - getting visible blocks");
+      visibleBlocks = this.getVisibleBlocks();
+      console.log(`📄 Found ${visibleBlocks.length} visible blocks`);
     }
 
     // Get linked references if we have a current page
