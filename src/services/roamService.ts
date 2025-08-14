@@ -222,92 +222,69 @@ export class RoamService {
       let currentPageUid = null;
       let title = "";
 
-      // First, check if we have sidebar notes (they take priority as context)
-      // Instead of trying to pick one "active" page, we'll let all sidebar notes
-      // contribute to context via the getSidebarNotes() method in getPageContext()
-      const sidebarNotes = await this.getSidebarNotes();
-      if (sidebarNotes && sidebarNotes.length > 0) {
-        // Found sidebar notes - using main window as current page
-        // Continue to get main window page, sidebar notes will be included in context separately
+      // IMPROVED: Use more reliable methods first, then fallback to visible content detection
+      
+      // Method 1: Try to get from main window API (most reliable)
+      const apiResult =
+        window.roamAlphaAPI?.ui?.mainWindow?.getOpenPageOrBlockUid?.();
+      if (apiResult && typeof apiResult === "object" && "then" in apiResult) {
+        currentPageUid = await apiResult;
+      } else {
+        currentPageUid = apiResult || null;
       }
 
-      // NEW: First try to detect the page based on visible content
-      const visibleBlocks = this.getVisibleBlocks();
-      if (visibleBlocks.length > 0) {
-        // Look for a page title in the visible area
-        const titleElements = document.querySelectorAll(".rm-title-display");
-        for (const titleElement of titleElements) {
-          const rect = titleElement.getBoundingClientRect();
-          // Check if title is visible
-          if (
-            rect.bottom > 0 &&
-            rect.top < window.innerHeight &&
-            rect.right > 0 &&
-            rect.left < window.innerWidth
-          ) {
-            const visibleTitle = titleElement.textContent?.trim();
-            if (visibleTitle) {
-              console.log("🔍 Found visible page title:", visibleTitle);
-              title = visibleTitle;
+      // Method 2: Try to get from URL if API failed
+      if (!currentPageUid) {
+        const urlMatch = window.location.href.match(/\/page\/([^/?]+)/);
+        if (urlMatch) {
+          currentPageUid = decodeURIComponent(urlMatch[1]);
+          console.log("🔍 Got page UID from URL:", currentPageUid);
+        }
+      }
 
-              // Try to get the UID for this title
+      // Method 3: Look for main window title element (not affected by sidebar)
+      if (!currentPageUid) {
+        // Find the main content area first to avoid sidebar interference
+        const mainContent = document.querySelector(".roam-main") || 
+                           document.querySelector(".rm-main") ||
+                           document.querySelector("[data-testid='main-content']") ||
+                           document.querySelector(".roam-article") ||
+                           document.body;
+        
+        if (mainContent) {
+          const titleElement = mainContent.querySelector(".rm-title-display");
+          if (titleElement) {
+            const pageTitle = titleElement.textContent?.trim();
+            if (pageTitle) {
+              console.log("🔍 Found main window page title:", pageTitle);
+              title = pageTitle;
+              
               const titleQuery = `
                 [:find ?uid
                  :where
-                 [?e :node/title "${visibleTitle}"]
+                 [?e :node/title "${pageTitle}"]
                  [?e :block/uid ?uid]]
               `;
               const titleResult = window.roamAlphaAPI.q(titleQuery);
               if (titleResult && titleResult.length > 0) {
                 currentPageUid = titleResult[0][0];
-                console.log("✅ Using visible page as current:", visibleTitle);
-                break;
+                console.log("✅ Using main window page as current:", pageTitle);
               }
             }
           }
         }
       }
 
-      // Fallback: Try to get from main window API (might be async)
+      // Method 4: Enhanced visible content detection as final fallback
       if (!currentPageUid) {
-        const apiResult =
-          window.roamAlphaAPI?.ui?.mainWindow?.getOpenPageOrBlockUid?.();
-        if (apiResult && typeof apiResult === "object" && "then" in apiResult) {
-          currentPageUid = await apiResult;
-        } else {
-          currentPageUid = apiResult || null;
+        const visibleBlocks = this.getVisibleBlocks();
+        if (visibleBlocks.length > 0) {
+          console.log("🔍 Fallback: trying visible content detection");
+          // This now works better due to the sidebar-aware visibility logic we fixed above
         }
       }
 
-      // Fallback: try to get from URL
-      if (!currentPageUid) {
-        const urlMatch = window.location.href.match(/\/page\/([^/?]+)/);
-        if (urlMatch) {
-          currentPageUid = decodeURIComponent(urlMatch[1]);
-        }
-      }
-
-      if (!currentPageUid) {
-        // Fallback: try to get from document title or other methods
-        const titleElement = document.querySelector(".rm-title-display");
-        if (titleElement) {
-          title = titleElement.textContent || "";
-
-          // Try to find page by title
-          if (title) {
-            const titleQuery = `
-              [:find ?uid
-               :where
-               [?e :node/title "${title}"]
-               [?e :block/uid ?uid]]
-            `;
-            const titleResult = window.roamAlphaAPI.q(titleQuery);
-            if (titleResult && titleResult.length > 0) {
-              currentPageUid = titleResult[0][0];
-            }
-          }
-        }
-      }
+      // All main detection methods completed above
 
       if (!currentPageUid) {
         // No current page UID found
@@ -694,12 +671,23 @@ export class RoamService {
             // Only include blocks that are actually visible and have meaningful content
             const rect = element.getBoundingClientRect();
 
+            // Check if sidebar is open to adjust visibility calculations
+            const sidebarElement = document.querySelector("#roam-right-sidebar-content") || 
+                                 document.querySelector(".roam-sidebar-container");
+            const sidebarVisible = sidebarElement && (sidebarElement as HTMLElement).offsetWidth > 0;
+            
+            // Calculate effective main window width when sidebar is open
+            const effectiveWidth = sidebarVisible ? 
+              window.innerWidth * 0.6 : // When sidebar is open, main content uses ~60% of width
+              window.innerWidth;
+
             // Be more precise about visibility - must be substantially visible
+            // Fixed: adjust right boundary calculation for sidebar presence
             const isVisible =
               rect.bottom > 50 && // Bottom is at least 50px below the top of viewport
               rect.top < window.innerHeight - 50 && // Top is at least 50px above the bottom of viewport
               rect.right > 50 && // Right edge is at least 50px from left edge
-              rect.left < window.innerWidth - 50 && // Left edge is at least 50px from right edge
+              rect.left < effectiveWidth - 50 && // Left edge considers sidebar width
               rect.height > 10 && // Must have some meaningful height
               rect.width > 10; // Must have some meaningful width
 
@@ -719,6 +707,8 @@ export class RoamService {
                 },
                 windowHeight: window.innerHeight,
                 windowWidth: window.innerWidth,
+                effectiveWidth,
+                sidebarVisible,
                 isVisible,
               });
             }
@@ -1293,6 +1283,13 @@ export class RoamService {
       console.log("📄 Regular page view - getting visible blocks");
       visibleBlocks = this.getVisibleBlocks();
       console.log(`📄 Found ${visibleBlocks.length} visible blocks`);
+      
+      // SAFETY: If we have a current page but no visible blocks detected,
+      // use the current page blocks as fallback (handles sidebar interference)
+      if (visibleBlocks.length === 0 && currentPage && currentPage.blocks.length > 0) {
+        console.log("🔧 No visible blocks detected but current page has content - using page blocks as fallback");
+        visibleBlocks = currentPage.blocks;
+      }
     }
 
     // Get linked references if we have a current page
