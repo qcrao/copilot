@@ -19,6 +19,7 @@ const DEFAULT_MULTI_PROVIDER_SETTINGS: MultiProviderSettings = {
   responseLanguage: "English",
   apiKeys: {},
   ollamaBaseUrl: "http://localhost:11434",
+  customModels: {},
 };
 
 // New multi-provider settings
@@ -51,8 +52,19 @@ export function loadInitialSettings(extensionAPI: any) {
     }
   });
 
+  // Load custom models for all providers
+  const customModels: { [providerId: string]: string } = {};
+  AI_PROVIDERS.forEach((provider) => {
+    const savedCustomModels = extensionAPI.settings.get(
+      `copilot-custom-models-${provider.id}`
+    );
+    if (savedCustomModels) {
+      customModels[provider.id] = savedCustomModels;
+    }
+  });
+
   // For initial loading, use synchronous model checking
-  const availableModels = getSyncAvailableModelsWithKeys(apiKeys);
+  const availableModels = getSyncAvailableModelsWithKeys(apiKeys, customModels);
   let currentModel = savedCurrentModel || "gpt-4o-mini";
 
   // If the saved model doesn't have an API key, use the first available model
@@ -68,6 +80,7 @@ export function loadInitialSettings(extensionAPI: any) {
     maxTokens: savedMaxTokens ? parseInt(savedMaxTokens) : 8000,
     responseLanguage: savedResponseLanguage || "English",
     ollamaBaseUrl: savedOllamaBaseUrl || "http://localhost:11434",
+    customModels,
   };
 
   // Keep legacy settings for backward compatibility
@@ -85,10 +98,24 @@ export function loadInitialSettings(extensionAPI: any) {
   };
 }
 
+// Helper function to get models for a provider (custom or default)
+function getProviderModels(provider: any, customModels: { [providerId: string]: string }): string[] {
+  // Check if there are custom models for this provider
+  const customModelList = customModels[provider.id];
+  if (customModelList && customModelList.trim()) {
+    // Parse comma-separated custom models
+    return customModelList.split(',').map(model => model.trim()).filter(model => model);
+  }
+  
+  // Use default models
+  return provider.models;
+}
+
 // Synchronous version for initial loading (uses fallback models for Ollama)
-function getSyncAvailableModelsWithKeys(apiKeys: {
-  [providerId: string]: string;
-}): Array<{ model: string; provider: string; providerName: string }> {
+function getSyncAvailableModelsWithKeys(
+  apiKeys: { [providerId: string]: string },
+  customModels: { [providerId: string]: string } = {}
+): Array<{ model: string; provider: string; providerName: string }> {
   const availableModels: Array<{
     model: string;
     provider: string;
@@ -102,12 +129,14 @@ function getSyncAvailableModelsWithKeys(apiKeys: {
       (apiKeys[provider.id] && apiKeys[provider.id].trim() !== "");
 
     if (hasApiKey) {
+      const models = getProviderModels(provider, customModels);
+      
       // For Ollama, skip if no models defined (will be loaded dynamically)
-      if (provider.id === "ollama" && provider.models.length === 0) {
+      if (provider.id === "ollama" && models.length === 0) {
         return;
       }
 
-      provider.models.forEach((model) => {
+      models.forEach((model) => {
         availableModels.push({
           model,
           provider: provider.id,
@@ -121,9 +150,10 @@ function getSyncAvailableModelsWithKeys(apiKeys: {
 }
 
 // Helper function to get available models with given API keys
-async function getAvailableModelsWithKeys(apiKeys: {
-  [providerId: string]: string;
-}): Promise<Array<{ model: string; provider: string; providerName: string }>> {
+async function getAvailableModelsWithKeys(
+  apiKeys: { [providerId: string]: string },
+  customModels: { [providerId: string]: string } = {}
+): Promise<Array<{ model: string; provider: string; providerName: string }>> {
   const availableModels: Array<{
     model: string;
     provider: string;
@@ -137,10 +167,10 @@ async function getAvailableModelsWithKeys(apiKeys: {
       (apiKeys[provider.id] && apiKeys[provider.id].trim() !== "");
 
     if (hasApiKey) {
-      let models = provider.models;
+      let models = getProviderModels(provider, customModels);
 
-      // For Ollama, try to fetch dynamic models
-      if (provider.id === "ollama" && provider.supportsDynamicModels) {
+      // For Ollama, try to fetch dynamic models if no custom models are set
+      if (provider.id === "ollama" && provider.supportsDynamicModels && !customModels[provider.id]) {
         try {
           const { AIService } = await import("./services/aiService");
           const dynamicModels = await AIService.getOllamaModels();
@@ -183,7 +213,10 @@ async function getAvailableModelsWithKeys(apiKeys: {
 export async function getAvailableModels(): Promise<
   Array<{ model: string; provider: string; providerName: string }>
 > {
-  return await getAvailableModelsWithKeys(multiProviderSettings.apiKeys);
+  return await getAvailableModelsWithKeys(
+    multiProviderSettings.apiKeys,
+    multiProviderSettings.customModels || {}
+  );
 }
 
 export function initPanelConfig(extensionAPI: any) {
@@ -241,6 +274,37 @@ export function initPanelConfig(extensionAPI: any) {
           },
         },
       });
+
+      // Add custom models input for Ollama
+      providerSettings.push({
+        id: `copilot-custom-models-${provider.id}`,
+        name: `${provider.name} Custom Models`,
+        description: React.createElement(
+          React.Fragment,
+          {},
+          "Enter custom models for Ollama (comma-separated)",
+          React.createElement("br"),
+          React.createElement("small", {}, "Leave empty to auto-detect models"),
+          React.createElement("br"),
+          React.createElement("small", {}, "Example: llama3.2:1b, codellama:7b")
+        ),
+        action: {
+          type: "input",
+          placeholder: "llama3.2:1b, codellama:7b",
+          value: multiProviderSettings.customModels?.[provider.id] || "",
+          onChange: (evt: any) => {
+            const value = evt?.target?.value;
+            if (value === undefined) return;
+
+            if (!multiProviderSettings.customModels) {
+              multiProviderSettings.customModels = {};
+            }
+            multiProviderSettings.customModels[provider.id] = value;
+            extensionAPI.settings.set(`copilot-custom-models-${provider.id}`, value);
+          },
+        },
+      });
+
       return; // Skip API key setting for Ollama
     }
 
@@ -308,6 +372,37 @@ export function initPanelConfig(extensionAPI: any) {
 
           multiProviderSettings.apiKeys[provider.id] = value;
           extensionAPI.settings.set(`copilot-api-key-${provider.id}`, value);
+        },
+      },
+    });
+
+    // Add custom models input setting
+    const defaultModels = provider.models.join(", ");
+    providerSettings.push({
+      id: `copilot-custom-models-${provider.id}`,
+      name: `${provider.name} Custom Models`,
+      description: React.createElement(
+        React.Fragment,
+        {},
+        `Enter custom models for ${provider.name} (comma-separated)`,
+        React.createElement("br"),
+        React.createElement("small", {}, `Default: ${defaultModels}`),
+        React.createElement("br"),
+        React.createElement("small", {}, "Leave empty to use default models")
+      ),
+      action: {
+        type: "input",
+        placeholder: defaultModels,
+        value: multiProviderSettings.customModels?.[provider.id] || "",
+        onChange: (evt: any) => {
+          const value = evt?.target?.value;
+          if (value === undefined) return;
+
+          if (!multiProviderSettings.customModels) {
+            multiProviderSettings.customModels = {};
+          }
+          multiProviderSettings.customModels[provider.id] = value;
+          extensionAPI.settings.set(`copilot-custom-models-${provider.id}`, value);
         },
       },
     });

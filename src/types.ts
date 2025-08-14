@@ -28,6 +28,7 @@ export interface MultiProviderSettings {
   maxTokens?: number;
   responseLanguage?: string;
   ollamaBaseUrl?: string; // Ollama local service address
+  customModels?: { [providerId: string]: string }; // Custom model lists for each provider (comma-separated)
 }
 
 export interface ChatMessage {
