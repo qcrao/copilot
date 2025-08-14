@@ -1,5 +1,5 @@
 // src/components/ContextPreview.tsx
-import React, { useMemo, useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { Icon, Tag, Card, Popover, Position } from "@blueprintjs/core";
 import { PageContext } from "../types";
 import { RoamService } from "../services/roamService";
@@ -98,20 +98,44 @@ export const ContextPreview: React.FC<ContextPreviewProps> = ({
 
   // Helper function to count non-empty blocks recursively (includes children)
   const countNonEmptyBlocks = (blocks: { uid: string; string: string; children?: any[] }[]): number => {
+    if (!blocks || !Array.isArray(blocks)) {
+      console.warn('🔍 countNonEmptyBlocks: Invalid blocks data', blocks);
+      return 0;
+    }
+    
     let count = 0;
     
     for (const block of blocks) {
+      if (!block) continue;
+      
       // Count this block if it has content
       if (block.string && block.string.trim().length > 0) {
         count += 1;
       }
       
       // Recursively count children blocks
-      if (block.children && block.children.length > 0) {
-        count += countNonEmptyBlocks(block.children);
+      if (block.children && Array.isArray(block.children) && block.children.length > 0) {
+        const childCount = countNonEmptyBlocks(block.children);
+        count += childCount;
+        console.log(`🔍 Block ${block.uid}: ${block.string ? 'has content' : 'empty'}, children: ${childCount}`);
       }
     }
     
+    return count;
+  };
+
+  // Helper function to count only top-level non-empty blocks (for debugging)
+  const countTopLevelBlocks = (blocks: { uid: string; string: string; children?: any[] }[]): number => {
+    if (!blocks || !Array.isArray(blocks)) {
+      return 0;
+    }
+    
+    let count = 0;
+    for (const block of blocks) {
+      if (block && block.string && block.string.trim().length > 0) {
+        count += 1;
+      }
+    }
     return count;
   };
 
@@ -239,9 +263,14 @@ export const ContextPreview: React.FC<ContextPreviewProps> = ({
             <ContextChip
               icon="calendar"
               text={removeYearFromTitle(context.dailyNote.title)}
-              count={countNonEmptyBlocks(dailyNoteBlocks)}
+              count={(() => {
+                const allBlocksCount = countNonEmptyBlocks(dailyNoteBlocks);
+                const topLevelCount = countTopLevelBlocks(dailyNoteBlocks);
+                console.log(`🔍 Current Daily Note ${context.dailyNote.title}: All blocks: ${allBlocksCount}, Top-level: ${topLevelCount}`);
+                return allBlocksCount;
+              })()}
               variant="daily"
-              title={context.dailyNote.title}
+              title={`${context.dailyNote.title} - ${countNonEmptyBlocks(dailyNoteBlocks)} blocks (all levels)`}
             />
           </Popover>
         )}
@@ -268,13 +297,46 @@ export const ContextPreview: React.FC<ContextPreviewProps> = ({
                 ? removeYearFromTitle(context.currentPage.title)
                 : context.currentPage.title
             }
-            count={
-              // For pages with proper structure (even if 0 blocks), show the actual count
-              // Only use visibleBlocks as fallback when we have no page structure info
-              context.currentPage 
-                ? countNonEmptyBlocks(currentPageBlocks) 
-                : countNonEmptyBlocks(visibleBlocks)
-            }
+            count={(() => {
+              const blocksToCount = context.currentPage ? currentPageBlocks : visibleBlocks;
+              const allBlocksCount = countNonEmptyBlocks(blocksToCount);
+              const topLevelCount = countTopLevelBlocks(blocksToCount);
+              console.log(`🔍 Current Page ${context.currentPage?.title}: All blocks: ${allBlocksCount}, Top-level: ${topLevelCount}, currentPageBlocks:`, currentPageBlocks);
+              console.log('🔍 currentPageBlocks structure:', currentPageBlocks.map(b => ({ 
+                uid: b.uid, 
+                string: b.string?.slice(0, 50) + '...', 
+                childrenCount: b.children?.length || 0,
+                children: b.children?.map(c => ({ 
+                  uid: c.uid, 
+                  string: c.string?.slice(0, 30) + '...', 
+                  childrenCount: c.children?.length || 0 
+                })) || []
+              })));
+              
+              // Manual count for verification
+              let manualCount = 0;
+              const countManually = (blocks: any[]) => {
+                let count = 0;
+                for (const block of blocks) {
+                  if (block.string && block.string.trim().length > 0) {
+                    count += 1;
+                  }
+                  if (block.children && block.children.length > 0) {
+                    count += countManually(block.children);
+                  }
+                }
+                return count;
+              };
+              manualCount = countManually(currentPageBlocks);
+              console.log(`🔍 Manual count verification: ${manualCount}`);
+              
+              // Expected count based on earlier logs
+              const expectedChildrenTotal = 2 + 1 + 1 + 2 + 7; // 13 children
+              const expectedTotal = 4 + expectedChildrenTotal; // 17 total
+              console.log(`🔍 Expected total blocks: ${expectedTotal} (4 top-level + ${expectedChildrenTotal} children)`);
+              console.log(`🔍 Actual vs Expected: ${allBlocksCount} vs ${expectedTotal} = ${allBlocksCount - expectedTotal} difference`);
+              return allBlocksCount;
+            })()}
             variant={isCurrentPageDaily ? "daily" : "page"}
             title={context.currentPage.title}
             maxTextWidth={120}
@@ -319,26 +381,30 @@ export const ContextPreview: React.FC<ContextPreviewProps> = ({
           filtered: filteredNotes.map(dn => ({ title: dn.title, uid: dn.uid }))
         });
 
-        return filteredNotes.map((dailyNote, index) => (
-          <Popover
-            key={dailyNote.uid}
-            content={renderHoverList(dailyNote.blocks)}
-            position={Position.TOP}
-            interactionKind="hover"
-            minimal
-            hoverOpenDelay={100}
-          >
-            <ContextChip
-              icon="calendar"
-              text={removeYearFromTitle(dailyNote.title)}
-              count={countNonEmptyBlocks(dailyNote.blocks)}
-              variant="daily"
-              title={`Daily Note: ${dailyNote.title} - ${countNonEmptyBlocks(
-                dailyNote.blocks
-              )} blocks`}
-            />
-          </Popover>
-        ));
+        return filteredNotes.map((dailyNote) => {
+          const allBlocksCount = countNonEmptyBlocks(dailyNote.blocks);
+          const topLevelCount = countTopLevelBlocks(dailyNote.blocks);
+          console.log(`🔍 Daily Note ${dailyNote.title} (${dailyNote.uid}): All blocks: ${allBlocksCount}, Top-level: ${topLevelCount}, blocks:`, dailyNote.blocks);
+          
+          return (
+            <Popover
+              key={dailyNote.uid}
+              content={renderHoverList(dailyNote.blocks)}
+              position={Position.TOP}
+              interactionKind="hover"
+              minimal
+              hoverOpenDelay={100}
+            >
+              <ContextChip
+                icon="calendar"
+                text={removeYearFromTitle(dailyNote.title)}
+                count={allBlocksCount}
+                variant="daily"
+                title={`Daily Note: ${dailyNote.title} - ${allBlocksCount} blocks (all levels)`}
+              />
+            </Popover>
+          );
+        });
       })()}
 
       {/* Sidebar Notes */}
