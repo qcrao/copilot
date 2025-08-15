@@ -20,6 +20,7 @@ import { RoamQuery } from "../utils/roamQuery";
 import { PromptMenu } from "./PromptMenu";
 import { PROMPT_TEMPLATES } from "../data/promptTemplates";
 import { PromptTemplate } from "../types";
+import { UserTemplateService } from "../services/userTemplateService";
 import { UniversalSearchDropdown } from "./UniversalSearchDropdown";
 import { RoamService } from "../services/roamService";
 import { UniversalSearchResult } from "../types";
@@ -76,6 +77,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   const [promptFilter, setPromptFilter] = useState("");
   const [selectedPromptIndex, setSelectedPromptIndex] = useState(0);
   const [filteredPrompts, setFilteredPrompts] = useState<PromptTemplate[]>([]);
+  const [allTemplates, setAllTemplates] = useState<PromptTemplate[]>(PROMPT_TEMPLATES);
   const [promptMenuPosition, setPromptMenuPosition] = useState({
     top: 0,
     left: 0,
@@ -282,6 +284,21 @@ export const ChatInput: React.FC<ChatInputProps> = ({
       }
     }
   }, [editor, controlledValue]);
+
+  // Load all templates (official + custom) on mount
+  useEffect(() => {
+    const loadAllTemplates = async () => {
+      try {
+        const templates = await UserTemplateService.getAllTemplates();
+        setAllTemplates(templates);
+      } catch (error) {
+        console.error("Failed to load templates:", error);
+        setAllTemplates(PROMPT_TEMPLATES);
+      }
+    };
+
+    loadAllTemplates();
+  }, []);
 
   // Get all available models from providers with API keys
   useEffect(() => {
@@ -516,9 +533,9 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   };
 
   const filterPrompts = (filter: string) => {
-    if (!filter) return PROMPT_TEMPLATES;
+    if (!filter) return allTemplates;
 
-    return PROMPT_TEMPLATES.filter(
+    return allTemplates.filter(
       (template) =>
         template.title.toLowerCase().includes(filter.toLowerCase()) ||
         template.description.toLowerCase().includes(filter.toLowerCase()) ||
@@ -846,6 +863,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
       universalSearchResults,
       selectedUniversalIndex,
       isComposing,
+      allTemplates,
     ]
   );
 
