@@ -237,7 +237,8 @@ export const ContextPreview: React.FC<ContextPreviewProps> = ({
   const hasPageContent =
     countNonEmptyBlocks(currentPageBlocks) > 0 ||
     countNonEmptyBlocks(visibleBlocks) > 0 ||
-    countNonEmptyBlocks(dailyNoteBlocks) > 0;
+    countNonEmptyBlocks(dailyNoteBlocks) > 0 ||
+    (context.visibleDailyNotes && context.visibleDailyNotes.some(dn => countNonEmptyBlocks(dn.blocks) > 0));
   const hasBacklinks = backlinks.length > 0;
   const hasSidebarNotes = sidebarNotes.length > 0;
 
