@@ -52,6 +52,7 @@ interface ContextPreviewProps {
   context: PageContext | null;
   onExcludeBlock?: (uid: string) => void;
   excludedUids?: Set<string>;
+  isContextLocked?: boolean;
 }
 
 interface ContextSection {
@@ -66,6 +67,7 @@ export const ContextPreview: React.FC<ContextPreviewProps> = ({
   context,
   onExcludeBlock,
   excludedUids,
+  isContextLocked = false,
 }) => {
   const [sidebarBacklinks, setSidebarBacklinks] = useState<{
     [key: string]: number;
@@ -256,7 +258,12 @@ export const ContextPreview: React.FC<ContextPreviewProps> = ({
   if (!hasPageContent && !hasBacklinks && !hasSidebarNotes) return null;
 
   return (
-    <div className="rr-context-preview">
+    <div className={`rr-context-preview${isContextLocked ? ' rr-context-preview--locked' : ''}`}>
+      {isContextLocked && (
+        <div className="rr-context-lock-indicator">
+          <Icon icon="lock" size={12} />
+        </div>
+      )}
       {/* Daily Note - show first, only if it's different from current page */}
       {context.dailyNote &&
         dailyNoteBlocks.length > 0 &&

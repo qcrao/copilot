@@ -50,6 +50,8 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
   });
 
   const [pageContext, setPageContext] = useState<PageContext | null>(null);
+  const [isContextLocked, setIsContextLocked] = useState(false);
+  const [preservedContext, setPreservedContext] = useState<PageContext | null>(null);
   const [excludedContextUids, setExcludedContextUids] = useState<Set<string>>(
     new Set()
   );
@@ -148,6 +150,12 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
   const updatePageContext = useCallback(
     async (forceUpdate: boolean = false) => {
       if (isUnmounting || isUpdatingContext) return;
+      
+      // Don't update context if it's locked to a conversation
+      if (isContextLocked && !forceUpdate) {
+        console.log('🔒 Context is locked, skipping update');
+        return;
+      }
 
       // Prevent rapid successive updates that could cause infinite loops (unless forced)
       if (!forceUpdate) {
@@ -227,7 +235,7 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
         setIsUpdatingContext(false);
       }
     },
-    [isUnmounting, lastContextUpdate, isUpdatingContext, excludedContextUids]
+    [isUnmounting, lastContextUpdate, isUpdatingContext, excludedContextUids, isContextLocked]
   );
 
   useEffect(() => {
@@ -465,8 +473,16 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
             await ConversationService.saveConversationWithId(
               newConversationId,
               updatedMessages,
-              contextForTitle
+              contextForTitle,
+              pageContext || undefined
             );
+            
+            // Lock context after saving first message
+            if (pageContext) {
+              console.log('🔒 Context locked for new conversation:', newConversationId);
+              setPreservedContext(pageContext);
+              setIsContextLocked(true);
+            }
             console.log(
               "Immediately saved new conversation:",
               newConversationId
@@ -1196,7 +1212,8 @@ ${contextForUser}`;
               await ConversationService.saveConversationWithId(
                 latestConversationId,
                 messages,
-                contextForTitle
+                contextForTitle,
+                pageContext || undefined
               );
             }
           } else {
@@ -1212,7 +1229,7 @@ ${contextForUser}`;
               : undefined;
               
             const newConversationId =
-              await ConversationService.saveConversation(messages, contextForTitle);
+              await ConversationService.saveConversation(messages, contextForTitle, pageContext || undefined);
             if (!isUnmounting) {
               conversationIdRef.current = newConversationId;
               setCurrentConversationId(newConversationId);
@@ -1241,6 +1258,20 @@ ${contextForUser}`;
         0,
         100
       );
+
+      // Try to restore preserved context
+      const restoredContext = await ConversationService.restorePreservedContext(conversationId);
+      if (restoredContext) {
+        console.log('🔒 Context locked for conversation:', conversationId);
+        setPreservedContext(restoredContext);
+        setPageContext(restoredContext);
+        setIsContextLocked(true);
+      } else {
+        console.log('🔓 No preserved context, using current context');
+        setIsContextLocked(false);
+        setPreservedContext(null);
+        // Don't clear pageContext - keep current context as fallback
+      }
 
       setState((prev) => ({
         ...prev,
@@ -1277,6 +1308,14 @@ ${contextForUser}`;
     conversationIdRef.current = null;
     setCurrentConversationId(null);
     setInputValue(""); // Clear input value for new conversation
+    
+    // Unlock context for new conversation
+    console.log('🔓 Context unlocked for new conversation');
+    setIsContextLocked(false);
+    setPreservedContext(null);
+    
+    // Refresh current context
+    updatePageContext(true);
     setDateNotesCache({}); // Clear date notes cache
 
     // Update context when starting a new conversation
@@ -2074,6 +2113,7 @@ ${contextForUser}`;
             onCancel={handleCancelRequest} // Pass cancel handler
             context={pageContext}
             onExcludeContextBlock={handleExcludeFromContext}
+            isContextLocked={isContextLocked}
           />
         </div>
       </div>

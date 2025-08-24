@@ -2325,6 +2325,35 @@ export class RoamService {
   }
 
   /**
+   * Get page by UID
+   */
+  static async getPageByUid(uid: string): Promise<RoamPage | null> {
+    try {
+      console.log("Getting page by uid:", uid);
+
+      const query = `
+        [:find ?title
+         :where
+         [?e :block/uid "${uid}"]
+         [?e :node/title ?title]]
+      `;
+
+      const result = window.roamAlphaAPI.q(query);
+      console.log("Page query result:", result);
+
+      if (result && result.length > 0) {
+        const title = result[0][0];
+        const blocks = await this.getPageBlocks(uid);
+        return { title, uid, blocks };
+      }
+      return null;
+    } catch (error) {
+      console.error("Error getting page by uid:", error);
+      return null;
+    }
+  }
+
+  /**
    * Get block by UID (new method for getRoamNotes tool)
    */
   static async getBlockByUid(uid: string): Promise<RoamBlock | null> {

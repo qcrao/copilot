@@ -113,6 +113,27 @@ export interface RoamQueryResult {
   warnings?: string[];
 }
 
+// Context preservation interfaces
+export interface PreservedContextItem {
+  uid: string;
+  type: 'page' | 'block' | 'dailyNote' | 'linkedReference' | 'sidebarNote';
+  title?: string;
+  content?: string; // Optional: can be reconstructed from UID
+  timestamp: string;
+}
+
+export interface PreservedContext {
+  timestamp: string;
+  currentPageUid?: string;
+  visibleBlockUids: string[];
+  selectedText?: string;
+  dailyNoteUid?: string;
+  linkedReferenceUids: string[];
+  sidebarNoteUids: string[];
+  visibleDailyNoteUids?: string[];
+  contextItems?: PreservedContextItem[]; // Full context items for fallback
+}
+
 // Conversation management interfaces
 export interface ConversationMetadata {
   id: string;
@@ -121,6 +142,7 @@ export interface ConversationMetadata {
   messageCount: number;
   createdAt: string;
   tags?: string[];
+  preservedContext?: PreservedContext;
 }
 
 export interface ConversationData {

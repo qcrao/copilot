@@ -4,9 +4,12 @@ import {
   ConversationData, 
   ConversationSettings, 
   ChatMessage,
-  CompressedMessage
+  CompressedMessage,
+  PageContext,
+  PreservedContext
 } from "../types";
 import { PROMPT_TEMPLATES } from "../data/promptTemplates";
+import { ContextPreservationService } from "./contextPreservationService";
 
 export class ConversationService {
   private static readonly MAIN_PAGE_TITLE = "Roam Copilot Conversations";
@@ -322,16 +325,55 @@ export class ConversationService {
   }
 
   /**
+   * Restore preserved context for a conversation
+   */
+  static async restorePreservedContext(conversationId: string): Promise<PageContext | null> {
+    try {
+      const conversations = await this.loadConversations();
+      const conversation = conversations.find(c => c.id === conversationId);
+      
+      if (!conversation?.preservedContext) {
+        console.log('No preserved context found for conversation:', conversationId);
+        return null;
+      }
+
+      const restoredContext = await ContextPreservationService.restoreContext(conversation.preservedContext);
+      if (restoredContext) {
+        console.log('✅ Context restored for conversation:', conversationId);
+      }
+      
+      return restoredContext;
+    } catch (error) {
+      console.error('❌ Failed to restore preserved context:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Check if conversation has preserved context
+   */
+  static async hasPreservedContext(conversationId: string): Promise<boolean> {
+    try {
+      const conversations = await this.loadConversations();
+      const conversation = conversations.find(c => c.id === conversationId);
+      return !!conversation?.preservedContext;
+    } catch (error) {
+      console.error('Error checking preserved context:', error);
+      return false;
+    }
+  }
+
+  /**
    * Save new conversation
    */
-  static async saveConversation(messages: ChatMessage[], context?: string): Promise<string> {
+  static async saveConversation(messages: ChatMessage[], context?: string, pageContext?: PageContext): Promise<string> {
     if (messages.length === 0) {
       throw new Error("Cannot save empty conversation");
     }
 
     try {
       const conversationId = this.generateConversationId();
-      return await this.saveConversationWithId(conversationId, messages, context);
+      return await this.saveConversationWithId(conversationId, messages, context, pageContext);
     } catch (error) {
       console.error("Error saving conversation:", error);
       throw new Error("Failed to save conversation");
@@ -341,7 +383,7 @@ export class ConversationService {
   /**
    * Save new conversation with specific ID
    */
-  static async saveConversationWithId(conversationId: string, messages: ChatMessage[], context?: string): Promise<string> {
+  static async saveConversationWithId(conversationId: string, messages: ChatMessage[], context?: string, pageContext?: PageContext): Promise<string> {
     if (messages.length === 0) {
       throw new Error("Cannot save empty conversation");
     }
@@ -350,12 +392,24 @@ export class ConversationService {
       const firstUserMessage = messages.find(m => m.role === 'user');
       const title = firstUserMessage ? await this.generateTitle(firstUserMessage.content, context) : 'New Chat';
       
+      // Preserve page context if provided
+      let preservedContext: PreservedContext | undefined;
+      if (pageContext) {
+        try {
+          preservedContext = await ContextPreservationService.preserveContext(pageContext);
+          console.log('✅ Context preserved for conversation:', conversationId);
+        } catch (error) {
+          console.error('❌ Failed to preserve context:', error);
+        }
+      }
+      
       const metadata: ConversationMetadata = {
         id: conversationId,
         title,
         lastUpdated: new Date().toISOString(),
         messageCount: messages.length,
-        createdAt: new Date().toISOString()
+        createdAt: new Date().toISOString(),
+        preservedContext
       };
 
       // Ensure main page exists

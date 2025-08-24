@@ -48,6 +48,7 @@ interface ChatInputProps {
   onCancel?: () => void;
   context?: PageContext | null;
   onExcludeContextBlock?: (uid: string) => void;
+  isContextLocked?: boolean;
 }
 
 export const ChatInput: React.FC<ChatInputProps> = ({
@@ -63,6 +64,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   onCancel,
   context,
   onExcludeContextBlock,
+  isContextLocked = false,
 }) => {
   const [availableModels, setAvailableModels] = useState<
     Array<{ model: string; provider: string; providerName: string }>
@@ -1037,6 +1039,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
         <ContextPreview
           context={context || null}
           onExcludeBlock={onExcludeContextBlock}
+          isContextLocked={isContextLocked}
         />
       </div>
       <div className="rr-copilot-input-box">

@@ -2275,6 +2275,30 @@ details[style*="thinking"][open] {
   align-items: center;
 }
 
+/* Locked context styles */
+.rr-context-preview--locked {
+  opacity: 0.8;
+  position: relative;
+}
+
+.rr-context-lock-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10px;
+  margin-right: 4px;
+}
+
+.rr-context-lock-text {
+  font-weight: 500;
+}
+
+/* Slightly gray out locked context chips */
+.rr-context-preview--locked .rr-context-chip {
+  opacity: 0.85;
+  border-style: dashed !important;
+}
+
 /* Roam-style subtle color coding */
 .rr-context-chip--page {
   border-color: #cedbf2 !important;
