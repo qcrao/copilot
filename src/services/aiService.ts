@@ -87,14 +87,20 @@ export class AIService {
     // Analyze context to provide better guidance
     const contextAnalysis = this.analyzeContext(context);
     
+    // Determine if this is first round with template
+    const isFirstRound = conversationHistory.length === 0;
+    const isFirstRoundWithTemplate = isFirstRound && !!customPrompt;
+    
     // Use LLMUtil without tool calling for better compatibility
-    const systemMessage = this.getSystemMessage(context, customPrompt, contextAnalysis);
+    const systemMessage = this.getSystemMessage(context, customPrompt, contextAnalysis, conversationHistory);
     const finalUserMessage = userMessage;
     const messagesWithHistory = this.buildMessagesWithHistory(
       systemMessage,
       finalUserMessage,
       conversationHistory,
-      model
+      model,
+      context,
+      isFirstRoundWithTemplate
     );
 
     try {
@@ -112,6 +118,11 @@ export class AIService {
       console.log("📤 FULL SYSTEM MESSAGE:", systemMessage);
       console.log("📤 FULL USER MESSAGE:", finalUserMessage);
       console.log("📤 FULL CONTEXT:", context);
+      console.log("📤 CONVERSATION HISTORY:", messagesWithHistory.filter(m => m.role !== 'system').map(m => ({
+        role: m.role,
+        contentPreview: m.content.substring(0, 100) + (m.content.length > 100 ? '...' : ''),
+        contentLength: m.content.length
+      })));
 
       const result = await LLMUtil.generateResponse(
         {
@@ -203,14 +214,20 @@ export class AIService {
     // Analyze context to provide better guidance
     const contextAnalysis = this.analyzeContext(context);
     
+    // Determine if this is first round with template
+    const isFirstRound = conversationHistory.length === 0;
+    const isFirstRoundWithTemplate = isFirstRound && !!customPrompt;
+    
     // Use LLMUtil streaming
-    const systemMessage = this.getSystemMessage(context, customPrompt, contextAnalysis);
+    const systemMessage = this.getSystemMessage(context, customPrompt, contextAnalysis, conversationHistory);
     const finalUserMessage = userMessage;
     const messagesWithHistory = this.buildMessagesWithHistory(
       systemMessage,
       finalUserMessage,
       conversationHistory,
-      model
+      model,
+      context,
+      isFirstRoundWithTemplate
     );
 
     try {
@@ -238,6 +255,11 @@ export class AIService {
       console.log("📤 FULL SYSTEM MESSAGE:", systemMessage);
       console.log("📤 FULL USER MESSAGE:", finalUserMessage);
       console.log("📤 FULL CONTEXT:", context);
+      console.log("📤 CONVERSATION HISTORY:", messagesWithHistory.filter(m => m.role !== 'system').map(m => ({
+        role: m.role,
+        contentPreview: m.content.substring(0, 100) + (m.content.length > 100 ? '...' : ''),
+        contentLength: m.content.length
+      })));
 
       const config = {
         provider: providerInfo.provider.id,
@@ -304,12 +326,19 @@ export class AIService {
     }
 
     const contextAnalysis = this.analyzeContext(context);
-    const systemMessage = this.getSystemMessage(context, customPrompt, contextAnalysis);
+    
+    // Determine if this is first round with template
+    const isFirstRound = conversationHistory.length === 0;
+    const isFirstRoundWithTemplate = isFirstRound && !!customPrompt;
+    
+    const systemMessage = this.getSystemMessage(context, customPrompt, contextAnalysis, conversationHistory);
     const messagesWithHistory = this.buildMessagesWithHistory(
       systemMessage,
       userMessage,
       conversationHistory,
-      settings.model
+      settings.model,
+      context,
+      isFirstRoundWithTemplate
     );
 
     // Handle Ollama requests separately
@@ -359,7 +388,8 @@ export class AIService {
       hasBacklinks: boolean;
       hasVisibleBlocks: boolean;
       contextType: 'minimal' | 'focused' | 'comprehensive';
-    }
+    },
+    conversationHistory: ChatMessage[] = []
   ): string {
     // Get response language setting
     const responseLanguage =
@@ -369,20 +399,16 @@ export class AIService {
     // Generate context-specific guidance
     const contextGuidance = this.generateContextGuidance(contextAnalysis);
 
-    // If custom prompt is provided, use it with enhanced context guidance
-    if (customPrompt) {
-      const contextSection = context
-        ? `\n\n**Available Context:**\n${context}`
-        : "";
-      return `${customPrompt}${contextGuidance}${languageInstruction}${contextSection}`;
-    }
-
-    // Use universal assistant as default prompt with context guidance
-    const contextSection = context
-      ? `\n\n**Available Context:**\n${context}`
-      : "";
+    // Determine conversation stage
+    const isFirstRound = conversationHistory.length === 0;
     
-    return `${UNIVERSAL_ASSISTANT_PROMPT}${contextGuidance}${languageInstruction}${contextSection}`;
+    // First round with custom prompt (Template): Use template as system message
+    if (isFirstRound && customPrompt) {
+      return `${customPrompt}${contextGuidance}${languageInstruction}`;
+    }
+    
+    // For all other cases (second round onwards, or first round without template), use universal assistant
+    return `${UNIVERSAL_ASSISTANT_PROMPT}${contextGuidance}${languageInstruction}`;
   }
 
   /**
@@ -515,7 +541,9 @@ export class AIService {
     systemMessage: string,
     currentUserMessage: string,
     conversationHistory: ChatMessage[],
-    modelName: string
+    modelName: string,
+    context?: string,
+    isFirstRoundWithTemplate?: boolean
   ): Array<{ role: string; content: string }> {
     const messages: Array<{ role: string; content: string }> = [];
 
@@ -529,7 +557,18 @@ export class AIService {
 
     // Estimate tokens for system message and current user message
     const systemTokens = this.estimateTokens(systemMessage);
-    const currentMessageTokens = this.estimateTokens(currentUserMessage);
+    
+    // Determine conversation stage
+    const isFirstRound = conversationHistory.length === 0;
+    
+    let finalUserMessage = currentUserMessage;
+    
+    // First round with template: Add context to user message
+    if (isFirstRound && isFirstRoundWithTemplate && context) {
+      finalUserMessage = `${currentUserMessage}\n\n**Available Context:**\n${context}`;
+    }
+    
+    const currentMessageTokens = this.estimateTokens(finalUserMessage);
     let usedTokens = systemTokens + currentMessageTokens;
 
     // Add conversation history in reverse order (most recent first)
@@ -557,14 +596,17 @@ export class AIService {
     }
 
     // Add current user message
-    messages.push({ role: "user", content: currentUserMessage });
+    messages.push({ role: "user", content: finalUserMessage });
 
     // console.log("🔧 Context Management:", {
     //   totalMessages: messages.length,
     //   historyMessages: relevantHistory.length,
     //   estimatedTokens: usedTokens,
     //   tokenLimit: tokenLimit,
-    //   model: modelName
+    //   model: modelName,
+    //   isFirstRound,
+    //   isFirstRound,
+    //   isFirstRoundWithTemplate
     // });
 
     return messages;

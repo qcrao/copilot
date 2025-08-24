@@ -781,9 +781,20 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
       }
 
       let enhancedUserMessage = actualUserMessage;
+      
+      // Determine if this is the first round of conversation
+      const isFirstRound = state.messages.length === 0;
+      const isFirstRoundWithTemplate = isFirstRound && !!customPrompt;
+      
+      console.log("🔄 Conversation stage:", {
+        isFirstRound,
+        isFirstRoundWithTemplate,
+        hasCustomPrompt: !!customPrompt,
+        messagesCount: state.messages.length
+      });
 
-      if (contextItems.length > 0 && actualUserMessage) {
-        // Add key context information directly to user message (only if there's actual user content)
+      if (isFirstRound && contextItems.length > 0 && actualUserMessage) {
+        // First round: Add key context information directly to user message
         const contextForUser = contextManager.formatContextForAI(contextItems);
 
         // Build enhanced user message with context information embedded
@@ -792,9 +803,11 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
 **Please answer based on the following relevant information:**
 
 ${contextForUser}`;
-      } else if (contextItems.length > 0 && customPrompt) {
-        // For prompt templates, context should go to system message context, not user message
-        enhancedUserMessage = actualUserMessage; // Keep empty if using template
+        
+        console.log("✅ First round: Added context to user message");
+      } else if (isFirstRound && contextItems.length > 0 && customPrompt) {
+        // First round with template: context should go to system message context, not user message
+        enhancedUserMessage = actualUserMessage; // Keep as is for template
 
         // Use simplified context for system message with smart management
         if (filteredContext) {
@@ -811,9 +824,30 @@ ${contextForUser}`;
         }
 
         console.log(
-          "✅ Using enhanced context with",
+          "✅ First round with template: Using enhanced context with",
           contextItems.length,
           "items for custom prompt"
+        );
+      } else if (!isFirstRound) {
+        // Subsequent rounds: DO NOT add context to user message, it will be handled via history
+        enhancedUserMessage = actualUserMessage;
+        
+        // Still need to prepare context string for system message if needed
+        if (filteredContext) {
+          const currentModel = multiProviderSettings.currentModel;
+          const provider = await AIService.getProviderForModel(currentModel);
+          contextString = RoamService.formatContextForAI(
+            filteredContext,
+            8000,
+            provider?.provider?.id || "openai",
+            currentModel
+          );
+        } else {
+          contextString = "No additional context available";
+        }
+        
+        console.log(
+          "✅ Subsequent round: Context will be handled via history, not user message"
         );
       } else {
         // Fallback to traditional context only if enhanced context fails
@@ -838,6 +872,8 @@ ${contextForUser}`;
       }
 
       console.log("Sending message with context:", {
+        isFirstRound,
+        isFirstRoundWithTemplate,
         currentPage: filteredContext?.currentPage?.title,
         traditionalBlocksCount:
           filteredContext?.currentPage?.blocks?.length || 0,
@@ -849,6 +885,7 @@ ${contextForUser}`;
         usingEnhancedContext: contextItems.length > 0,
         contextStringLength: contextString.length,
         contextPreview: contextString.substring(0, 300) + "...",
+        conversationHistoryLength: state.messages.length,
       });
 
       // Create a streaming message placeholder with model info
