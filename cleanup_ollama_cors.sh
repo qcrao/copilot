@@ -113,14 +113,7 @@ restart_ollama() {
     fi
 }
 
-# Ask user if they want to restart Ollama
-read -p "🤔 Do you want to restart Ollama now? (y/n): " -n 1 -r
-echo
-if [[ $REPLY =~ ^[Yy]$ ]]; then
-    restart_ollama
-else
-    echo "⚠️  Please restart Ollama manually for changes to take effect"
-fi
+restart_ollama
 
 # Verify cleanup
 echo "🔍 Verifying cleanup..."

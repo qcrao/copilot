@@ -52,7 +52,6 @@ if ! command -v ollama >/dev/null 2>&1; then
   exit 1
 fi
 SHELL_NAME=$(basename "${SHELL:-zsh}")
-echo "🔍 Detected shell: $SHELL_NAME"
 
 # ---- Helpers ----
 replace_or_insert_export() {
@@ -64,17 +63,14 @@ replace_or_insert_export() {
 
   if [[ ! -f "$file" ]]; then
     printf '%s\n' "$line" > "$file"
-    echo "✅ Created $file with $varname"
     return 0
   fi
 
   if grep -Eq '^[[:space:]]*export[[:space:]]+OLLAMA_ORIGINS=' "$file"; then
     # Replace the whole export line to enforce new value
     sed -i.bak -E 's|^[[:space:]]*export[[:space:]]+OLLAMA_ORIGINS=.*|'"$line"'|' "$file"
-    echo "✅ Replaced existing OLLAMA_ORIGINS in $file"
   else
     printf '\n# Ollama CORS for Roam Copilot\n%s\n' "$line" >> "$file"
-    echo "✅ Added OLLAMA_ORIGINS to $file"
   fi
 }
 
@@ -88,24 +84,23 @@ start_or_restart_ollama() {
   if launchctl print "gui/$(id -u)/ai.ollama" >/dev/null 2>&1; then
     # Ensure launchctl env has the new value
     launchctl setenv OLLAMA_ORIGINS "$OLLAMA_ORIGINS"
-    launchctl kickstart -k "gui/$(id -u)/ai.ollama" && echo "✅ Ollama restarted via launchctl" || true
+    launchctl kickstart -k "gui/$(id -u)/ai.ollama" >/dev/null 2>&1 || true
   else
     # Fallback CLI: kill old and start with env injected
     pkill -f "ollama serve" 2>/dev/null || true
     sleep 1
     env OLLAMA_ORIGINS="$OLLAMA_ORIGINS" nohup ollama serve >/dev/null 2>&1 &
-    echo "✅ Ollama started via 'ollama serve' (env passed)"
   fi
 
   # Wait for readiness
   for i in {1..10}; do
     if curl -fsS "$BASE_URL/" >/dev/null 2>&1; then
-      echo "✅ Ollama is responding at $BASE_URL"
+      echo "✅ Ollama is running"
       return 0
     fi
     sleep 0.5
   done
-  echo "⚠️  Ollama may not be responding on $BASE_URL"
+  echo "⚠️  Ollama may not be responding"
   return 1
 }
 
@@ -114,19 +109,15 @@ verify_cors_once() {
   local preflight_out="/tmp/ollama_preflight_headers.txt"
   local tags_out="/tmp/ollama_tags_headers.txt"
 
-  echo "🔍 Verifying CORS with Origin: $origin_try"
-
-  echo "— Preflight (OPTIONS /api/generate) —"
   curl -s -i -X OPTIONS "$BASE_URL/api/generate" \
     -H "Origin: $origin_try" \
     -H "Access-Control-Request-Method: POST" \
     -H "Access-Control-Request-Headers: content-type" \
-    | tee "$preflight_out" >/dev/null
+    > "$preflight_out" 2>/dev/null
 
-  echo "— Actual (GET /api/tags) —"
   curl -s -i "$BASE_URL/api/tags" \
     -H "Origin: $origin_try" \
-    | tee "$tags_out" >/dev/null
+    > "$tags_out" 2>/dev/null
 
   if grep -qi "access-control-allow-origin:\s*\*" "$preflight_out" || \
      grep -qiF "Access-Control-Allow-Origin: $origin_try" "$preflight_out"; then :; else return 1; fi
@@ -138,10 +129,10 @@ verify_cors_once() {
 
 verify_cors() {
   if verify_cors_once "$PRIMARY_ORIGIN"; then
-    echo "🎉 CORS verification succeeded with $PRIMARY_ORIGIN"
+    echo "✅ CORS verification successful"
     return 0
   elif verify_cors_once "$ALT_ORIGIN"; then
-    echo "🎉 CORS verification succeeded with $ALT_ORIGIN"
+    echo "✅ CORS verification successful"
     return 0
   else
     return 1
@@ -169,11 +160,10 @@ esac
 
 # ---- 2) Set for current session + launchctl persistence ----
 export OLLAMA_ORIGINS="$ORIGINS"
-echo "✅ Set OLLAMA_ORIGINS for current session: $OLLAMA_ORIGINS"
+echo "✅ Environment configured"
 
 if [[ "${OSTYPE:-}" == darwin* ]]; then
   launchctl setenv OLLAMA_ORIGINS "$OLLAMA_ORIGINS"
-  echo "✅ Set OLLAMA_ORIGINS for macOS launchctl"
 
   # Login persistence (re-apply env at login)
   cat > "$PLIST_FILE" <<EOF
@@ -196,38 +186,28 @@ if [[ "${OSTYPE:-}" == darwin* ]]; then
 EOF
 
   launchctl unload "$PLIST_FILE" >/dev/null 2>&1 || true
-  if launchctl load "$PLIST_FILE" 2>/dev/null; then
-    echo "✅ launchd plist loaded for persistent OLLAMA_ORIGINS"
-  else
-    echo "⚠️  launchd plist failed to load; env still set for this session/login"
-  fi
+  launchctl load "$PLIST_FILE" 2>/dev/null || true
 fi
 
 # ---- 3) Restart Ollama (kill tray, prefer launchd, fallback CLI) ----
 start_or_restart_ollama
 
 # ---- 4) Diagnostics & CORS verification ----
-echo "🔎 Ollama version:"
-ollama --version || true
-echo "🔎 Effective OLLAMA_ORIGINS: '$OLLAMA_ORIGINS'"
-echo "🔎 Checking OLLAMA_HOST: '${OLLAMA_HOST:-<not-set>}'"
-
-echo "🔍 Verifying CORS configuration..."
+echo "🔍 Verifying CORS..."
 if verify_cors; then
   :
 else
-  echo "⚠️  CORS with Roam domains failed. Trying wildcard '*' (diagnostic)…"
+  echo "❌ CORS verification failed"
+  echo "⚠️  Trying wildcard fallback..."
   SAVED_ORIGINS="${OLLAMA_ORIGINS:-}"
   export OLLAMA_ORIGINS="*"
   launchctl setenv OLLAMA_ORIGINS "*" 2>/dev/null || true
-  start_or_restart_ollama || true
+  start_or_restart_ollama >/dev/null 2>&1 || true
 
-  if verify_cors_once "$PRIMARY_ORIGIN"; then
-    echo "✅ Wildcard '*' works — server-side CORS is fine; earlier issue is likely env injection or origin mismatch."
+  if verify_cors_once "$PRIMARY_ORIGIN" 2>/dev/null; then
+    echo "✅ Wildcard works - likely domain configuration issue"
   else
-    echo "❌ Wildcard '*' still fails — likely an old binary/service is running or version is too old."
-    echo "   - Ensure GUI app is not auto-starting an old daemon"
-    echo "   - Prefer launchctl service or the CLI started by this script"
+    echo "❌ Still failing - check Ollama service status"
   fi
 
   if [ -n "$SAVED_ORIGINS" ]; then
@@ -236,18 +216,10 @@ else
   fi
 fi
 
-dump_last_headers
-
 # ---- 5) Summary ----
 echo
-echo "🎉 Setup complete! Summary:"
-echo "   - Shell config updated (old OLLAMA_ORIGINS replaced if present)"
-echo "   - launchctl env set + LaunchAgent (macOS)"
-echo "   - OLLAMA_ORIGINS: ${OLLAMA_ORIGINS}"
-echo
+echo "🎉 Setup complete!"
 echo "📝 Next steps:"
 echo "   1) Open Roam Research"
-echo "   2) In Roam Copilot settings, set Base URL to: $BASE_URL"
-echo "   3) Pick a local model and start chatting"
-echo
-echo "🔄 For terminal sessions, run: source ~/.${SHELL_NAME}rc  (if you changed shell config)"
+echo "   2) Set Base URL to: $BASE_URL"
+echo "   3) Start chatting with your local models"s
