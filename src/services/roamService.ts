@@ -1288,8 +1288,19 @@ export class RoamService {
       console.log("📅 Detected daily notes view - scanning for visible daily notes");
       visibleDailyNotes = await this.getVisibleDailyNotes();
       console.log(`📅 Found ${visibleDailyNotes.length} visible daily notes`);
-      // In daily notes view, avoid keeping a stale page in context
-      if (visibleDailyNotes.length > 0) {
+      
+      // Check if currentPage is a daily note and is in visibleDailyNotes
+      // If so, keep currentPage; otherwise set it to null to avoid stale context
+      if (currentPage && this.isDailyNotePage(currentPage.title)) {
+        const isCurrentPageVisible = visibleDailyNotes.some(dn => dn.uid === currentPage?.uid);
+        if (!isCurrentPageVisible) {
+          console.log("📅 Current daily note page not in visible notes, removing from context");
+          currentPage = null;
+        } else {
+          console.log("📅 Current daily note page is visible, keeping in context");
+        }
+      } else if (visibleDailyNotes.length > 0) {
+        // Not a daily note or no current page, clear currentPage to avoid confusion
         currentPage = null;
       }
     } else {
