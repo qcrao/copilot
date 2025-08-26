@@ -58,27 +58,34 @@ This is the most important step. You need to tell Ollama to accept connections f
 
 #### Option A: One-Click Setup Script (Recommended)
 
-We provide a script that automatically sets up persistent CORS configuration:
+We provide scripts that automatically set up, test, and clean up CORS configuration. You can either download them from the repository or use our hosted versions:
+
+**Download and run the setup script:**
 
 ```bash
-# Run the setup script (included in the repository)
-./setup_ollama_cors.sh
+# Option 1: Download from public URL
+curl -fsSL https://public.qcrao.com/rr-copilot/setup_ollama_cors.sh | bash
 ```
 
 This script will:
+
 - Add the environment variable to your shell configuration file (`.zshrc`, `.bash_profile`, etc.)
 - Create a persistent launchd configuration on macOS
 - Restart Ollama automatically
 - Verify the CORS configuration
 
-**To test if CORS is working correctly, run:**
+**To test if CORS is working correctly:**
+
 ```bash
-./test_ollama_cors.sh
+# Download and run the test script
+curl -fsSL https://public.qcrao.com/rr-copilot/test_ollama_cors.sh | bash
 ```
 
-**To remove the CORS configuration later, run:**
+**To remove the CORS configuration later:**
+
 ```bash
-./cleanup_ollama_cors.sh
+# Download and run the cleanup script
+curl -fsSL https://public.qcrao.com/rr-copilot/cleanup_ollama_cors.sh | bash
 ```
 
 #### Option B: Manual Setup (Persistent Configuration)
@@ -137,7 +144,7 @@ launchctl setenv OLLAMA_ORIGINS "https://roamresearch.com"
 
 #### Option C: Temporary Setup (Session Only)
 
-*Note: This method requires re-running after each restart.*
+_Note: This method requires re-running after each restart._
 
 ```bash
 # On macOS:
@@ -155,6 +162,7 @@ echo $OLLAMA_ORIGINS
 # On macOS, also check launchctl
 launchctl getenv OLLAMA_ORIGINS
 ```
+
 Both commands should output: `https://roamresearch.com`
 
 **5. Restart Ollama**
@@ -180,6 +188,7 @@ curl -X OPTIONS http://localhost:11434 \
      -H "Origin: https://roamresearch.com" \
      -H "Access-Control-Request-Method: POST" -I
 ```
+
 If successful, you should see headers like `Access-Control-Allow-Origin: https://roamresearch.com` in the response.
 
 **7. Configure Roam Copilot Settings**
@@ -221,6 +230,7 @@ The chat interface is designed to be intuitive and powerful.
 When you start a new chat, you'll see a grid of prompt templates. Click on a template to start a conversation with a pre-defined prompt.
 
 **Available Templates:**
+
 - **Creative Writing** - Transform notes into publishable content with strategic analysis
 - **Knowledge Network** - Discover hidden connections and relationships between ideas
 - **Task Planner** - Convert ideas into executable action plans with priorities
