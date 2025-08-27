@@ -562,25 +562,16 @@ export class AIService {
     const reservedTokens = 1000; // Reserve tokens for response
     const availableTokens = tokenLimit - reservedTokens;
 
-    // NEW OPTIMIZATION: Build final user message with context at the end
-    // This ensures context is always preserved even in long conversations
-    let finalUserMessage = currentUserMessage;
+    // Keep user message clean - don't mix it with context
+    const finalUserMessage = currentUserMessage;
     
-    if (context && context.trim()) {
-      finalUserMessage = `${currentUserMessage}\n\n**Please answer based on the following relevant information:**\n\n${context}`;
-      console.log("✅ Context appended to user message", {
-        originalLength: currentUserMessage.length,
-        contextLength: context.length,
-        finalLength: finalUserMessage.length
-      });
-    } else {
-      console.log("⚠️ No context to append to user message");
-    }
-
-    // Estimate tokens for system message and current user message (with context)
+    // Estimate tokens for system message and current user message (without context mixed in)
     const systemTokens = this.estimateTokens(systemMessage);
     const currentMessageTokens = this.estimateTokens(finalUserMessage);
-    let usedTokens = systemTokens + currentMessageTokens;
+    
+    // Also estimate context tokens if we have context
+    const contextTokens = context ? this.estimateTokens(`**Please answer based on the following relevant information:**\n\n${context}`) : 0;
+    let usedTokens = systemTokens + currentMessageTokens + contextTokens;
 
     // Add conversation history in reverse order (most recent first)
     const relevantHistory: ChatMessage[] = [];
@@ -606,16 +597,26 @@ export class AIService {
       });
     }
 
-    // Add current user message (now contains context at the end)
+    // Add current user message (clean, without context mixed in)
     messages.push({ role: "user", content: finalUserMessage });
 
-    console.log("🔧 Context Management (NEW APPROACH):", {
+    // NEW OPTIMIZATION: Add context as a separate "user" message at the end
+    // This ensures context is never truncated but doesn't pollute the actual user message
+    if (context && context.trim()) {
+      messages.push({ 
+        role: "user", 
+        content: `**Please answer based on the following relevant information:**\n\n${context}` 
+      });
+      console.log("✅ Context added as separate message at the end");
+    }
+
+    console.log("🔧 Context Management (IMPROVED APPROACH):", {
       totalMessages: messages.length,
       historyMessages: relevantHistory.length,
       estimatedTokens: usedTokens,
       tokenLimit: tokenLimit,
       model: modelName,
-      contextInUserMessage: !!context && context.trim().length > 0,
+      contextAsseparateMessage: !!context && context.trim().length > 0,
       contextLength: context?.length || 0
     });
 
