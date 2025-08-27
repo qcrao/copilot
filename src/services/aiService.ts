@@ -706,7 +706,7 @@ export class AIService {
       "gemma:7b": 32000,
 
       // Default for unknown models
-      default: 4000,
+      default: 8000,
     };
 
     return tokenLimits[modelName] || tokenLimits["default"];

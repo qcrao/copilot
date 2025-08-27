@@ -8,7 +8,7 @@ const DEFAULT_AI_SETTINGS: AISettings = {
   model: "gpt-4o-mini",
   apiKey: "",
   temperature: 0.7,
-  maxTokens: 32000,
+  maxTokens: 8000,
   maxInputTokens: 120000,
 };
 
@@ -16,7 +16,7 @@ const DEFAULT_AI_SETTINGS: AISettings = {
 const DEFAULT_MULTI_PROVIDER_SETTINGS: MultiProviderSettings = {
   currentModel: "gpt-4o-mini",
   temperature: 0.7,
-  maxTokens: 32000,
+  maxTokens: 8000,
   maxInputTokens: 120000,
   responseLanguage: "English",
   apiKeys: {},
