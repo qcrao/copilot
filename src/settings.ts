@@ -8,14 +8,16 @@ const DEFAULT_AI_SETTINGS: AISettings = {
   model: "gpt-4o-mini",
   apiKey: "",
   temperature: 0.7,
-  maxTokens: 8000,
+  maxTokens: 32000,
+  maxInputTokens: 120000,
 };
 
 // Default settings for MultiProviderSettings
 const DEFAULT_MULTI_PROVIDER_SETTINGS: MultiProviderSettings = {
   currentModel: "gpt-4o-mini",
   temperature: 0.7,
-  maxTokens: 8000,
+  maxTokens: 32000,
+  maxInputTokens: 120000,
   responseLanguage: "English",
   apiKeys: {},
   ollamaBaseUrl: "http://localhost:11434",
@@ -35,6 +37,7 @@ export function loadInitialSettings(extensionAPI: any) {
   const savedCurrentModel = extensionAPI.settings.get("copilot-current-model");
   const savedTemperature = extensionAPI.settings.get("copilot-temperature");
   const savedMaxTokens = extensionAPI.settings.get("copilot-max-tokens");
+  const savedMaxInputTokens = extensionAPI.settings.get("copilot-max-input-tokens");
   const savedResponseLanguage = extensionAPI.settings.get(
     "copilot-response-language"
   );
@@ -85,7 +88,8 @@ export function loadInitialSettings(extensionAPI: any) {
     currentModel,
     currentModelProvider: savedCurrentModelProvider,
     temperature: savedTemperature ? parseFloat(savedTemperature) : 0.7,
-    maxTokens: savedMaxTokens ? parseInt(savedMaxTokens) : 8000,
+    maxTokens: savedMaxTokens ? parseInt(savedMaxTokens) : 32000,
+    maxInputTokens: savedMaxInputTokens ? parseInt(savedMaxInputTokens) : 120000,
     responseLanguage: savedResponseLanguage || "English",
     ollamaBaseUrl: savedOllamaBaseUrl || "http://localhost:11434",
     customOpenAIBaseUrl: savedCustomOpenAIBaseUrl || "https://api.openai.com/v1",
@@ -507,7 +511,7 @@ export function initPanelConfig(extensionAPI: any) {
         description: "Maximum number of tokens in response",
         action: {
           type: "input",
-          placeholder: "8000",
+          placeholder: "32000",
           value: multiProviderSettings.maxTokens?.toString(),
           onChange: (evt: any) => {
             const value = evt?.target?.value;
@@ -518,6 +522,29 @@ export function initPanelConfig(extensionAPI: any) {
               multiProviderSettings.maxTokens = tokens;
               extensionAPI.settings.set(
                 "copilot-max-tokens",
+                tokens.toString()
+              );
+            }
+          },
+        },
+      },
+      {
+        id: "copilot-max-input-tokens",
+        name: "Max Input Tokens",
+        description: "Maximum number of tokens in input (including context)",
+        action: {
+          type: "input",
+          placeholder: "120000",
+          value: multiProviderSettings.maxInputTokens?.toString(),
+          onChange: (evt: any) => {
+            const value = evt?.target?.value;
+            if (!value) return;
+
+            const tokens = parseInt(value);
+            if (!isNaN(tokens) && tokens > 0) {
+              multiProviderSettings.maxInputTokens = tokens;
+              extensionAPI.settings.set(
+                "copilot-max-input-tokens",
                 tokens.toString()
               );
             }

@@ -19,6 +19,7 @@ export interface AISettings {
   apiKey: string;
   temperature?: number;
   maxTokens?: number;
+  maxInputTokens?: number;
 }
 
 export interface MultiProviderSettings {
@@ -27,6 +28,7 @@ export interface MultiProviderSettings {
   currentModelProvider?: string; // Provider ID for the current model
   temperature?: number;
   maxTokens?: number;
+  maxInputTokens?: number; // Maximum input tokens for requests
   responseLanguage?: string;
   ollamaBaseUrl?: string; // Ollama local service address
   customOpenAIBaseUrl?: string; // Custom OpenAI compatible API base URL
