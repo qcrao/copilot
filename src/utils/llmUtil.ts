@@ -253,6 +253,13 @@ export class LLMUtil {
         });
         return github(model);
 
+      case "deepseek":
+        const deepseek = createOpenAI({
+          baseURL: baseUrl || "https://api.deepseek.com",
+          apiKey: apiKey,
+        });
+        return deepseek(model);
+
       default:
         throw new Error(`Unsupported provider: ${provider}`);
     }
