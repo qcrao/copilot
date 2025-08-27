@@ -3,291 +3,306 @@
 // Using official LobeHub AI icons CDN for better quality and authenticity
 const ICON_URLS = {
   // Official AI provider icons from LobeHub CDN
-  openai: 'https://unpkg.com/@lobehub/icons-static-svg@latest/icons/openai.svg',
-  anthropic: 'https://unpkg.com/@lobehub/icons-static-svg@latest/icons/anthropic.svg',
-  groq: 'https://unpkg.com/@lobehub/icons-static-svg@latest/icons/groq.svg',
-  grok: 'https://unpkg.com/@lobehub/icons-static-svg@latest/icons/grok.svg',
-  github: 'https://unpkg.com/@lobehub/icons-static-svg@latest/icons/github.svg',
-  ollama: 'https://unpkg.com/@lobehub/icons-static-svg@latest/icons/ollama.svg',
-  deepseek: 'https://unpkg.com/@lobehub/icons-static-svg@latest/icons/deepseek.svg',
-  gemma: 'https://unpkg.com/@lobehub/icons-static-svg@latest/icons/gemma.svg',
-  gemini: 'https://unpkg.com/@lobehub/icons-static-svg@latest/icons/gemini.svg',
-  qwen: 'https://unpkg.com/@lobehub/icons-static-svg@latest/icons/qwen.svg'
+  openai: "https://unpkg.com/@lobehub/icons-static-svg@latest/icons/openai.svg",
+  anthropic:
+    "https://unpkg.com/@lobehub/icons-static-svg@latest/icons/anthropic.svg",
+  groq: "https://unpkg.com/@lobehub/icons-static-svg@latest/icons/groq.svg",
+  grok: "https://unpkg.com/@lobehub/icons-static-svg@latest/icons/grok.svg",
+  github: "https://unpkg.com/@lobehub/icons-static-svg@latest/icons/github.svg",
+  ollama: "https://unpkg.com/@lobehub/icons-static-svg@latest/icons/ollama.svg",
+  deepseek:
+    "https://unpkg.com/@lobehub/icons-static-svg@latest/icons/deepseek.svg",
+  gemma: "https://unpkg.com/@lobehub/icons-static-svg@latest/icons/gemma.svg",
+  gemini: "https://unpkg.com/@lobehub/icons-static-svg@latest/icons/gemini.svg",
+  qwen: "https://unpkg.com/@lobehub/icons-static-svg@latest/icons/qwen.svg",
 };
 
 export const getIconUrl = (provider: string, model?: string): string | null => {
-  const normalizedModel = model?.toLowerCase() || '';
-  
+  const normalizedModel = model?.toLowerCase() || "";
+
   // OpenAI models
-  if (normalizedModel.includes('gpt')) {
+  if (normalizedModel.includes("gpt")) {
     return ICON_URLS.openai;
   }
-  
+
   // Anthropic models
-  if (normalizedModel.includes('claude')) {
+  if (normalizedModel.includes("claude")) {
     return ICON_URLS.anthropic;
   }
-  
+
   // Specific model icons (for local models)
-  if (normalizedModel.includes('deepseek')) {
+  if (normalizedModel.includes("deepseek")) {
     return ICON_URLS.deepseek;
   }
-  
-  if (normalizedModel.includes('gemma')) {
+
+  if (normalizedModel.includes("gemma")) {
     return ICON_URLS.gemma;
   }
-  
-  if (normalizedModel.includes('qwen')) {
+
+  if (normalizedModel.includes("qwen")) {
     return ICON_URLS.qwen;
   }
-  
+
   // Gemini models
-  if (normalizedModel.includes('gemini') || provider === 'gemini') {
+  if (normalizedModel.includes("gemini") || provider === "gemini") {
     return ICON_URLS.gemini;
   }
-  
+
   // Groq models (llama without gemma)
-  if (normalizedModel.includes('llama') || provider === 'groq') {
+  if (normalizedModel.includes("llama") || provider === "groq") {
     return ICON_URLS.groq;
   }
-  
+
   // xAI models
-  if (normalizedModel.includes('grok') || provider === 'xai') {
+  if (normalizedModel.includes("grok") || provider === "xai") {
     return ICON_URLS.grok;
   }
-  
+
   // GitHub models
-  if (provider === 'github') {
+  if (provider === "github") {
     return ICON_URLS.github;
   }
-  
+
   // Default Ollama (local models)
-  if (provider === 'ollama') {
+  if (provider === "ollama") {
     return ICON_URLS.ollama;
   }
-  
+
   return null;
 };
 
 // Helper function to clean model names by removing date suffixes and other clutter
 const cleanModelName = (modelName: string): string => {
   // Remove date patterns like -20241022, -20240229, etc.
-  const cleanedName = modelName.replace(/-\d{8}$/, '');
-  
+  const cleanedName = modelName.replace(/-\d{8}$/, "");
+
   // Additional cleanups for better display
   return cleanedName
-    .replace(/gpt-4o-mini/i, 'GPT-4o Mini')
-    .replace(/gpt-4o/i, 'GPT-4o')
-    .replace(/gpt-4-turbo/i, 'GPT-4 Turbo')
-    .replace(/gpt-4/i, 'GPT-4')
-    .replace(/gpt-3.5-turbo/i, 'GPT-3.5 Turbo')
-    .replace(/claude-3-5-sonnet/i, 'Claude 3.5 Sonnet')
-    .replace(/claude-3-5-haiku/i, 'Claude 3.5 Haiku')
-    .replace(/claude-3-opus/i, 'Claude 3 Opus')
-    .replace(/claude-3-sonnet/i, 'Claude 3 Sonnet')
-    .replace(/claude-3-haiku/i, 'Claude 3 Haiku')
-    .replace(/llama-3\.3-70b-versatile/i, 'Llama 3.3 70B')
-    .replace(/llama-3\.1-70b-versatile/i, 'Llama 3.1 70B')
-    .replace(/llama-3\.1-8b-instant/i, 'Llama 3.1 8B')
-    .replace(/grok-3-beta/i, 'Grok 3 Beta')
-    .replace(/grok-3/i, 'Grok 3')
-    .replace(/grok-2/i, 'Grok 2')
-    .replace(/Meta-Llama-3\.1-8B-Instruct/i, 'Llama 3.1 8B')
-    .replace(/Phi-3\.5-mini-instruct/i, 'Phi-3.5 Mini')
-    .replace(/gemini-2\.0-flash-exp/i, 'Gemini 2.0 Flash (Experimental)')
-    .replace(/gemini-1\.5-flash/i, 'Gemini 1.5 Flash')
-    .replace(/gemini-1\.5-pro/i, 'Gemini 1.5 Pro')
-    .replace(/qwen2\.5:latest/i, 'Qwen 2.5')
-    .replace(/llama3\.2:latest/i, 'Llama 3.2')
-    .replace(/:latest/i, '');
+    .replace(/gpt-4o-mini/i, "GPT-4o Mini")
+    .replace(/gpt-4o/i, "GPT-4o")
+    .replace(/gpt-4-turbo/i, "GPT-4 Turbo")
+    .replace(/gpt-4/i, "GPT-4")
+    .replace(/gpt-3.5-turbo/i, "GPT-3.5 Turbo")
+    .replace(/claude-3-5-sonnet/i, "Claude 3.5 Sonnet")
+    .replace(/claude-3-5-haiku/i, "Claude 3.5 Haiku")
+    .replace(/claude-3-opus/i, "Claude 3 Opus")
+    .replace(/claude-3-sonnet/i, "Claude 3 Sonnet")
+    .replace(/claude-3-haiku/i, "Claude 3 Haiku")
+    .replace(/llama-3\.3-70b-versatile/i, "Llama 3.3 70B")
+    .replace(/llama-3\.1-70b-versatile/i, "Llama 3.1 70B")
+    .replace(/llama-3\.1-8b-instant/i, "Llama 3.1 8B")
+    .replace(/grok-3-beta/i, "Grok 3 Beta")
+    .replace(/grok-3/i, "Grok 3")
+    .replace(/grok-2/i, "Grok 2")
+    .replace(/Meta-Llama-3\.1-8B-Instruct/i, "Llama 3.1 8B")
+    .replace(/Phi-3\.5-mini-instruct/i, "Phi-3.5 Mini")
+    .replace(/gemini-2\.0-flash-exp/i, "Gemini 2.0 Flash (Experimental)")
+    .replace(/gemini-1\.5-flash/i, "Gemini 1.5 Flash")
+    .replace(/gemini-1\.5-pro/i, "Gemini 1.5 Pro")
+    .replace(/deepseek-chat/i, "DeepSeek Chat")
+    .replace(/deepseek-coder/i, "DeepSeek Coder")
+    .replace(/deepseek-reasoner/i, "DeepSeek Reasoner")
+    .replace(/qwen2\.5:latest/i, "Qwen 2.5")
+    .replace(/llama3\.2:latest/i, "Llama 3.2")
+    .replace(/:latest/i, "");
 };
 
 export const getModelDisplayInfo = (model?: string, provider?: string) => {
   if (!model) {
-    return { 
+    return {
       iconUrl: null,
-      fallbackIcon: '🤖', 
-      name: 'AI Assistant', 
-      color: '#666',
+      fallbackIcon: "🤖",
+      name: "AI Assistant",
+      color: "#666",
       isLocal: false,
-      blueprintIcon: null
+      blueprintIcon: null,
     };
   }
 
   // Clean the model name for display
   const cleanedName = cleanModelName(model);
-  
+
   // Normalize model name for comparison
   const normalizedModel = model.toLowerCase();
-  
+
   // Check if it's a local model (Ollama)
-  const isLocal = provider === 'ollama';
-  
+  const isLocal = provider === "ollama";
+
   // For local models, use original name to preserve tags like :latest, :70b
   const displayName = isLocal ? model : cleanedName;
-  
+
   // For Ollama models, determine the specific icon based on model name
   if (isLocal) {
     // Specific local model icons based on model name
-    if (normalizedModel.includes('deepseek')) {
-      return { 
+    if (normalizedModel.includes("deepseek")) {
+      return {
         iconUrl: ICON_URLS.deepseek,
-        fallbackIcon: '🔍', 
-        name: displayName, 
-        color: '#1A233A',
+        fallbackIcon: "🔍",
+        name: displayName,
+        color: "#1A233A",
         isLocal: true,
-        blueprintIcon: null
+        blueprintIcon: null,
       };
     }
-    
-    if (normalizedModel.includes('gemma')) {
-      return { 
+
+    if (normalizedModel.includes("gemma")) {
+      return {
         iconUrl: ICON_URLS.gemma,
-        fallbackIcon: '💎', 
-        name: displayName, 
-        color: '#4285F4',
+        fallbackIcon: "💎",
+        name: displayName,
+        color: "#4285F4",
         isLocal: true,
-        blueprintIcon: null
+        blueprintIcon: null,
       };
     }
-    
-    if (normalizedModel.includes('gpt')) {
-      return { 
+
+    if (normalizedModel.includes("gpt")) {
+      return {
         iconUrl: ICON_URLS.openai,
-        fallbackIcon: '🤖', 
-        name: displayName, 
-        color: '#10A37F',
+        fallbackIcon: "🤖",
+        name: displayName,
+        color: "#10A37F",
         isLocal: true,
-        blueprintIcon: null
+        blueprintIcon: null,
       };
     }
-    
-    if (normalizedModel.includes('llama')) {
-      return { 
+
+    if (normalizedModel.includes("llama")) {
+      return {
         iconUrl: ICON_URLS.groq,
-        fallbackIcon: '⚡', 
+        fallbackIcon: "⚡",
         name: displayName,
-        color: '#FF6B6B',
+        color: "#FF6B6B",
         isLocal: true,
-        blueprintIcon: null
+        blueprintIcon: null,
       };
     }
-    
-    if (normalizedModel.includes('qwen')) {
-      return { 
+
+    if (normalizedModel.includes("qwen")) {
+      return {
         iconUrl: ICON_URLS.qwen,
-        fallbackIcon: '🧠', 
+        fallbackIcon: "🧠",
         name: displayName,
-        color: '#6366F1',
+        color: "#6366F1",
         isLocal: true,
-        blueprintIcon: null
+        blueprintIcon: null,
       };
     }
-    
-    if (normalizedModel.includes('claude')) {
-      return { 
+
+    if (normalizedModel.includes("claude")) {
+      return {
         iconUrl: ICON_URLS.anthropic,
-        fallbackIcon: '🧠', 
+        fallbackIcon: "🧠",
         name: displayName,
-        color: '#CC785C',
+        color: "#CC785C",
         isLocal: true,
-        blueprintIcon: null
+        blueprintIcon: null,
       };
     }
-    
-    if (normalizedModel.includes('gemini')) {
-      return { 
+
+    if (normalizedModel.includes("gemini")) {
+      return {
         iconUrl: ICON_URLS.gemini,
-        fallbackIcon: '💎', 
+        fallbackIcon: "💎",
         name: displayName,
-        color: '#4285F4',
+        color: "#4285F4",
         isLocal: true,
-        blueprintIcon: null
+        blueprintIcon: null,
       };
     }
-    
+
     // Default for other local models
     return {
       iconUrl: ICON_URLS.ollama,
-      fallbackIcon: '🏠',
+      fallbackIcon: "🏠",
       name: displayName,
-      color: '#2E7D32',
+      color: "#2E7D32",
       isLocal: true,
-      blueprintIcon: null
+      blueprintIcon: null,
     };
   }
-  
+
   // Non-Ollama providers: use provider-based icons regardless of model name
   switch (provider) {
-    case 'openai':
-      return { 
+    case "openai":
+      return {
         iconUrl: ICON_URLS.openai,
-        fallbackIcon: '🤖', 
-        name: cleanedName, 
-        color: '#10A37F',
+        fallbackIcon: "🤖",
+        name: cleanedName,
+        color: "#10A37F",
         isLocal: false,
-        blueprintIcon: null
+        blueprintIcon: null,
       };
-    
-    case 'anthropic':
-      return { 
+
+    case "anthropic":
+      return {
         iconUrl: ICON_URLS.anthropic,
-        fallbackIcon: '🧠', 
-        name: cleanedName, 
-        color: '#CC785C',
+        fallbackIcon: "🧠",
+        name: cleanedName,
+        color: "#CC785C",
         isLocal: false,
-        blueprintIcon: null
+        blueprintIcon: null,
       };
-    
-    case 'groq':
-      return { 
+
+    case "groq":
+      return {
         iconUrl: ICON_URLS.groq,
-        fallbackIcon: '⚡', 
+        fallbackIcon: "⚡",
         name: cleanedName,
-        color: '#FF6B6B',
+        color: "#FF6B6B",
         isLocal: false,
-        blueprintIcon: null
+        blueprintIcon: null,
       };
-    
-    case 'xai':
-      return { 
+
+    case "xai":
+      return {
         iconUrl: ICON_URLS.grok,
-        fallbackIcon: '🚀', 
+        fallbackIcon: "🚀",
         name: cleanedName,
-        color: '#1D9BF0',
+        color: "#1D9BF0",
         isLocal: false,
-        blueprintIcon: null
+        blueprintIcon: null,
       };
-    
-    case 'github':
-      return { 
+
+    case "github":
+      return {
         iconUrl: ICON_URLS.github,
-        fallbackIcon: '🐙', 
-        name: cleanedName, 
-        color: '#24292e',
-        isLocal: false,
-        blueprintIcon: null
-      };
-    
-    case 'gemini':
-      return { 
-        iconUrl: ICON_URLS.gemini,
-        fallbackIcon: '💎', 
+        fallbackIcon: "🐙",
         name: cleanedName,
-        color: '#4285F4',
+        color: "#24292e",
         isLocal: false,
-        blueprintIcon: null
+        blueprintIcon: null,
       };
-    
+
+    case "gemini":
+      return {
+        iconUrl: ICON_URLS.gemini,
+        fallbackIcon: "💎",
+        name: cleanedName,
+        color: "#4285F4",
+        isLocal: false,
+        blueprintIcon: null,
+      };
+
+    case "deepseek":
+      return {
+        iconUrl: ICON_URLS.deepseek,
+        fallbackIcon: "🔍",
+        name: cleanedName,
+        color: "#1A233A",
+        isLocal: false,
+        blueprintIcon: null,
+      };
+
     default:
       // Fallback for unknown providers
-      return { 
+      return {
         iconUrl: null,
-        fallbackIcon: '🤖', 
-        name: cleanedName, 
-        color: '#666',
+        fallbackIcon: "🤖",
+        name: cleanedName,
+        color: "#666",
         isLocal: false,
-        blueprintIcon: null
+        blueprintIcon: null,
       };
   }
 };

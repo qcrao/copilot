@@ -330,4 +330,18 @@ export const AI_PROVIDERS: AIProvider[] = [
     supportsDynamicModels: true,
     supportsTools: true, // Native tool calling support
   },
+  {
+    id: "deepseek",
+    name: "DeepSeek",
+    baseUrl: "https://api.deepseek.com",
+    models: [
+      "deepseek-chat", // Main chat model
+      "deepseek-coder", // Code-specialized model
+      "deepseek-reasoner", // Reasoning model
+    ],
+    apiKeyUrl: "https://platform.deepseek.com/api_keys",
+    billingUrl: "https://platform.deepseek.com/usage",
+    requiresApiKey: true,
+    supportsTools: true,
+  },
 ];
