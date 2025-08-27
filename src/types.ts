@@ -336,7 +336,6 @@ export const AI_PROVIDERS: AIProvider[] = [
     baseUrl: "https://api.deepseek.com",
     models: [
       "deepseek-chat", // Main chat model
-      "deepseek-coder", // Code-specialized model
       "deepseek-reasoner", // Reasoning model
     ],
     apiKeyUrl: "https://platform.deepseek.com/api_keys",

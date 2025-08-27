@@ -100,7 +100,6 @@ const cleanModelName = (modelName: string): string => {
     .replace(/gemini-1\.5-flash/i, "Gemini 1.5 Flash")
     .replace(/gemini-1\.5-pro/i, "Gemini 1.5 Pro")
     .replace(/deepseek-chat/i, "DeepSeek Chat")
-    .replace(/deepseek-coder/i, "DeepSeek Coder")
     .replace(/deepseek-reasoner/i, "DeepSeek Reasoner")
     .replace(/qwen2\.5:latest/i, "Qwen 2.5")
     .replace(/llama3\.2:latest/i, "Llama 3.2")
