@@ -387,10 +387,29 @@ export class AIService {
     // Determine conversation stage
     const isFirstRound = conversationHistory.length === 0;
     
-    // Only include context in first round (not in subsequent rounds)
-    const contextSection = (isFirstRound && context && context.trim()) 
-      ? `\n\n**Please answer based on the following relevant information:**\n\n${context}` 
-      : "";
+    // Debug: Log context information
+    console.log("🐛 getSystemMessage Debug:", {
+      isFirstRound,
+      hasContext: !!context,
+      contextLength: context?.length || 0,
+      contextPreview: context ? context.substring(0, 200) + "..." : "NO CONTEXT"
+    });
+
+    // Context handling logic:
+    // - First round: Include full context in system message
+    // - Subsequent rounds: Continue to include context if available (from preserved/current context)
+    let contextSection = "";
+    
+    if (context && context.trim()) {
+      contextSection = `\n\n**Please answer based on the following relevant information:**\n\n${context}`;
+      if (isFirstRound) {
+        console.log("✅ Including context in first round system message");
+      } else {
+        console.log("🔄 Including preserved/restored context in subsequent round system message");
+      }
+    } else if (!isFirstRound) {
+      console.log("⚠️ No context available for subsequent round - this may reduce AI effectiveness");
+    }
 
     // First round with custom prompt (Template): Use template as system message
     if (isFirstRound && customPrompt) {
