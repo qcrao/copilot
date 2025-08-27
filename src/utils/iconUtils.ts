@@ -120,27 +120,15 @@ export const getModelDisplayInfo = (model?: string, provider?: string) => {
   // Normalize model name for comparison
   const normalizedModel = model.toLowerCase();
   
-  // Check if it's a GitHub model
-  if (provider === 'github') {
-    return { 
-      iconUrl: ICON_URLS.github,
-      fallbackIcon: '🐙', 
-      name: `${cleanedName} (github)`, 
-      color: '#24292e',
-      isLocal: false,
-      blueprintIcon: null
-    };
-  }
-  
-  // Check if it's a local model (Ollama) - this is the key fix
+  // Check if it's a local model (Ollama)
   const isLocal = provider === 'ollama';
   
   // For local models, use original name to preserve tags like :latest, :70b
   const displayName = isLocal ? model : cleanedName;
   
-  // For ANY local model (provider === 'ollama'), determine the specific icon
+  // For Ollama models, determine the specific icon based on model name
   if (isLocal) {
-    // Specific local model icons
+    // Specific local model icons based on model name
     if (normalizedModel.includes('deepseek')) {
       return { 
         iconUrl: ICON_URLS.deepseek,
@@ -196,156 +184,110 @@ export const getModelDisplayInfo = (model?: string, provider?: string) => {
       };
     }
     
+    if (normalizedModel.includes('claude')) {
+      return { 
+        iconUrl: ICON_URLS.anthropic,
+        fallbackIcon: '🧠', 
+        name: displayName,
+        color: '#CC785C',
+        isLocal: true,
+        blueprintIcon: null
+      };
+    }
+    
+    if (normalizedModel.includes('gemini')) {
+      return { 
+        iconUrl: ICON_URLS.gemini,
+        fallbackIcon: '💎', 
+        name: displayName,
+        color: '#4285F4',
+        isLocal: true,
+        blueprintIcon: null
+      };
+    }
+    
     // Default for other local models
     return {
       iconUrl: ICON_URLS.ollama,
       fallbackIcon: '🏠',
-      name: cleanedName,
+      name: displayName,
       color: '#2E7D32',
       isLocal: true,
       blueprintIcon: null
     };
   }
   
-  // Cloud/API models - use cleaned names
-  if (normalizedModel.includes('gpt-4o-mini')) {
-    return { 
-      iconUrl: ICON_URLS.openai,
-      fallbackIcon: '🤖', 
-      name: 'GPT-4o Mini', 
-      color: '#10A37F',
-      isLocal: false,
-      blueprintIcon: null
-    };
+  // Non-Ollama providers: use provider-based icons regardless of model name
+  switch (provider) {
+    case 'openai':
+      return { 
+        iconUrl: ICON_URLS.openai,
+        fallbackIcon: '🤖', 
+        name: cleanedName, 
+        color: '#10A37F',
+        isLocal: false,
+        blueprintIcon: null
+      };
+    
+    case 'anthropic':
+      return { 
+        iconUrl: ICON_URLS.anthropic,
+        fallbackIcon: '🧠', 
+        name: cleanedName, 
+        color: '#CC785C',
+        isLocal: false,
+        blueprintIcon: null
+      };
+    
+    case 'groq':
+      return { 
+        iconUrl: ICON_URLS.groq,
+        fallbackIcon: '⚡', 
+        name: cleanedName,
+        color: '#FF6B6B',
+        isLocal: false,
+        blueprintIcon: null
+      };
+    
+    case 'xai':
+      return { 
+        iconUrl: ICON_URLS.grok,
+        fallbackIcon: '🚀', 
+        name: cleanedName,
+        color: '#1D9BF0',
+        isLocal: false,
+        blueprintIcon: null
+      };
+    
+    case 'github':
+      return { 
+        iconUrl: ICON_URLS.github,
+        fallbackIcon: '🐙', 
+        name: cleanedName, 
+        color: '#24292e',
+        isLocal: false,
+        blueprintIcon: null
+      };
+    
+    case 'gemini':
+      return { 
+        iconUrl: ICON_URLS.gemini,
+        fallbackIcon: '💎', 
+        name: cleanedName,
+        color: '#4285F4',
+        isLocal: false,
+        blueprintIcon: null
+      };
+    
+    default:
+      // Fallback for unknown providers
+      return { 
+        iconUrl: null,
+        fallbackIcon: '🤖', 
+        name: cleanedName, 
+        color: '#666',
+        isLocal: false,
+        blueprintIcon: null
+      };
   }
-  if (normalizedModel.includes('gpt-4o')) {
-    return { 
-      iconUrl: ICON_URLS.openai,
-      fallbackIcon: '🤖', 
-      name: 'GPT-4o', 
-      color: '#10A37F',
-      isLocal: false,
-      blueprintIcon: null
-    };
-  }
-  if (normalizedModel.includes('gpt-4')) {
-    return { 
-      iconUrl: ICON_URLS.openai,
-      fallbackIcon: '🤖', 
-      name: cleanedName,
-      color: '#10A37F',
-      isLocal: false,
-      blueprintIcon: null
-    };
-  }
-  if (normalizedModel.includes('gpt-3.5')) {
-    return { 
-      iconUrl: ICON_URLS.openai,
-      fallbackIcon: '🤖', 
-      name: 'GPT-3.5 Turbo',
-      color: '#10A37F',
-      isLocal: false,
-      blueprintIcon: null
-    };
-  }
-  if (normalizedModel.includes('claude-3.5-sonnet')) {
-    return { 
-      iconUrl: ICON_URLS.anthropic,
-      fallbackIcon: '🧠', 
-      name: 'Claude 3.5 Sonnet', 
-      color: '#CC785C',
-      isLocal: false,
-      blueprintIcon: null
-    };
-  }
-  if (normalizedModel.includes('claude-3.5-haiku')) {
-    return { 
-      iconUrl: ICON_URLS.anthropic,
-      fallbackIcon: '🧠', 
-      name: 'Claude 3.5 Haiku', 
-      color: '#CC785C',
-      isLocal: false,
-      blueprintIcon: null
-    };
-  }
-  if (normalizedModel.includes('claude-3-opus')) {
-    return { 
-      iconUrl: ICON_URLS.anthropic,
-      fallbackIcon: '🧠', 
-      name: 'Claude 3 Opus', 
-      color: '#CC785C',
-      isLocal: false,
-      blueprintIcon: null
-    };
-  }
-  if (normalizedModel.includes('claude-3-sonnet')) {
-    return { 
-      iconUrl: ICON_URLS.anthropic,
-      fallbackIcon: '🧠', 
-      name: 'Claude 3 Sonnet', 
-      color: '#CC785C',
-      isLocal: false,
-      blueprintIcon: null
-    };
-  }
-  if (normalizedModel.includes('claude-3-haiku')) {
-    return { 
-      iconUrl: ICON_URLS.anthropic,
-      fallbackIcon: '🧠', 
-      name: 'Claude 3 Haiku', 
-      color: '#CC785C',
-      isLocal: false,
-      blueprintIcon: null
-    };
-  }
-  if (normalizedModel.includes('claude')) {
-    return { 
-      iconUrl: ICON_URLS.anthropic,
-      fallbackIcon: '🧠', 
-      name: cleanedName,
-      color: '#CC785C',
-      isLocal: false,
-      blueprintIcon: null
-    };
-  }
-  if (normalizedModel.includes('gemini')) {
-    return { 
-      iconUrl: ICON_URLS.gemini,
-      fallbackIcon: '💎', 
-      name: cleanedName,
-      color: '#4285F4',
-      isLocal: false,
-      blueprintIcon: null
-    };
-  }
-  if (normalizedModel.includes('grok')) {
-    return { 
-      iconUrl: ICON_URLS.grok,
-      fallbackIcon: '🚀', 
-      name: cleanedName,
-      color: '#1D9BF0',
-      isLocal: false,
-      blueprintIcon: null
-    };
-  }
-  if (normalizedModel.includes('llama') || normalizedModel.includes('gemma')) {
-    return { 
-      iconUrl: ICON_URLS.groq,
-      fallbackIcon: '⚡', 
-      name: cleanedName,
-      color: normalizedModel.includes('llama') ? '#FF6B6B' : '#4285F4',
-      isLocal: false,
-      blueprintIcon: null
-    };
-  }
-
-  // Default for unknown models
-  return { 
-    iconUrl: null,
-    fallbackIcon: '🤖', 
-    name: cleanedName, 
-    color: '#666',
-    isLocal: false,
-    blueprintIcon: null
-  };
 };

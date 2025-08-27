@@ -8,6 +8,7 @@ import {
 import { AI_PROVIDERS, PromptTemplate } from "../types";
 import { PROMPT_TEMPLATES } from "../data/promptTemplates";
 import { PromptMenu } from "./PromptMenu";
+import { ModelSelector } from "./ModelSelector";
 import { UI_CONSTANTS } from "../utils/shared/constants";
 
 interface CustomMessageInputProps {
@@ -399,34 +400,13 @@ export const CustomMessageInput: React.FC<CustomMessageInputProps> = ({
         {renderInput()}
 
         <div className="rr-copilot-input-toolbar">
-          <select
+          <ModelSelector
             value={selectedModel}
-            onChange={(e) => handleModelChange(e.target.value)}
-            className="rr-copilot-model-selector"
+            onChange={handleModelChange}
+            options={availableModels}
             disabled={disabled || isLoadingModels}
-          >
-            {isLoadingModels ? (
-              <option value="">Loading models...</option>
-            ) : availableModels.length === 0 ? (
-              <option value="">No keys</option>
-            ) : (
-              availableModels.map((modelInfo) => (
-                <option
-                  key={`${modelInfo.provider}-${modelInfo.model}`}
-                  value={modelInfo.model}
-                  style={{
-                    fontWeight:
-                      modelInfo.provider === "ollama" ? "bold" : "normal",
-                    color:
-                      modelInfo.provider === "ollama" ? "#2E7D32" : "inherit",
-                  }}
-                >
-                  {modelInfo.provider === "ollama" ? "🏠 " : ""}
-                  {modelInfo.model}
-                </option>
-              ))
-            )}
-          </select>
+            isLoading={isLoadingModels}
+          />
 
           <button
             className={`rr-copilot-send-button ${canSend ? "active" : "inactive"}`}
