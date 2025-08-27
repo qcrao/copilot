@@ -281,22 +281,9 @@ export class RoamNotesService {
    */
   private static async getBlocksReferencingPage(pageTitle: string): Promise<any[]> {
     try {
+      // Only use formal reference relationships, exclude unlinked references
       const queries = [
-        // Standard page reference [[PageTitle]]
-        `[:find ?uid ?string
-         :where
-         [?block :block/string ?string]
-         [?block :block/uid ?uid]
-         [(clojure.string/includes? ?string "[[${pageTitle}]]")]]`,
-        
-        // Tag reference #PageTitle
-        `[:find ?uid ?string
-         :where
-         [?block :block/string ?string]
-         [?block :block/uid ?uid]
-         [(clojure.string/includes? ?string "#${pageTitle}")]]`,
-         
-        // Direct reference relationship
+        // Direct reference relationship (most reliable) - only formal linked references
         `[:find ?uid ?string
          :where
          [?page :node/title "${pageTitle}"]

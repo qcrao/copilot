@@ -33,7 +33,8 @@
       "Bash(rg -n \"strong\\|bold.*:\" /Users/qcrao/copilot/src/components/EnhancedMessageRenderer.tsx)",
       "WebFetch(domain:ai-sdk.dev)",
       "WebFetch(domain:gist.github.com)",
-      "WebSearch"
+      "WebSearch",
+      "WebFetch(domain:davidbieber.com)"
     ],
     "deny": [],
     "defaultMode": "acceptEdits"

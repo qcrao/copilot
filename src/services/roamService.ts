@@ -2407,26 +2407,12 @@ export class RoamService {
     try {
       console.log("Getting blocks referencing page:", pageTitle);
 
-      // Multiple query strategies for better coverage
+      // Only use formal reference relationships, exclude unlinked references
       // Escape page title for safe use in Datalog queries
       const escapedPageTitle = pageTitle.replace(/"/g, '\\"');
       
       const queries = [
-        // Standard page reference [[PageTitle]]
-        `[:find ?uid ?string
-         :where
-         [?block :block/string ?string]
-         [?block :block/uid ?uid]
-         [(clojure.string/includes? ?string "[[${escapedPageTitle}]]")]]`,
-
-        // Tag reference #PageTitle (only if page title has no spaces)
-        ...(pageTitle.includes(' ') ? [] : [`[:find ?uid ?string
-         :where
-         [?block :block/string ?string]
-         [?block :block/uid ?uid]
-         [(clojure.string/includes? ?string "#${escapedPageTitle}")]`]),
-
-        // Direct reference relationship (most reliable)
+        // Direct reference relationship (most reliable) - only formal linked references
         `[:find ?uid ?string
          :where
          [?page :node/title "${escapedPageTitle}"]
