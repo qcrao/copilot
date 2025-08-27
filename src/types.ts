@@ -116,7 +116,7 @@ export interface RoamQueryResult {
 // Context preservation interfaces
 export interface PreservedContextItem {
   uid: string;
-  type: 'page' | 'block' | 'dailyNote' | 'linkedReference' | 'sidebarNote';
+  type: "page" | "block" | "dailyNote" | "linkedReference" | "sidebarNote";
   title?: string;
   content?: string; // Optional: can be reconstructed from UID
   timestamp: string;
@@ -322,15 +322,6 @@ export const AI_PROVIDERS: AIProvider[] = [
     supportsTools: false,
   },
   {
-    id: "ollama",
-    name: "Ollama (Local)",
-    models: [], // 动态获取模型，不在这里硬编码
-    isLocal: true,
-    requiresApiKey: false,
-    supportsDynamicModels: true,
-    supportsTools: true, // Native tool calling support
-  },
-  {
     id: "deepseek",
     name: "DeepSeek",
     baseUrl: "https://api.deepseek.com",
@@ -342,5 +333,14 @@ export const AI_PROVIDERS: AIProvider[] = [
     billingUrl: "https://platform.deepseek.com/usage",
     requiresApiKey: true,
     supportsTools: true,
+  },
+  {
+    id: "ollama",
+    name: "Ollama (Local)",
+    models: [], // 动态获取模型，不在这里硬编码
+    isLocal: true,
+    requiresApiKey: false,
+    supportsDynamicModels: true,
+    supportsTools: true, // Native tool calling support
   },
 ];
