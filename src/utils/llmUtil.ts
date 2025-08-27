@@ -428,7 +428,7 @@ export class LLMUtil {
   static async getProviderForModel(
     model: string
   ): Promise<{ provider: any; apiKey: string } | null> {
-    // First, try exact model match in AI_PROVIDERS
+    // First, try exact model match in AI_PROVIDERS (default models)
     for (const provider of AI_PROVIDERS) {
       if (provider.models.includes(model)) {
         if (provider.id === "ollama") {
@@ -438,6 +438,28 @@ export class LLMUtil {
         const apiKey = multiProviderSettings.apiKeys[provider.id];
         if (apiKey && apiKey.trim() !== "") {
           return { provider, apiKey };
+        }
+      }
+    }
+
+    // Second, check custom models for each provider
+    const customModels = multiProviderSettings.customModels || {};
+    for (const provider of AI_PROVIDERS) {
+      const customModelList = customModels[provider.id];
+      if (customModelList && customModelList.trim()) {
+        const models = customModelList.split(',').map(m => m.trim()).filter(m => m);
+        if (models.includes(model)) {
+          if (provider.id === "ollama") {
+            return { provider, apiKey: "" };
+          }
+
+          const apiKey = multiProviderSettings.apiKeys[provider.id];
+          if (apiKey && apiKey.trim() !== "") {
+            console.log(
+              `✅ Found custom model "${model}" for provider "${provider.id}"`
+            );
+            return { provider, apiKey };
+          }
         }
       }
     }
