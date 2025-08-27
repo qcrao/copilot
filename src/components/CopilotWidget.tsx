@@ -793,82 +793,27 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
         messagesCount: state.messages.length
       });
 
-      if (isFirstRound && contextItems.length > 0 && actualUserMessage) {
-        // First round: Add key context information directly to user message
-        const contextForUser = contextManager.formatContextForAI(contextItems);
-
-        // Build enhanced user message with context information embedded
-        enhancedUserMessage = `${actualUserMessage}
-
-**Please answer based on the following relevant information:**
-
-${contextForUser}`;
-        
-        console.log("✅ First round: Added context to user message");
-      } else if (isFirstRound && contextItems.length > 0 && customPrompt) {
-        // First round with template: context should go to system message context, not user message
-        enhancedUserMessage = actualUserMessage; // Keep as is for template
-
-        // Use simplified context for system message with smart management
-        if (filteredContext) {
-          const currentModel = multiProviderSettings.currentModel;
-          const provider = await AIService.getProviderForModel(currentModel);
-          contextString = RoamService.formatContextForAI(
-            filteredContext,
-            8000, // Reduce system message context
-            provider?.provider?.id || "openai",
-            currentModel
-          );
-        } else {
-          contextString = "No additional context available";
-        }
-
-        console.log(
-          "✅ First round with template: Using enhanced context with",
-          contextItems.length,
-          "items for custom prompt"
-        );
-      } else if (!isFirstRound) {
-        // Subsequent rounds: DO NOT add context to user message, it will be handled via history
-        enhancedUserMessage = actualUserMessage;
-        
-        // Still need to prepare context string for system message if needed
-        if (filteredContext) {
-          const currentModel = multiProviderSettings.currentModel;
-          const provider = await AIService.getProviderForModel(currentModel);
-          contextString = RoamService.formatContextForAI(
-            filteredContext,
-            8000,
-            provider?.provider?.id || "openai",
-            currentModel
-          );
-        } else {
-          contextString = "No additional context available";
-        }
-        
-        console.log(
-          "✅ Subsequent round: Context will be handled via history, not user message"
-        );
-      } else {
-        // Fallback to traditional context only if enhanced context fails
-        console.log(
-          "⚠️ Enhanced context failed, falling back to traditional context"
-        );
+      // Always use enhanced context from ContextManager for consistency
+      enhancedUserMessage = actualUserMessage; // Never add context to user message
+      
+      if (contextItems.length > 0) {
+        // Use ContextManager formatting for consistent context structure
+        contextString = contextManager.formatContextForAI(contextItems);
+        console.log(`✅ Using enhanced context with ${contextItems.length} items (consistently through system message)`);
+      } else if (filteredContext) {
+        // Fallback to RoamService formatting if no enhanced context available
         const currentModel = multiProviderSettings.currentModel;
         const provider = await AIService.getProviderForModel(currentModel);
-        const maxContextTokens = RoamService.getModelTokenLimit(
+        contextString = RoamService.formatContextForAI(
+          filteredContext,
+          8000,
           provider?.provider?.id || "openai",
           currentModel
         );
-
-        contextString = filteredContext
-          ? RoamService.formatContextForAI(
-              filteredContext,
-              maxContextTokens,
-              provider?.provider?.id || "openai",
-              currentModel
-            )
-          : "No context available";
+        console.log("⚠️ Using fallback context from RoamService");
+      } else {
+        contextString = "No context available";
+        console.log("ℹ️ No context available");
       }
 
       console.log("Sending message with context:", {

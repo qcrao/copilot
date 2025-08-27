@@ -114,15 +114,8 @@ export class AIService {
         contextLength: context.length,
       });
 
-      // 添加完整的系统消息和用户消息日志
-      console.log("📤 FULL SYSTEM MESSAGE:", systemMessage);
-      console.log("📤 FULL USER MESSAGE:", finalUserMessage);
-      console.log("📤 FULL CONTEXT:", context);
-      console.log("📤 CONVERSATION HISTORY:", messagesWithHistory.filter(m => m.role !== 'system').map(m => ({
-        role: m.role,
-        contentPreview: m.content.substring(0, 100) + (m.content.length > 100 ? '...' : ''),
-        contentLength: m.content.length
-      })));
+      // 打印发送给AI的完整消息历史
+      this.logCompleteMessageHistory(messagesWithHistory);
 
       const result = await LLMUtil.generateResponse(
         {
@@ -250,16 +243,8 @@ export class AIService {
         },
       });
 
-      // 添加完整的系统消息和用户消息日志
-      console.log("🎯 CUSTOM PROMPT:", customPrompt);
-      console.log("📤 FULL SYSTEM MESSAGE:", systemMessage);
-      console.log("📤 FULL USER MESSAGE:", finalUserMessage);
-      console.log("📤 FULL CONTEXT:", context);
-      console.log("📤 CONVERSATION HISTORY:", messagesWithHistory.filter(m => m.role !== 'system').map(m => ({
-        role: m.role,
-        contentPreview: m.content.substring(0, 100) + (m.content.length > 100 ? '...' : ''),
-        contentLength: m.content.length
-      })));
+      // 打印发送给AI的完整消息历史
+      this.logCompleteMessageHistory(messagesWithHistory);
 
       const config = {
         provider: providerInfo.provider.id,
@@ -402,13 +387,18 @@ export class AIService {
     // Determine conversation stage
     const isFirstRound = conversationHistory.length === 0;
     
+    // Only include context in first round (not in subsequent rounds)
+    const contextSection = (isFirstRound && context && context.trim()) 
+      ? `\n\n**Please answer based on the following relevant information:**\n\n${context}` 
+      : "";
+
     // First round with custom prompt (Template): Use template as system message
     if (isFirstRound && customPrompt) {
-      return `${customPrompt}${contextGuidance}${languageInstruction}`;
+      return `${customPrompt}${contextGuidance}${contextSection}${languageInstruction}`;
     }
     
     // For all other cases (second round onwards, or first round without template), use universal assistant
-    return `${UNIVERSAL_ASSISTANT_PROMPT}${contextGuidance}${languageInstruction}`;
+    return `${UNIVERSAL_ASSISTANT_PROMPT}${contextGuidance}${contextSection}${languageInstruction}`;
   }
 
   /**
@@ -536,6 +526,7 @@ export class AIService {
 
   /**
    * Build messages array with conversation history, respecting token limits
+   * Context is now handled consistently in system message, not user message
    */
   private static buildMessagesWithHistory(
     systemMessage: string,
@@ -558,15 +549,8 @@ export class AIService {
     // Estimate tokens for system message and current user message
     const systemTokens = this.estimateTokens(systemMessage);
     
-    // Determine conversation stage
-    const isFirstRound = conversationHistory.length === 0;
-    
-    let finalUserMessage = currentUserMessage;
-    
-    // First round with template: Add context to user message
-    if (isFirstRound && isFirstRoundWithTemplate && context) {
-      finalUserMessage = `${currentUserMessage}\n\n**Available Context:**\n${context}`;
-    }
+    // Use the current user message as-is (context is now handled in system message)
+    const finalUserMessage = currentUserMessage;
     
     const currentMessageTokens = this.estimateTokens(finalUserMessage);
     let usedTokens = systemTokens + currentMessageTokens;
@@ -604,9 +588,7 @@ export class AIService {
     //   estimatedTokens: usedTokens,
     //   tokenLimit: tokenLimit,
     //   model: modelName,
-    //   isFirstRound,
-    //   isFirstRound,
-    //   isFirstRoundWithTemplate
+    //   contextInSystemMessage: systemMessage.includes("**Please answer based on the following relevant information:**")
     // });
 
     return messages;
@@ -760,5 +742,45 @@ export class AIService {
     }
 
     return { isValid: true };
+  }
+
+  /**
+   * Log complete message history sent to AI for debugging
+   */
+  private static logCompleteMessageHistory(messages: Array<{ role: string; content: string }>): void {
+    console.log("🚀 SENDING TO AI - Complete Message History:");
+    console.log("═".repeat(80));
+    
+    let totalChars = 0;
+    let estimatedTokens = 0;
+    
+    messages.forEach((message, index) => {
+      const charCount = message.content.length;
+      totalChars += charCount;
+      estimatedTokens += this.estimateTokens(message.content);
+      
+      // Format role display
+      let roleDisplay = "";
+      switch (message.role) {
+        case "system":
+          roleDisplay = "SYSTEM MESSAGE";
+          break;
+        case "user":
+          roleDisplay = `USER MESSAGE${index === messages.length - 1 ? " - Current" : ` - Round ${Math.floor(index / 2)}`}`;
+          break;
+        case "assistant":
+          roleDisplay = `ASSISTANT MESSAGE - Round ${Math.floor(index / 2)}`;
+          break;
+        default:
+          roleDisplay = message.role.toUpperCase();
+      }
+      
+      console.log(`[${index + 1}] ${roleDisplay} (${charCount} chars):`);
+      console.log(message.content);
+      console.log("─".repeat(80));
+    });
+    
+    console.log(`📊 Summary: ${messages.length} messages, ${totalChars} total chars, ~${estimatedTokens} estimated tokens`);
+    console.log("═".repeat(80));
   }
 }
