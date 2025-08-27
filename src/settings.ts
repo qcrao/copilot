@@ -44,6 +44,9 @@ export function loadInitialSettings(extensionAPI: any) {
   const savedCustomOpenAIBaseUrl = extensionAPI.settings.get(
     "copilot-custom-openai-base-url"
   );
+  const savedCurrentModelProvider = extensionAPI.settings.get(
+    "copilot-current-model-provider"
+  );
 
   // Load API keys for all providers
   const apiKeys: { [providerId: string]: string } = {};
@@ -80,6 +83,7 @@ export function loadInitialSettings(extensionAPI: any) {
   multiProviderSettings = {
     apiKeys,
     currentModel,
+    currentModelProvider: savedCurrentModelProvider,
     temperature: savedTemperature ? parseFloat(savedTemperature) : 0.7,
     maxTokens: savedMaxTokens ? parseInt(savedMaxTokens) : 8000,
     responseLanguage: savedResponseLanguage || "English",

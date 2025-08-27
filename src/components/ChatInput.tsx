@@ -940,15 +940,21 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   };
 
   // Handle model change
-  const handleModelChange = (newModel: string) => {
+  const handleModelChange = (newModel: string, newProvider?: string) => {
     setSelectedModel(newModel);
     multiProviderSettings.currentModel = newModel;
+    if (newProvider) {
+      multiProviderSettings.currentModelProvider = newProvider;
+    }
 
     if (typeof window !== "undefined" && (window as any).roamAlphaAPI) {
       try {
         const extensionAPI = (window as any).roamAlphaAPI.ui.commandPalette;
         if (extensionAPI && extensionAPI.settings) {
           extensionAPI.settings.set("copilot-current-model", newModel);
+          if (newProvider) {
+            extensionAPI.settings.set("copilot-current-model-provider", newProvider);
+          }
         }
       } catch (error) {
         // Could not save model setting

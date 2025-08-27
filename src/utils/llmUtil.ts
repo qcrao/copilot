@@ -260,6 +260,13 @@ export class LLMUtil {
         });
         return deepseek(model);
 
+      case "custom-openai":
+        const customOpenAI = createOpenAI({
+          baseURL: baseUrl || multiProviderSettings.customOpenAIBaseUrl || "https://api.openai.com/v1",
+          apiKey: apiKey,
+        });
+        return customOpenAI(model);
+
       default:
         throw new Error(`Unsupported provider: ${provider}`);
     }
@@ -435,7 +442,37 @@ export class LLMUtil {
   static async getProviderForModel(
     model: string
   ): Promise<{ provider: any; apiKey: string } | null> {
-    // First, try exact model match in AI_PROVIDERS (default models)
+    // First, check if we have a saved provider for the current model
+    if (multiProviderSettings.currentModel === model && multiProviderSettings.currentModelProvider) {
+      const savedProvider = AI_PROVIDERS.find(p => p.id === multiProviderSettings.currentModelProvider);
+      if (savedProvider) {
+        if (savedProvider.id === "ollama") {
+          console.log(`✅ Using saved provider "${savedProvider.id}" for model "${model}"`);
+          return { provider: savedProvider, apiKey: "" };
+        }
+        
+        // Special handling for custom-openai: set dynamic baseUrl
+        if (savedProvider.id === "custom-openai") {
+          const customProvider = {
+            ...savedProvider,
+            baseUrl: multiProviderSettings.customOpenAIBaseUrl || "https://api.openai.com/v1"
+          };
+          const apiKey = multiProviderSettings.apiKeys[savedProvider.id];
+          if (apiKey && apiKey.trim() !== "") {
+            console.log(`✅ Using saved custom OpenAI provider for model "${model}" with baseUrl "${customProvider.baseUrl}"`);
+            return { provider: customProvider, apiKey };
+          }
+        }
+        
+        const apiKey = multiProviderSettings.apiKeys[savedProvider.id];
+        if (apiKey && apiKey.trim() !== "") {
+          console.log(`✅ Using saved provider "${savedProvider.id}" for model "${model}"`);
+          return { provider: savedProvider, apiKey };
+        }
+      }
+    }
+
+    // Second, try exact model match in AI_PROVIDERS (default models)
     for (const provider of AI_PROVIDERS) {
       if (provider.models.includes(model)) {
         if (provider.id === "ollama") {
@@ -444,6 +481,15 @@ export class LLMUtil {
 
         const apiKey = multiProviderSettings.apiKeys[provider.id];
         if (apiKey && apiKey.trim() !== "") {
+          // Special handling for custom-openai: set dynamic baseUrl
+          if (provider.id === "custom-openai") {
+            const customProvider = {
+              ...provider,
+              baseUrl: multiProviderSettings.customOpenAIBaseUrl || "https://api.openai.com/v1"
+            };
+            return { provider: customProvider, apiKey };
+          }
+          
           return { provider, apiKey };
         }
       }
@@ -465,6 +511,16 @@ export class LLMUtil {
             console.log(
               `✅ Found custom model "${model}" for provider "${provider.id}"`
             );
+            
+            // Special handling for custom-openai: set dynamic baseUrl
+            if (provider.id === "custom-openai") {
+              const customProvider = {
+                ...provider,
+                baseUrl: multiProviderSettings.customOpenAIBaseUrl || "https://api.openai.com/v1"
+              };
+              return { provider: customProvider, apiKey };
+            }
+            
             return { provider, apiKey };
           }
         }

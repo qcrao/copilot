@@ -23,7 +23,7 @@ interface ModelDisplayInfo {
 
 interface ModelSelectorProps {
   value: string;
-  onChange: (model: string) => void;
+  onChange: (model: string, provider?: string) => void;
   options: Array<{ model: string; provider: string; providerName: string }>;
   disabled?: boolean;
   isLoading?: boolean;
@@ -102,7 +102,7 @@ const CustomOption = (props: any) => {
             style={{
               fontSize: "12px",
               fontWeight: modelInfo.isLocal ? "600" : "500",
-              color: modelInfo.isLocal ? "#2E7D32" : "#333",
+              color: modelInfo.isLocal ? "#2E7D32" : (data.provider === "custom-openai" ? "#6366F1" : "#333"),
             }}
           >
             {getModelDisplayName(data)}
@@ -182,7 +182,7 @@ const CustomSingleValue = (props: any) => {
           style={{
             fontSize: "12px",
             fontWeight: modelInfo.isLocal ? "600" : "500",
-            color: modelInfo.isLocal ? "#2E7D32" : "#333",
+            color: modelInfo.isLocal ? "#2E7D32" : (data.provider === "custom-openai" ? "#6366F1" : "#333"),
           }}
         >
           {getModelDisplayName(data)}
@@ -279,7 +279,7 @@ export const ModelSelector: React.FC<ModelSelectorProps> = ({
 
   const handleChange = (option: SingleValue<ModelOption>) => {
     if (option) {
-      onChange(option.value);
+      onChange(option.value, option.provider);
     }
   };
 

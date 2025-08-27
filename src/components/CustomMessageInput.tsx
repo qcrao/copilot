@@ -227,9 +227,12 @@ export const CustomMessageInput: React.FC<CustomMessageInputProps> = ({
     }
   };
 
-  const handleModelChange = (newModel: string) => {
+  const handleModelChange = (newModel: string, newProvider?: string) => {
     setSelectedModel(newModel);
     multiProviderSettings.currentModel = newModel;
+    if (newProvider) {
+      multiProviderSettings.currentModelProvider = newProvider;
+    }
 
     // Save to extension settings if available
     if (typeof window !== "undefined" && (window as any).roamAlphaAPI) {
@@ -237,6 +240,9 @@ export const CustomMessageInput: React.FC<CustomMessageInputProps> = ({
         const extensionAPI = (window as any).roamAlphaAPI.ui.commandPalette;
         if (extensionAPI && extensionAPI.settings) {
           extensionAPI.settings.set("copilot-current-model", newModel);
+          if (newProvider) {
+            extensionAPI.settings.set("copilot-current-model-provider", newProvider);
+          }
         }
       } catch (error) {
         console.log("Could not save model setting:", error);

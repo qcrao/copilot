@@ -4,7 +4,7 @@ import { Icon } from "@blueprintjs/core";
 import { ChatMessage } from '../types';
 import { CollapsibleMessage } from './CollapsibleMessage';
 import { UserService } from '../services/userService';
-import { getModelDisplayInfo } from '../utils/iconUtils';
+import { getModelDisplayInfo, getProviderDisplayName } from '../utils/iconUtils';
 import { useSimpleScroll } from '../hooks/useSimpleScroll';
 import { ScrollToBottomButton } from './ScrollToBottomButton';
 
@@ -299,7 +299,7 @@ const MessageItem: React.FC<MessageItemProps> = React.memo(({ message, index, on
                 fontSize: '11px',
                 color: '#666'
               }}>
-                {message.modelProvider}
+                {getProviderDisplayName(message.modelProvider)}
               </span>
             )}
           </div>

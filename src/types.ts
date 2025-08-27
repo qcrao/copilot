@@ -24,6 +24,7 @@ export interface AISettings {
 export interface MultiProviderSettings {
   apiKeys: { [providerId: string]: string };
   currentModel: string;
+  currentModelProvider?: string; // Provider ID for the current model
   temperature?: number;
   maxTokens?: number;
   responseLanguage?: string;

@@ -71,6 +71,14 @@ export const getIconUrl = (provider: string, model?: string): string | null => {
   return null;
 };
 
+// Helper function to get display name for provider
+export const getProviderDisplayName = (provider?: string): string => {
+  if (provider === "custom-openai") {
+    return "custom";
+  }
+  return provider || "unknown";
+};
+
 // Helper function to clean model names by removing date suffixes and other clutter
 const cleanModelName = (modelName: string): string => {
   // Remove date patterns like -20241022, -20240229, etc.
@@ -289,6 +297,45 @@ export const getModelDisplayInfo = (model?: string, provider?: string) => {
         fallbackIcon: "🔍",
         name: cleanedName,
         color: "#1A233A",
+        isLocal: false,
+        blueprintIcon: null,
+      };
+
+    case "custom-openai":
+      // Smart icon matching for custom OpenAI provider based on model name
+      let iconUrl = ICON_URLS.openai; // Default to OpenAI icon
+      let fallbackIcon = "🤖";
+
+      // Choose icon based on model name
+      if (normalizedModel.includes("deepseek")) {
+        iconUrl = ICON_URLS.deepseek;
+        fallbackIcon = "🔍";
+      } else if (normalizedModel.includes("claude")) {
+        iconUrl = ICON_URLS.anthropic;
+        fallbackIcon = "🧠";
+      } else if (normalizedModel.includes("gemini")) {
+        iconUrl = ICON_URLS.gemini;
+        fallbackIcon = "💎";
+      } else if (normalizedModel.includes("llama")) {
+        iconUrl = ICON_URLS.groq;
+        fallbackIcon = "⚡";
+      } else if (normalizedModel.includes("grok")) {
+        iconUrl = ICON_URLS.grok;
+        fallbackIcon = "🚀";
+      } else if (normalizedModel.includes("qwen")) {
+        iconUrl = ICON_URLS.qwen;
+        fallbackIcon = "🧠";
+      } else if (normalizedModel.includes("gemma")) {
+        iconUrl = ICON_URLS.gemma;
+        fallbackIcon = "💎";
+      }
+
+      // All custom OpenAI models use purple color regardless of model type
+      return {
+        iconUrl,
+        fallbackIcon,
+        name: cleanedName,
+        color: "#6366F1", // Purple for all custom-openai models
         isLocal: false,
         blueprintIcon: null,
       };
