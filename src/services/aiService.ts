@@ -388,36 +388,33 @@ export class AIService {
     const isFirstRound = conversationHistory.length === 0;
     
     // Debug: Log context information
-    console.log("🐛 getSystemMessage Debug:", {
+    console.log("🐛 getSystemMessage Debug (context moved to user message):", {
       isFirstRound,
       hasContext: !!context,
       contextLength: context?.length || 0,
       contextPreview: context ? context.substring(0, 200) + "..." : "NO CONTEXT"
     });
 
-    // Context handling logic:
-    // - First round: Include full context in system message
-    // - Subsequent rounds: Continue to include context if available (from preserved/current context)
-    let contextSection = "";
+    // NEW OPTIMIZATION: Context is now always placed in user message, not system message
+    // This prevents context from being truncated in long conversations
     
     if (context && context.trim()) {
-      contextSection = `\n\n**Please answer based on the following relevant information:**\n\n${context}`;
       if (isFirstRound) {
-        console.log("✅ Including context in first round system message");
+        console.log("✅ Context will be included in first round user message");
       } else {
-        console.log("🔄 Including preserved/restored context in subsequent round system message");
+        console.log("🔄 Context will be included in subsequent round user message");
       }
     } else if (!isFirstRound) {
-      console.log("⚠️ No context available for subsequent round - this may reduce AI effectiveness");
+      console.log("⚠️ No context available for subsequent round");
     }
 
-    // First round with custom prompt (Template): Use template as system message
+    // First round with custom prompt (Template): Use template as system message (without context)
     if (isFirstRound && customPrompt) {
-      return `${customPrompt}${contextGuidance}${contextSection}${languageInstruction}`;
+      return `${customPrompt}${contextGuidance}${languageInstruction}`;
     }
     
-    // For all other cases (second round onwards, or first round without template), use universal assistant
-    return `${UNIVERSAL_ASSISTANT_PROMPT}${contextGuidance}${contextSection}${languageInstruction}`;
+    // For all other cases (second round onwards, or first round without template), use universal assistant (without context)
+    return `${UNIVERSAL_ASSISTANT_PROMPT}${contextGuidance}${languageInstruction}`;
   }
 
   /**
@@ -545,7 +542,7 @@ export class AIService {
 
   /**
    * Build messages array with conversation history, respecting token limits
-   * Context is now handled consistently in system message, not user message
+   * NEW OPTIMIZATION: Context is now placed in the last user message to prevent truncation
    */
   private static buildMessagesWithHistory(
     systemMessage: string,
@@ -557,7 +554,7 @@ export class AIService {
   ): Array<{ role: string; content: string }> {
     const messages: Array<{ role: string; content: string }> = [];
 
-    // Add system message
+    // Add system message (no longer contains context)
     messages.push({ role: "system", content: systemMessage });
 
     // Get token limit for the model
@@ -565,12 +562,23 @@ export class AIService {
     const reservedTokens = 1000; // Reserve tokens for response
     const availableTokens = tokenLimit - reservedTokens;
 
-    // Estimate tokens for system message and current user message
+    // NEW OPTIMIZATION: Build final user message with context at the end
+    // This ensures context is always preserved even in long conversations
+    let finalUserMessage = currentUserMessage;
+    
+    if (context && context.trim()) {
+      finalUserMessage = `${currentUserMessage}\n\n**Please answer based on the following relevant information:**\n\n${context}`;
+      console.log("✅ Context appended to user message", {
+        originalLength: currentUserMessage.length,
+        contextLength: context.length,
+        finalLength: finalUserMessage.length
+      });
+    } else {
+      console.log("⚠️ No context to append to user message");
+    }
+
+    // Estimate tokens for system message and current user message (with context)
     const systemTokens = this.estimateTokens(systemMessage);
-    
-    // Use the current user message as-is (context is now handled in system message)
-    const finalUserMessage = currentUserMessage;
-    
     const currentMessageTokens = this.estimateTokens(finalUserMessage);
     let usedTokens = systemTokens + currentMessageTokens;
 
@@ -598,17 +606,18 @@ export class AIService {
       });
     }
 
-    // Add current user message
+    // Add current user message (now contains context at the end)
     messages.push({ role: "user", content: finalUserMessage });
 
-    // console.log("🔧 Context Management:", {
-    //   totalMessages: messages.length,
-    //   historyMessages: relevantHistory.length,
-    //   estimatedTokens: usedTokens,
-    //   tokenLimit: tokenLimit,
-    //   model: modelName,
-    //   contextInSystemMessage: systemMessage.includes("**Please answer based on the following relevant information:**")
-    // });
+    console.log("🔧 Context Management (NEW APPROACH):", {
+      totalMessages: messages.length,
+      historyMessages: relevantHistory.length,
+      estimatedTokens: usedTokens,
+      tokenLimit: tokenLimit,
+      model: modelName,
+      contextInUserMessage: !!context && context.trim().length > 0,
+      contextLength: context?.length || 0
+    });
 
     return messages;
   }
