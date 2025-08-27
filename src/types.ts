@@ -28,6 +28,7 @@ export interface MultiProviderSettings {
   maxTokens?: number;
   responseLanguage?: string;
   ollamaBaseUrl?: string; // Ollama local service address
+  customOpenAIBaseUrl?: string; // Custom OpenAI compatible API base URL
   customModels?: { [providerId: string]: string }; // Custom model lists for each provider (comma-separated)
 }
 
@@ -331,6 +332,20 @@ export const AI_PROVIDERS: AIProvider[] = [
     ],
     apiKeyUrl: "https://platform.deepseek.com/api_keys",
     billingUrl: "https://platform.deepseek.com/usage",
+    requiresApiKey: true,
+    supportsTools: true,
+  },
+  {
+    id: "custom-openai",
+    name: "Custom OpenAI",
+    models: [
+      "gpt-4o",
+      "gpt-4o-mini",
+      "gpt-4-turbo",
+      "gpt-3.5-turbo",
+    ],
+    apiKeyUrl: "",
+    billingUrl: "",
     requiresApiKey: true,
     supportsTools: true,
   },

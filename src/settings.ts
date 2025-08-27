@@ -19,6 +19,7 @@ const DEFAULT_MULTI_PROVIDER_SETTINGS: MultiProviderSettings = {
   responseLanguage: "English",
   apiKeys: {},
   ollamaBaseUrl: "http://localhost:11434",
+  customOpenAIBaseUrl: "https://api.openai.com/v1",
   customModels: {},
 };
 
@@ -39,6 +40,9 @@ export function loadInitialSettings(extensionAPI: any) {
   );
   const savedOllamaBaseUrl = extensionAPI.settings.get(
     "copilot-ollama-base-url"
+  );
+  const savedCustomOpenAIBaseUrl = extensionAPI.settings.get(
+    "copilot-custom-openai-base-url"
   );
 
   // Load API keys for all providers
@@ -80,6 +84,7 @@ export function loadInitialSettings(extensionAPI: any) {
     maxTokens: savedMaxTokens ? parseInt(savedMaxTokens) : 8000,
     responseLanguage: savedResponseLanguage || "English",
     ollamaBaseUrl: savedOllamaBaseUrl || "http://localhost:11434",
+    customOpenAIBaseUrl: savedCustomOpenAIBaseUrl || "https://api.openai.com/v1",
     customModels,
   };
 
@@ -224,8 +229,45 @@ export function initPanelConfig(extensionAPI: any) {
   const providerSettings: any[] = [];
 
   AI_PROVIDERS.forEach((provider) => {
+    // Custom OpenAI needs both API key and base URL configuration
+    if (provider.id === "custom-openai") {
+      // Add base URL input setting first
+      providerSettings.push({
+        id: `copilot-custom-openai-base-url`,
+        name: `${provider.name} Base URL`,
+        description: React.createElement(
+          React.Fragment,
+          {},
+          "Enter the base URL of an OpenAI API compatible server",
+          React.createElement("br"),
+          React.createElement("small", {}, "Default: https://api.openai.com/v1"),
+          React.createElement("br"),
+          React.createElement("small", {}, "Example: https://your-server.com/v1")
+        ),
+        action: {
+          type: "input",
+          placeholder: "https://api.openai.com/v1",
+          value:
+            multiProviderSettings.customOpenAIBaseUrl || "https://api.openai.com/v1",
+          onChange: (evt: any) => {
+            const value = evt?.target?.value;
+            if (value !== undefined) {
+              multiProviderSettings.customOpenAIBaseUrl =
+                value || "https://api.openai.com/v1";
+              extensionAPI.settings.set(
+                "copilot-custom-openai-base-url",
+                multiProviderSettings.customOpenAIBaseUrl
+              );
+            }
+          },
+        },
+      });
+
+      // Continue with regular API key and custom models settings (don't return early)
+    }
+
     // Ollama is a local service, doesn't need API key, but needs service address configuration
-    if (provider.id === "ollama") {
+    else if (provider.id === "ollama") {
       providerSettings.push({
         id: `copilot-ollama-base-url`,
         name: `${provider.name} Service URL`,
