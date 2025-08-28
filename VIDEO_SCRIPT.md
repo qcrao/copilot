@@ -30,86 +30,97 @@ VOICEOVER: Here I’m on a page called “Project Orion” with tasks on the pag
 ON-SCREEN: Type the prompt and send. Show the answer referencing tasks and sidebar notes.
 LOWER THIRD: Auto-Context from visible blocks
 
-01:05–01:40 — Smart Input: @ Pages, Drag Blocks, / Templates
-VOICEOVER: Mention pages with @ to pull them into context. I’ll type “@Marketing Plan” and select it.
+01:05–01:30 — Smart Input: @ Pages, Drag Blocks
+VOICEOVER: Mention pages with @ to pull them into context. I'll type "@Marketing Plan" and select it.
 ON-SCREEN: Type @ and select a page.
-VOICEOVER: You can drag a block directly into the chat to anchor your prompt.
-ON-SCREEN: Drag a Roam block into Copilot input.
-VOICEOVER: And type “/” to open templates so you can prompt faster.
-ON-SCREEN: Press “/” in input; show template picker.
-LOWER THIRD: @ pages • drag blocks • / templates
+VOICEOVER: You can drag a block directly into the chat—it creates a smart reference chip.
+ON-SCREEN: Drag a Roam block into Copilot input, show reference chip creation.
+LOWER THIRD: @ pages • Smart reference chips
 
-01:40–02:30 — Templates: Official + Custom
-VOICEOVER: Roam Copilot ships with official templates for insights and writing. I’ll run an “Insights” template on this page.
-ON-SCREEN: Open Templates Grid, click an official template, show result.
-VOICEOVER: You can also create your own. Name it, add a description, choose an icon and a category, and save.
+01:30–01:50 — Context Preview & Templates
+VOICEOVER: See exactly what context is being sent with the preview panel. References automatically expand when needed.
+ON-SCREEN: Show context preview panel, expand/collapse context sections.
+VOICEOVER: Type "/" to open templates for faster prompting.
+ON-SCREEN: Press "/" in input; show template picker.
+LOWER THIRD: Context transparency • / templates
+
+01:50–02:40 — Templates: Professional + Custom
+VOICEOVER: Roam Copilot ships with professional templates—psychology analysis, knowledge mapping, task planning, and writing assistance. I'll run a "Knowledge Mapper" template.
+ON-SCREEN: Open Templates Grid, click an official template, show rich analytical result.
+VOICEOVER: You can also create your own. Name it, add a description, choose an icon and category, and save.
 ON-SCREEN: Create a custom template, fill fields, save, then run it.
-LOWER THIRD: Build your own prompts
+LOWER THIRD: Professional prompts • Build your own
 
-02:30–03:10 — Multi-Provider & Local Models (Ollama)
-VOICEOVER: Switch models on the fly—OpenAI, Anthropic, Grok, Qwen, Gemini, Groq, XAI, or local Ollama.
+02:40–03:20 — Multi-Provider & Local Models (Ollama)
+VOICEOVER: Switch models on the fly—OpenAI, Anthropic, xAI, Groq, Google Gemini, DeepSeek, GitHub Models, or local Ollama.
 ON-SCREEN: Model selector → switch providers; send the same prompt to compare tone and speed.
-VOICEOVER: Prefer privacy? Use Ollama to run models locally on your machine.
-LOWER THIRD: Cloud flexibility • Local privacy
+VOICEOVER: Prefer privacy? Use Ollama to run models locally—no data leaves your machine.
+LOWER THIRD: 9 providers • Complete privacy
 
-03:10–03:35 — Conversation History & Workflow
-VOICEOVER: Every conversation is saved. Open any past thread, continue it, or start fresh.
-ON-SCREEN: Open conversation history, select a thread, continue chatting; create a new conversation.
-LOWER THIRD: Persistent conversation history
+03:20–03:45 — Conversation History & Workflow
+VOICEOVER: Every conversation is saved with preserved context. Open any past thread, continue it, or start fresh.
+ON-SCREEN: Open conversation history, select a thread with preserved page context, continue chatting; create a new conversation.
+LOWER THIRD: Persistent history • Context preserved
 
-03:35–03:55 — Command Palette
-VOICEOVER: Power users, press Command+P and search “Roam Copilot” to launch it or jump straight into templates.
-ON-SCREEN: Cmd+P → search “Roam Copilot” → quick actions.
+03:45–04:05 — Command Palette
+VOICEOVER: Power users, press Command+P and search "Roam Copilot" to launch it or jump straight into templates.
+ON-SCREEN: Cmd+P → search "Roam Copilot" → quick actions.
 
-03:55–04:20 — Settings Quick Look (No Install)
-VOICEOVER: Configure your preferred providers in Settings, and if you use local models, set the Ollama address here.
-ON-SCREEN: Open Settings → show provider API key fields and Ollama address field set to “http://localhost:11434”.
-LOWER THIRD: Configure providers • Add Ollama address
+04:05–04:25 — Settings Quick Look
+VOICEOVER: Configure your API keys for cloud providers in Settings, or set your Ollama address for complete privacy.
+ON-SCREEN: Open Settings → show provider API key fields and Ollama address field set to "http://localhost:11434".
+LOWER THIRD: Easy setup • Local or cloud
 
-04:20–04:40 — Real-World Flow: Idea to Output
-VOICEOVER: Let’s do a fast real-world loop. I’ll ask Copilot to extract action items from this page, rewrite them clearly, and draft an email update.
-ON-SCREEN: Prompt → “Extract action items and deadlines.” Then “Rewrite as concise bullets.” Then “Draft a stakeholder email.” Show results.
+04:25–04:45 — Real-World Flow: Idea to Output
+VOICEOVER: Let's do a fast real-world loop. I'll ask Copilot to extract action items from this page, rewrite them clearly, and draft an email update.
+ON-SCREEN: Prompt → "Extract action items and deadlines." Then "Rewrite as concise bullets." Then "Draft a stakeholder email." Show results.
 LOWER THIRD: From notes → bullets → email
 
-04:40–05:00 — Recap
-VOICEOVER: Context-aware answers from your current page. Templates for speed. Models you control—cloud or local. Saved conversations that you can always pick up again.
-ON-SCREEN: Four checkmarks: Auto-Context • Templates • Multi-Provider • History
+04:45–05:05 — Recap
+VOICEOVER: Context-aware answers from your current page. Professional templates for speed. Nine AI providers—cloud or local. Conversations that preserve your context.
+ON-SCREEN: Four checkmarks: Auto-Context • Templates • Multi-Provider • Preserved History
 
-05:00–05:20 — CTA (No Install Mention)
+05:05–05:25 — CTA
 VOICEOVER: Want to bring true AI assistance to your Roam workflow? Check the link in the description to learn more and get started. If you found this useful, like the video and subscribe for updates.
-ON-SCREEN: “Learn more — link in description” + subtle subscribe animation.
+ON-SCREEN: "Learn more — link in description" + subtle subscribe animation.
 
 ---
 
-Optional B-Roll Checklist (for editor)
+Optional B-Roll Checklist (Updated)
 
 - Roam widget: open, drag, resize, minimize
 - Auto-context: page + sidebar visible
-- @ page mention, drag block, / templates menu
-- Templates Grid: run official; create & run custom
-- Model selector: switch providers; Ollama in list
-- Conversation history: open previous, continue, new chat
+- @ page mention with selection dropdown
+- Block drag → reference chip creation
+- Context preview panel: expand/collapse sections
+- / templates menu with categories
+- Templates Grid: run professional template; create & run custom
+- Model selector: switch between 9 providers; Ollama in list
+- Conversation history: open previous with preserved context, continue, new chat
 - Command Palette: Cmd+P action
-- Settings: providers + Ollama address only
+- Settings: providers + Ollama address
+- Reference chip interaction and expansion
 
-Suggested Chapter Markers (paste into YouTube)
+Suggested Chapter Markers (Updated)
 
 - 0:00 Hook
 - 0:05 Why Roam Copilot
 - 0:15 UI Tour
 - 0:35 Auto-Context
 - 1:05 Smart Input
-- 1:40 Templates
-- 2:30 Models & Ollama
-- 3:10 History
-- 3:35 Command Palette
-- 3:55 Settings
-- 4:20 Real-World Flow
-- 4:40 Recap
-- 5:00 CTA
+- 1:30 Context Preview
+- 1:50 Templates
+- 2:40 Models & Privacy
+- 3:20 History
+- 3:45 Command Palette
+- 4:05 Settings
+- 4:25 Real-World Flow
+- 4:45 Recap
+- 5:05 CTA
 
-Thumbnail Text Ideas (3–4 words)
+Thumbnail Text Ideas
 
-- AI in Roam
-- Local + Private
-- No Copy-Paste
+- AI + Privacy
+- 9 AI Providers
+- Smart References
+- Context-Aware AI
