@@ -1,7 +1,4 @@
 /* src/styles.css */
-/* Temporarily disable all Tailwind imports to prevent conflicts */
-/* @tailwind components;
-@tailwind utilities; */
 
 /* Streaming cursor animation */
 @keyframes blink {
