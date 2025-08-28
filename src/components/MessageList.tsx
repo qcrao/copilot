@@ -1,5 +1,5 @@
 // src/components/MessageList.tsx
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Icon } from "@blueprintjs/core";
 import { ChatMessage } from '../types';
 import { CollapsibleMessage } from './CollapsibleMessage';
@@ -400,7 +400,10 @@ export const MessageList: React.FC<MessageListProps> = ({
   currentModel,
   currentProvider
 }) => {
-  const [showScrollButton, setShowScrollButton] = useState(false);
+  const [shouldShowScrollButton, setShouldShowScrollButton] = useState(false); // Based on scroll position
+  const [showScrollButton, setShowScrollButton] = useState(false); // Final visibility including mouse state
+  const [isMouseInside, setIsMouseInside] = useState(false);
+  const hideButtonTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   
   // Create dependencies for scroll tracking
   const scrollDependencies = [
@@ -432,7 +435,7 @@ export const MessageList: React.FC<MessageListProps> = ({
         const isAtBottom = scrollHeight - scrollTop - clientHeight <= 50;
         const hasEnoughContent = scrollHeight > clientHeight + 100; // Has scrollable content
         
-        setShowScrollButton(!isAtBottom && hasEnoughContent && messages.length > 1);
+        setShouldShowScrollButton(!isAtBottom && hasEnoughContent && messages.length > 1);
       };
       
       // Initial check
@@ -461,15 +464,101 @@ export const MessageList: React.FC<MessageListProps> = ({
         const isAtBottom = scrollHeight - scrollTop - clientHeight <= 50;
         const hasEnoughContent = scrollHeight > clientHeight + 100;
         
-        setShowScrollButton(!isAtBottom && hasEnoughContent && messages.length > 1);
+        setShouldShowScrollButton(!isAtBottom && hasEnoughContent && messages.length > 1);
       }
     }, 100); // Small delay to ensure DOM is updated
     
     return () => clearTimeout(timer);
   }, [messages.length, isLoading]);
 
+  // Update final button visibility based on scroll position and mouse state
+  useEffect(() => {
+    if (shouldShowScrollButton) {
+      setShowScrollButton(true);
+      // Clear any existing timeout when button should be shown
+      if (hideButtonTimeoutRef.current) {
+        clearTimeout(hideButtonTimeoutRef.current);
+        hideButtonTimeoutRef.current = null;
+      }
+    } else {
+      setShowScrollButton(false);
+    }
+  }, [shouldShowScrollButton]);
+
+  // Handle mouse events for auto-hiding scroll button
+  useEffect(() => {
+    const handleMouseEnter = () => {
+      setIsMouseInside(true);
+      // Clear any existing timeout when mouse enters
+      if (hideButtonTimeoutRef.current) {
+        clearTimeout(hideButtonTimeoutRef.current);
+        hideButtonTimeoutRef.current = null;
+      }
+    };
+
+    const handleMouseLeave = () => {
+      setIsMouseInside(false);
+      // Start timeout to hide button when mouse leaves (only if button should be shown)
+      if (shouldShowScrollButton) {
+        hideButtonTimeoutRef.current = setTimeout(() => {
+          if (shouldShowScrollButton) { // Double check when timeout fires
+            setShowScrollButton(false);
+          }
+        }, 2000); // Hide after 2 seconds
+      }
+    };
+
+    const handleMouseMove = () => {
+      if (isMouseInside && shouldShowScrollButton) {
+        // Clear any existing timeout when mouse moves inside
+        if (hideButtonTimeoutRef.current) {
+          clearTimeout(hideButtonTimeoutRef.current);
+          hideButtonTimeoutRef.current = null;
+        }
+        
+        // Ensure button is visible
+        setShowScrollButton(true);
+        
+        // Start new timeout to hide button after mouse stops moving
+        hideButtonTimeoutRef.current = setTimeout(() => {
+          if (shouldShowScrollButton) { // Double check when timeout fires
+            setShowScrollButton(false);
+          }
+        }, 3000); // Hide after 3 seconds of no movement
+      }
+    };
+
+    const container = document.querySelector('.rr-copilot-message-list-container') as HTMLDivElement;
+    if (container) {
+      container.addEventListener('mouseenter', handleMouseEnter);
+      container.addEventListener('mouseleave', handleMouseLeave);
+      container.addEventListener('mousemove', handleMouseMove);
+
+      return () => {
+        container.removeEventListener('mouseenter', handleMouseEnter);
+        container.removeEventListener('mouseleave', handleMouseLeave);
+        container.removeEventListener('mousemove', handleMouseMove);
+        
+        // Cleanup timeout on unmount
+        if (hideButtonTimeoutRef.current) {
+          clearTimeout(hideButtonTimeoutRef.current);
+        }
+      };
+    }
+  }, [isMouseInside, shouldShowScrollButton]);
+
+  // Clean up timeout when component unmounts
+  useEffect(() => {
+    return () => {
+      if (hideButtonTimeoutRef.current) {
+        clearTimeout(hideButtonTimeoutRef.current);
+      }
+    };
+  }, []);
+
   return (
     <div 
+      className="rr-copilot-message-list-container"
       style={{
         height: '100%',
         position: 'relative' // Container for absolute positioned button
