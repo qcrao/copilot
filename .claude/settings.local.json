@@ -34,7 +34,8 @@
       "WebFetch(domain:ai-sdk.dev)",
       "WebFetch(domain:gist.github.com)",
       "WebSearch",
-      "WebFetch(domain:davidbieber.com)"
+      "WebFetch(domain:davidbieber.com)",
+      "Bash(npx depcheck:*)"
     ],
     "deny": [],
     "defaultMode": "acceptEdits"

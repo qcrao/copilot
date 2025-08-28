@@ -579,6 +579,7 @@ export class RoamService {
 
       // Try multiple selectors to catch all possible block elements in Roam
       const blockSelectors = [
+        "[id^='block-input-']", // Elements with IDs starting with 'block-input-'
         ".rm-block", // Start with rm-block which seems more relevant
         ".roam-log-page .rm-block", // Blocks within log pages
         ".rm-block-children .rm-block", // Blocks within block children
@@ -631,6 +632,22 @@ export class RoamService {
                 uidElement.getAttribute("data-block-uid") ||
                 uidElement.getAttribute("blockuid") ||
                 uidElement.getAttribute("data-uid");
+            }
+          }
+          if (!uid) {
+            // Try to extract UID from element ID (e.g., "block-input-...-UID")
+            const elementId = element.id;
+            if (elementId && elementId.includes('block-input-')) {
+              const idParts = elementId.split('-');
+              if (idParts.length > 0) {
+                // The UID is typically the last part of the ID
+                const possibleUid = idParts[idParts.length - 1];
+                // Validate that it looks like a Roam UID (alphanumeric, reasonable length)
+                if (possibleUid && /^[a-zA-Z0-9_-]{6,}$/.test(possibleUid)) {
+                  uid = possibleUid;
+                  console.log(`🔍 Extracted UID from element ID: ${uid}`);
+                }
+              }
             }
           }
           if (!uid) {
