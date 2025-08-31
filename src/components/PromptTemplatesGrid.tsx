@@ -13,10 +13,12 @@ import { UserTemplateService } from "../services/userTemplateService";
 
 interface PromptTemplatesGridProps {
   onPromptSelect: (prompt: string) => void;
+  onTemplateSettingsChanged?: () => void;
 }
 
 export const PromptTemplatesGrid: React.FC<PromptTemplatesGridProps> = ({
   onPromptSelect,
+  onTemplateSettingsChanged,
 }) => {
 
   const [isManagementOpen, setIsManagementOpen] = useState(false);
@@ -73,6 +75,11 @@ export const PromptTemplatesGrid: React.FC<PromptTemplatesGridProps> = ({
       // Reset dismissed message when templates visibility changes
       setDismissedEmptyMessage(false);
       localStorage.removeItem("copilot-empty-message-dismissed");
+      
+      // Notify parent component about template settings changes
+      if (onTemplateSettingsChanged) {
+        onTemplateSettingsChanged();
+      }
     } catch (error) {
       console.error("Failed to refresh template data:", error);
       // Fallback to sync methods if available
@@ -80,6 +87,11 @@ export const PromptTemplatesGrid: React.FC<PromptTemplatesGridProps> = ({
         setHiddenTemplates(TemplateSettingsService.getHiddenTemplatesSync());
         setHiddenCustomTemplates(UserTemplateService.getSettingsSync().hiddenCustomTemplates);
         setCustomTemplates(UserTemplateService.getCustomTemplatesSync() as any);
+        
+        // Still notify parent even in fallback case
+        if (onTemplateSettingsChanged) {
+          onTemplateSettingsChanged();
+        }
       } catch (fallbackError) {
         console.error("Fallback to sync methods also failed:", fallbackError);
       }

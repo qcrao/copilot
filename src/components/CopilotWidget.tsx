@@ -85,6 +85,7 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
     id: string;
     prompt: string;
   } | null>(null);
+  const [templateSettingsVersion, setTemplateSettingsVersion] = useState(0);
   const [windowPosition, setWindowPosition] = useState<{
     top: number;
     left: number;
@@ -2059,7 +2060,10 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
                     />
                   </div>
                 )}
-                <PromptTemplatesGrid onPromptSelect={handlePromptSelect} />
+                <PromptTemplatesGrid 
+                  onPromptSelect={handlePromptSelect} 
+                  onTemplateSettingsChanged={() => setTemplateSettingsVersion(prev => prev + 1)}
+                />
               </div>
             ) : (
               <>
@@ -2123,6 +2127,7 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
             onExcludeContextBlock={handleExcludeFromContext}
             isContextLocked={isContextLocked}
             hasConversationSpecificContext={hasConversationSpecificContext}
+            templateSettingsVersion={templateSettingsVersion}
           />
         </div>
       </div>

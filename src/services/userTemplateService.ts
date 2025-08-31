@@ -203,6 +203,22 @@ export class UserTemplateService {
     return [...PROMPT_TEMPLATES, ...customTemplates];
   }
 
+  static async getAllVisibleTemplates(): Promise<(PromptTemplate | CustomPromptTemplate)[]> {
+    const { PROMPT_TEMPLATES } = require("../data/promptTemplates");
+    const { TemplateSettingsService } = require("./templateSettingsService");
+    
+    // Get hidden template settings
+    const hiddenTemplates = await TemplateSettingsService.getHiddenTemplates();
+    const visibleCustomTemplates = await this.getVisibleCustomTemplates();
+    
+    // Filter out hidden official templates
+    const visibleOfficialTemplates = PROMPT_TEMPLATES.filter(
+      (template: PromptTemplate) => !hiddenTemplates.includes(template.id)
+    );
+    
+    return [...visibleOfficialTemplates, ...visibleCustomTemplates];
+  }
+
   static async getTemplateById(id: string): Promise<PromptTemplate | CustomPromptTemplate | null> {
     const customTemplates = await this.getCustomTemplates();
     const customTemplate = customTemplates.find(t => t.id === id);

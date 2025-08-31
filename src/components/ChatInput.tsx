@@ -50,6 +50,7 @@ interface ChatInputProps {
   onExcludeContextBlock?: (uid: string) => void;
   isContextLocked?: boolean;
   hasConversationSpecificContext?: boolean;
+  templateSettingsVersion?: number;
 }
 
 export const ChatInput: React.FC<ChatInputProps> = ({
@@ -67,6 +68,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   onExcludeContextBlock,
   isContextLocked = false,
   hasConversationSpecificContext = false,
+  templateSettingsVersion = 0,
 }) => {
   const [availableModels, setAvailableModels] = useState<
     Array<{ model: string; provider: string; providerName: string }>
@@ -289,11 +291,11 @@ export const ChatInput: React.FC<ChatInputProps> = ({
     }
   }, [editor, controlledValue]);
 
-  // Load all templates (official + custom) on mount
+  // Load all visible templates (official + custom) on mount and when settings change
   useEffect(() => {
     const loadAllTemplates = async () => {
       try {
-        const templates = await UserTemplateService.getAllTemplates();
+        const templates = await UserTemplateService.getAllVisibleTemplates();
         setAllTemplates(templates);
       } catch (error) {
         console.error("Failed to load templates:", error);
@@ -302,7 +304,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
     };
 
     loadAllTemplates();
-  }, []);
+  }, [templateSettingsVersion]);
 
   // Get all available models from providers with API keys
   useEffect(() => {
