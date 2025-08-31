@@ -59,7 +59,7 @@ export const PromptMenu: React.FC<PromptMenuProps> = ({
         className="rr-copilot-prompt-menu"
         style={{
           position: 'fixed', // Use fixed positioning instead of absolute
-          top: position.top,
+          bottom: window.innerHeight - position.top,
           left: position.left,
           zIndex: 999999, // Higher z-index to ensure it's above everything
           minWidth: '300px',
@@ -103,7 +103,7 @@ export const PromptMenu: React.FC<PromptMenuProps> = ({
       className="rr-copilot-prompt-menu"
       style={{
         position: 'fixed', // Use fixed positioning instead of absolute
-        top: position.top,
+        bottom: window.innerHeight - position.top,
         left: position.left,
         zIndex: 999999, // Higher z-index to ensure it's above everything
         minWidth: '300px',

@@ -555,9 +555,10 @@ export const ChatInput: React.FC<ChatInputProps> = ({
     }
 
     const editorRect = (editor.view.dom as HTMLElement).getBoundingClientRect();
+    const gapBetweenMenuAndInput = 16; // Distance between menu bottom and input top
 
     return {
-      top: editorRect.top - 320,
+      top: editorRect.top - gapBetweenMenuAndInput, // Menu bottom will be 16px above input top
       left: editorRect.left,
     };
   };
