@@ -49,6 +49,7 @@ interface ChatInputProps {
   context?: PageContext | null;
   onExcludeContextBlock?: (uid: string) => void;
   isContextLocked?: boolean;
+  hasConversationSpecificContext?: boolean;
 }
 
 export const ChatInput: React.FC<ChatInputProps> = ({
@@ -65,6 +66,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   context,
   onExcludeContextBlock,
   isContextLocked = false,
+  hasConversationSpecificContext = false,
 }) => {
   const [availableModels, setAvailableModels] = useState<
     Array<{ model: string; provider: string; providerName: string }>
@@ -1030,7 +1032,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
 
   // Check if user has specified context through input
   const hasUserSpecifiedContext = useMemo(() => {
-    if (!editor) return false;
+    if (!editor) return hasConversationSpecificContext;
     
     // Check if there are reference chips in the input
     const serializedContent = serializeWithReferences(editor);
@@ -1039,8 +1041,9 @@ export const ChatInput: React.FC<ChatInputProps> = ({
     // Check if @ symbol universal search is active
     const hasActiveSearch = showUniversalSearch && universalSearchTerm.length > 0;
     
-    return hasReferences || hasActiveSearch;
-  }, [editor, editorContentVersion, showUniversalSearch, universalSearchTerm]);
+    // If this conversation already has specific context, keep hiding preview
+    return hasReferences || hasActiveSearch || hasConversationSpecificContext;
+  }, [editor, editorContentVersion, showUniversalSearch, universalSearchTerm, hasConversationSpecificContext]);
 
   return (
     <div

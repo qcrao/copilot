@@ -55,6 +55,7 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
   const [excludedContextUids, setExcludedContextUids] = useState<Set<string>>(
     new Set()
   );
+  const [hasConversationSpecificContext, setHasConversationSpecificContext] = useState(false);
   const handleExcludeFromContext = useCallback((uid: string) => {
     setExcludedContextUids((prev) => {
       const next = new Set(prev);
@@ -713,6 +714,11 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
 
       const hasSpecificIntent = hasExplicitReferences || hasEditorReferences;
 
+      // Set conversation-specific context flag when user provides specific intent
+      if (hasSpecificIntent) {
+        setHasConversationSpecificContext(true);
+      }
+
       // Create filtered context based on user intent
       let filteredContext = currentContext;
       if (hasSpecificIntent) {
@@ -1249,10 +1255,29 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
         setPageContext(restoredContext);
         setIsContextLocked(true);
       } else {
-        console.log('🔓 No preserved context, using current context');
-        setIsContextLocked(false);
-        setPreservedContext(null);
-        // Don't clear pageContext - keep current context as fallback
+        // Check if the loaded messages contain specific references
+        const hasSpecificReferences = messages.some(message => {
+          if (message.role === 'user') {
+            const content = message.content;
+            // Check for block references ((uid)) or page references [[page]]
+            return content.includes('((') || content.includes('[[');
+          }
+          return false;
+        });
+
+        if (hasSpecificReferences) {
+          console.log('🎯 History contains specific references, clearing ambient context');
+          setIsContextLocked(false);
+          setPreservedContext(null);
+          setPageContext(null); // Clear current context since user had specific intent
+          setHasConversationSpecificContext(true); // Mark this conversation as having specific context
+        } else {
+          console.log('🔓 No preserved context and no specific references, using current context');
+          setIsContextLocked(false);
+          setPreservedContext(null);
+          setHasConversationSpecificContext(false); // No specific context in this conversation
+          // Keep current context as fallback for general conversations
+        }
       }
 
       setState((prev) => ({
@@ -1295,6 +1320,7 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
     console.log('🔓 Context unlocked for new conversation');
     setIsContextLocked(false);
     setPreservedContext(null);
+    setHasConversationSpecificContext(false); // Reset specific context flag
     
     // Refresh current context
     updatePageContext(true);
@@ -2096,6 +2122,7 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
             context={pageContext}
             onExcludeContextBlock={handleExcludeFromContext}
             isContextLocked={isContextLocked}
+            hasConversationSpecificContext={hasConversationSpecificContext}
           />
         </div>
       </div>
