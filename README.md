@@ -9,7 +9,7 @@ Roam Copilot brings the power of advanced AI directly into your Roam workspace. 
 - 🧠 **Context-Aware Intelligence** - Automatically understands your current page content
 - 🏠 **Privacy-First with Local AI** - Full support for local models via Ollama
 - ⚡ **Multi-Provider Support** - OpenAI, Anthropic, Grok, DeepSeek, Qwen, Gemini, Groq, XAI, Ollama, and custom models
-- 🎯 **User-friendly Interface** - Resizable and draggable window on the right side of your main workspace
+- 🎯 **User-friendly Interface** - Resizable window on the right side of your main workspace
 
 <!-- TODO: Add a hero screenshot or a short GIF of Roam Copilot in action. -->
 
