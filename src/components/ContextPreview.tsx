@@ -82,7 +82,7 @@ export const ContextPreview: React.FC<ContextPreviewProps> = ({
 
       for (const note of context.sidebarNotes || []) {
         try {
-          const backlinks = await RoamService.getLinkedReferences(note.title);
+          const backlinks = await RoamService.getBlocksReferencingPage(note.title);
           backlinkCounts[note.uid] = backlinks.length;
         } catch (error) {
           console.warn("Error fetching backlinks for", note.title, error);
