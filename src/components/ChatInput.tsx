@@ -1028,26 +1028,42 @@ export const ChatInput: React.FC<ChatInputProps> = ({
     return `${Math.min(estimatedWidth, 260)}px`;
   };
 
+  // Check if user has specified context through input
+  const hasUserSpecifiedContext = useMemo(() => {
+    if (!editor) return false;
+    
+    // Check if there are reference chips in the input
+    const serializedContent = serializeWithReferences(editor);
+    const hasReferences = serializedContent.includes("((") || serializedContent.includes("[[");
+    
+    // Check if @ symbol universal search is active
+    const hasActiveSearch = showUniversalSearch && universalSearchTerm.length > 0;
+    
+    return hasReferences || hasActiveSearch;
+  }, [editor, editorContentVersion, showUniversalSearch, universalSearchTerm]);
+
   return (
     <div
       className="rr-copilot-input-container"
       style={{ position: "relative" }}
     >
-      {/* Compact context chips right above the input box */}
-      <div
-        style={{
-          display: "flex",
-          gap: 8,
-          padding: "0 0 6px 0",
-          flexWrap: "wrap",
-        }}
-      >
-        <ContextPreview
-          context={context || null}
-          onExcludeBlock={onExcludeContextBlock}
-          isContextLocked={isContextLocked}
-        />
-      </div>
+      {/* Compact context chips right above the input box - hide when user specifies context */}
+      {!hasUserSpecifiedContext && (
+        <div
+          style={{
+            display: "flex",
+            gap: 8,
+            padding: "0 0 6px 0",
+            flexWrap: "wrap",
+          }}
+        >
+          <ContextPreview
+            context={context || null}
+            onExcludeBlock={onExcludeContextBlock}
+            isContextLocked={isContextLocked}
+          />
+        </div>
+      )}
       <div className="rr-copilot-input-box">
         <div
           className="rr-copilot-editor-container"

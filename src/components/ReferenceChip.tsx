@@ -56,12 +56,15 @@ const ReferenceChipComponent: React.FC<ReactNodeViewProps> = ({ node }) => {
     }
   };
 
+  // Truncate preview text to 10 characters with ellipsis
+  const truncatedPreview = preview.length > 10 ? preview.substring(0, 10) + "..." : preview;
+
   return (
     <NodeViewWrapper
       as="span"
       className="reference-chip"
       onClick={handleClick}
-      title={`${type === "page" ? "Page" : "Block"} reference: ${type === "page" ? preview : uid}`}
+      title={`${type === "page" ? "Page" : "Block"} reference: ${preview}`}
       contentEditable={false}
       data-type={type}
       style={{
@@ -74,7 +77,7 @@ const ReferenceChipComponent: React.FC<ReactNodeViewProps> = ({ node }) => {
         msUserSelect: "none",
       }}
     >
-      {preview}
+      {truncatedPreview}
     </NodeViewWrapper>
   );
 };
