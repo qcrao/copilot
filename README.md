@@ -1,7 +1,5 @@
 # Roam Copilot
 
-[Roam Copilot Demo](.assets/Roam-Copilot.mp4)
-
 [![Watch the video](./assets/demo-cover.png)](https://youtu.be/SaAvypfKgUo)
 
 🚀 **Transform your Roam Research experience with AI-powered insights**
@@ -42,6 +40,7 @@ Roam Copilot brings the power of advanced AI directly into your Roam workspace. 
 ### 📝 **Powerful Templates**
 
 - **Official Templates** - Pre-built prompts for common workflows
+
   - Insights
   - Writing assistance
 
@@ -257,8 +256,6 @@ You should now be able to select and use your local Ollama models from within Ro
 You can configure the AI models and other settings from the settings panel.
 
 <!-- TODO: Add screenshot of the settings panel. -->
-
-
 
 ## Contributing
 
