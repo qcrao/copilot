@@ -1,6 +1,6 @@
 # Roam Copilot
 
-[![Watch the video](./assets/demo-cover.png)](https://youtu.be/SaAvypfKgUo)
+[![Watch the video](https://github.com/qcrao/copilot/blob/main/assets/demo-cover.png?raw=true)](https://youtu.be/SaAvypfKgUo)
 👆 [Click to watch the demo video](https://youtu.be/SaAvypfKgUo)
 
 🚀 **Transform your Roam Research experience with AI-powered insights**
@@ -14,7 +14,7 @@ Roam Copilot brings the power of advanced AI directly into your Roam workspace. 
 - ⚡ **Multi-Provider Support** - OpenAI, Anthropic, Grok, DeepSeek, Qwen, Gemini, Groq, XAI, Ollama, and custom models
 - 🎯 **User-friendly Interface** - Resizable window on the right side of your main workspace
 
-![](./assets/hero.png)
+![](https://github.com/qcrao/copilot/blob/main/assets/hero.png?raw=true)
 
 ## ✨ What Makes Roam Copilot Special
 
@@ -49,7 +49,7 @@ Roam Copilot brings the power of advanced AI directly into your Roam workspace. 
   - Add descriptions and icons
   - Organize by categories
 
-![](./assets/prompt-template.png)
+![](https://github.com/qcrao/copilot/blob/main/assets/prompt-template.png?raw=true)
 
 ## 🚀 Quick Start
 
@@ -140,7 +140,7 @@ curl -fsSL https://public.qcrao.com/rr-copilot/cleanup_ollama_cors.sh | bash
 
 You can configure the AI models and other settings from the settings panel.
 
-![](./assets/settings.png)
+![](https://github.com/qcrao/copilot/blob/main/assets/settings.png?raw=true)
 
 ## Contributing
 
