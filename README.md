@@ -1,5 +1,9 @@
 # Roam Copilot
 
+[Roam Copilot Demo](.assets/Roam-Copilot.mp4)
+
+[![Watch the video](./assets/demo-cover.png)](https://youtu.be/SaAvypfKgUo)
+
 🚀 **Transform your Roam Research experience with AI-powered insights**
 
 Roam Copilot brings the power of advanced AI directly into your Roam workspace. Get instant, context-aware assistance for brainstorming, analysis, and idea connections without ever leaving your graph.
