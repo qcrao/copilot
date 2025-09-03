@@ -1,6 +1,7 @@
 # Roam Copilot
 
 [![Watch the video](./assets/demo-cover.png)](https://youtu.be/SaAvypfKgUo)
+👆 [Click to watch the demo video](https://youtu.be/SaAvypfKgUo)
 
 🚀 **Transform your Roam Research experience with AI-powered insights**
 
@@ -13,7 +14,7 @@ Roam Copilot brings the power of advanced AI directly into your Roam workspace. 
 - ⚡ **Multi-Provider Support** - OpenAI, Anthropic, Grok, DeepSeek, Qwen, Gemini, Groq, XAI, Ollama, and custom models
 - 🎯 **User-friendly Interface** - Resizable window on the right side of your main workspace
 
-<!-- TODO: Add a hero screenshot or a short GIF of Roam Copilot in action. -->
+![](./assets/hero.png)
 
 ## ✨ What Makes Roam Copilot Special
 
@@ -25,9 +26,8 @@ Roam Copilot brings the power of advanced AI directly into your Roam workspace. 
 
 ### 🏠 **Privacy & Control**
 
-- **Local AI Models** - Run powerful models privately via Ollama
+- **Local AI Models** - Run powerful models privately via Ollama. Your data stays where you want it
 - **Multiple Providers** - OpenAI, Anthropic, Grok, or custom endpoints
-- Your data stays where you want it
 
 ### 💬 **Intuitive Chat Experience**
 
@@ -49,7 +49,7 @@ Roam Copilot brings the power of advanced AI directly into your Roam workspace. 
   - Add descriptions and icons
   - Organize by categories
 
-<!-- TODO: Add screenshot of the prompt templates grid. -->
+![](./assets/prompt-template.png)
 
 ## 🚀 Quick Start
 
@@ -90,7 +90,7 @@ curl http://localhost:11434/api/tags
 
 This is the most important step. You need to tell Ollama to accept connections from `https://roamresearch.com`.
 
-#### Option A: One-Click Setup Script (Recommended)
+#### One-Click Setup Script (Recommended)
 
 We provide scripts that automatically set up, test, and clean up CORS configuration. You can either download them from the repository or use our hosted versions:
 
@@ -122,121 +122,6 @@ curl -fsSL https://public.qcrao.com/rr-copilot/test_ollama_cors.sh | bash
 curl -fsSL https://public.qcrao.com/rr-copilot/cleanup_ollama_cors.sh | bash
 ```
 
-#### Option B: Manual Setup (Persistent Configuration)
-
-**For permanent configuration that survives restarts:**
-
-1. **Add to your shell configuration file:**
-
-```bash
-# For zsh users (most common on macOS)
-echo 'export OLLAMA_ORIGINS="https://roamresearch.com"' >> ~/.zshrc
-
-# For bash users
-echo 'export OLLAMA_ORIGINS="https://roamresearch.com"' >> ~/.bash_profile
-```
-
-2. **On macOS, create a persistent launchd configuration:**
-
-```bash
-# Create the plist file
-cat > ~/Library/LaunchAgents/com.ollama.environment.plist << 'EOF'
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-    <key>Label</key>
-    <string>com.ollama.environment</string>
-    <key>ProgramArguments</key>
-    <array>
-        <string>sh</string>
-        <string>-c</string>
-        <string>launchctl setenv OLLAMA_ORIGINS "https://roamresearch.com"</string>
-    </array>
-    <key>RunAtLoad</key>
-    <true/>
-    <key>KeepAlive</key>
-    <false/>
-</dict>
-</plist>
-EOF
-
-# Load the plist
-launchctl load ~/Library/LaunchAgents/com.ollama.environment.plist
-```
-
-3. **Apply the changes:**
-
-```bash
-# Reload your shell configuration
-source ~/.zshrc  # or ~/.bash_profile for bash users
-
-# Set for current session
-export OLLAMA_ORIGINS="https://roamresearch.com"
-launchctl setenv OLLAMA_ORIGINS "https://roamresearch.com"
-```
-
-#### Option C: Temporary Setup (Session Only)
-
-_Note: This method requires re-running after each restart._
-
-```bash
-# On macOS:
-launchctl setenv OLLAMA_ORIGINS "https://roamresearch.com"
-```
-
-**4. Verify the Environment Variable**
-
-Confirm that the variable was set correctly.
-
-```bash
-# Check environment variable
-echo $OLLAMA_ORIGINS
-
-# On macOS, also check launchctl
-launchctl getenv OLLAMA_ORIGINS
-```
-
-Both commands should output: `https://roamresearch.com`
-
-**5. Restart Ollama**
-
-For the changes to take effect, you must restart the Ollama server:
-
-```bash
-# Stop Ollama
-pkill -f ollama
-
-# Start Ollama (or simply run)
-ollama serve
-```
-
-Alternatively, you can use Activity Monitor on macOS to find and quit the "Ollama" process, then restart the application.
-
-**6. Verify CORS Configuration**
-
-You can double-check that the CORS policy is correctly applied by sending a test request from the terminal.
-
-```bash
-curl -X OPTIONS http://localhost:11434 \
-     -H "Origin: https://roamresearch.com" \
-     -H "Access-Control-Request-Method: POST" -I
-```
-
-If successful, you should see headers like `Access-Control-Allow-Origin: https://roamresearch.com` in the response.
-
-**7. Configure Roam Copilot Settings**
-
-Finally, open the Roam Copilot settings in Roam Research and set the Ollama address to:
-
-```
-http://localhost:11434
-```
-
-<!-- TODO: Add screenshot of the settings panel showing the Ollama address field. -->
-
-You should now be able to select and use your local Ollama models from within Roam Copilot.
-
 ## 💬 How to Use
 
 ### Getting Started
@@ -255,7 +140,7 @@ You should now be able to select and use your local Ollama models from within Ro
 
 You can configure the AI models and other settings from the settings panel.
 
-<!-- TODO: Add screenshot of the settings panel. -->
+![](./assets/settings.png)
 
 ## Contributing
 
