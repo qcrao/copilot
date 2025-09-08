@@ -4,8 +4,8 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import rehypeHighlight from 'rehype-highlight';
 
-import remarkRoamBlocks from '../utils/remarkRoamBlocks';
-import remarkRoamLinks from '../utils/remarkRoamLinks';
+import remarkRoam from '../utils/roam/remarkRoam';
+// remarkRoamLinks functionality is now included in remarkRoam
 import { RoamQuery } from '../utils/roamQuery';
 import { CONTENT_LIMITS } from '../utils/shared/constants';
 
@@ -406,8 +406,7 @@ export const EnhancedMessageRenderer: React.FC<EnhancedMessageRendererProps> = (
         unwrapDisallowed={true}
         remarkPlugins={[
           remarkGfm,
-          remarkRoamLinks, // Process markdown links first
-          [remarkRoamBlocks, { 
+          [remarkRoam, { 
             processBlocks: true,
             processPages: true,
             processLinks: true,
