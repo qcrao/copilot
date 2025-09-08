@@ -5,8 +5,6 @@ import { PromptTemplate } from "../types";
 import { PromptCard } from "./PromptCard";
 import { TemplateManagement } from "./TemplateManagement";
 import { PROMPT_TEMPLATES } from "../data/promptTemplates";
-import { RoamService } from "../services/roamService";
-import { AIService } from "../services/aiService";
 import { multiProviderSettings } from "../settings";
 import { TemplateSettingsService } from "../services/templateSettingsService";
 import { UserTemplateService } from "../services/userTemplateService";
@@ -105,36 +103,6 @@ export const PromptTemplatesGrid: React.FC<PromptTemplatesGridProps> = ({
   const processTemplate = async (template: PromptTemplate) => {
     try {
       let prompt = template.prompt;
-
-      // Handle context types that require real-time data fetching
-      if (template.requiresContext) {
-        if (template.contextType === "current-page") {
-          // Get fresh current page context when template is used
-          console.log("🔄 Fetching fresh current page context for template:", template.id);
-          try {
-            const freshContext = await RoamService.getPageContext();
-            if (freshContext?.currentPage) {
-              console.log("✅ Got fresh context for page:", freshContext.currentPage.title);
-              
-              // Use smart context management for templates too
-              const currentModel = multiProviderSettings.currentModel;
-              const provider = await AIService.getProviderForModel(currentModel);
-              const contextString = RoamService.formatContextForAI(
-                freshContext, 
-                8000,
-                provider?.provider?.id || "openai",
-                currentModel
-              );
-              // The context will be handled by the AI service system message
-              // Template prompt itself doesn't need to be modified
-            } else {
-              console.log("⚠️ No current page found in fresh context");
-            }
-          } catch (error) {
-            console.error("❌ Error fetching fresh context:", error);
-          }
-        }
-      }
 
       // Add language instruction based on user's manual setting
       const responseLanguage =
