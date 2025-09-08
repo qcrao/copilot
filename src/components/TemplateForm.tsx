@@ -7,9 +7,8 @@ import {
   InputGroup, 
   TextArea, 
   HTMLSelect, 
-  Switch,
   Icon,
-  Colors
+  
 } from "@blueprintjs/core";
 import { PromptTemplate, CustomPromptTemplate } from "../types";
 import { UserTemplateService } from "../services/userTemplateService";

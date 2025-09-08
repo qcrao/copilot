@@ -1,5 +1,5 @@
 // src/components/CopilotSidebar.tsx
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef } from "react";
 
 interface CopilotSidebarProps {
   isVisible: boolean;
@@ -111,5 +111,4 @@ export const CopilotSidebar: React.FC<CopilotSidebarProps> = ({
     </div>
   );
 };
-
 

@@ -1,6 +1,6 @@
 // src/components/ContextPreview.tsx
 import React, { useState, useEffect } from "react";
-import { Icon, Tag, Card, Popover, Position } from "@blueprintjs/core";
+import { Icon, Popover, Position } from "@blueprintjs/core";
 import { PageContext } from "../types";
 import { RoamService } from "../services/roamService";
 
@@ -55,18 +55,8 @@ interface ContextPreviewProps {
   isContextLocked?: boolean;
 }
 
-interface ContextSection {
-  title: string;
-  content: string;
-  icon: string;
-  color: string;
-  count?: number;
-}
-
 export const ContextPreview: React.FC<ContextPreviewProps> = ({
   context,
-  onExcludeBlock,
-  excludedUids,
   isContextLocked = false,
 }) => {
   const [sidebarBacklinks, setSidebarBacklinks] = useState<{

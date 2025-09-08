@@ -404,7 +404,7 @@ export class ContextManager {
         // Only take first 3 sibling blocks to avoid too much content
         const limitedResult = result.slice(0, 3);
         
-        for (const [siblingUid, siblingString, siblingOrder] of limitedResult) {
+        for (const [siblingUid, siblingString] of limitedResult) {
           if (!this.visitedUids.has(siblingUid)) {
             const pageTitle = await this.getBlockPageTitle(siblingUid);
             const createdDate = await this.getBlockCreationDate(siblingUid);
@@ -796,15 +796,7 @@ export class ContextManager {
   /**
    * Get source distribution statistics
    */
-  private getSourceDistribution(items: ContextItem[]): Record<string, number> {
-    const distribution: Record<string, number> = {};
-    
-    for (const item of items) {
-      distribution[item.source] = (distribution[item.source] || 0) + 1;
-    }
-    
-    return distribution;
-  }
+  // Removed unused getSourceDistribution
 
   /**
    * Format context for AI readable string
@@ -1276,7 +1268,7 @@ export class ContextManager {
       blockMap.set(block.uid, { ...block, children: [] });
 
       // Add all descendants to map
-      for (const [uid, string, parentUid, order] of result) {
+      for (const [uid, string] of result) {
         if (!blockMap.has(uid)) {
           blockMap.set(uid, {
             uid,
@@ -1287,7 +1279,7 @@ export class ContextManager {
       }
 
       // Build parent-child relationships
-      for (const [uid, string, parentUid, order] of result) {
+      for (const [uid, , parentUid] of result) {
         const parent = blockMap.get(parentUid);
         const child = blockMap.get(uid);
         

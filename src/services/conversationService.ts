@@ -4,7 +4,6 @@ import {
   ConversationData, 
   ConversationSettings, 
   ChatMessage,
-  CompressedMessage,
   PageContext,
   PreservedContext
 } from "../types";

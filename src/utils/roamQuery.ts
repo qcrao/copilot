@@ -2,7 +2,6 @@
 import { RoamBlock, RoamPage } from "../types";
 import { CONTENT_LIMITS } from "./shared/constants";
 import { roamLogger } from "./shared/debug";
-import { ValidationUtils } from "./shared/validation";
 
 export interface BlockWithReferences extends RoamBlock {
   references?: RoamPage[];

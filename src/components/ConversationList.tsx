@@ -1,16 +1,7 @@
 // src/components/ConversationList.tsx
 import React, { useState, useEffect, useCallback } from "react";
-import {
-  Button,
-  Icon,
-  InputGroup,
-  Spinner,
-  Toast,
-  Toaster,
-  Position,
-} from "@blueprintjs/core";
-import { IconNames } from "@blueprintjs/icons";
-import { ConversationMetadata, ConversationListState } from "../types";
+import { Button, Icon, InputGroup, Spinner } from "@blueprintjs/core";
+import { ConversationListState } from "../types";
 import { ConversationService } from "../services/conversationService";
 import { ConversationItem } from "./ConversationItem";
 

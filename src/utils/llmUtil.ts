@@ -136,38 +136,7 @@ export class LLMUtil {
     }
   }
 
-  /**
-   * Get local date string in YYYY-MM-DD format
-   * @param daysOffset - Number of days to offset from today (negative for past days)
-   * @returns Local date string in YYYY-MM-DD format
-   */
-  private static getLocalDateString(daysOffset: number = 0): string {
-    // Create date in local timezone to avoid UTC conversion issues
-    const now = new Date();
-    const localDate = new Date(
-      now.getFullYear(),
-      now.getMonth(),
-      now.getDate()
-    );
-
-    // Add the offset days
-    localDate.setDate(localDate.getDate() + daysOffset);
-
-    const year = localDate.getFullYear();
-    const month = String(localDate.getMonth() + 1).padStart(2, "0");
-    const day = String(localDate.getDate()).padStart(2, "0");
-
-    const result = `${year}-${month}-${day}`;
-
-    // Add debug logging for date calculations (only in debug mode)
-    if (process.env.NODE_ENV === "development") {
-      console.log(
-        `🗓️ Date calculation: today=${now.toDateString()}, offset=${daysOffset}, result=${result}`
-      );
-    }
-
-    return result;
-  }
+  // Removed unused getLocalDateString
 
   private static getProviderClient(config: LLMConfig): LanguageModel {
     const { provider, model, apiKey, baseUrl } = config;

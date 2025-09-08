@@ -1654,7 +1654,6 @@ export class RoamService {
     // Build final context with dynamic token allocation
     let finalContext = "";
     let usedTokens = 0;
-    let remainingTokens = actualMaxTokens;
 
     // Sort by priority and process
     sections.sort((a, b) => a.priority - b.priority);

@@ -17,7 +17,6 @@ export const PromptMenu: React.FC<PromptMenuProps> = ({
   prompts,
   selectedIndex,
   onSelect,
-  onClose,
   position,
   filter,
 }) => {

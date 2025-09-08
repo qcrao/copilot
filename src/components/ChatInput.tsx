@@ -24,11 +24,7 @@ import { UserTemplateService } from "../services/userTemplateService";
 import { UniversalSearchDropdown } from "./UniversalSearchDropdown";
 import { RoamService } from "../services/roamService";
 import { UniversalSearchResult } from "../types";
-import {
-  aiSettings,
-  multiProviderSettings,
-  getAvailableModels,
-} from "../settings";
+import { multiProviderSettings, getAvailableModels } from "../settings";
 import { CONTENT_LIMITS } from "../utils/shared/constants";
 import { ModelSelector } from "./ModelSelector";
 import { ContextPreview } from "./ContextPreview";
@@ -101,10 +97,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
     left: 0,
   });
   const [universalSearchLoading, setUniversalSearchLoading] = useState(false);
-  const [atSymbolContext, setAtSymbolContext] = useState<{
-    isInAtContext: boolean;
-    startPos: number;
-  }>({ isInAtContext: false, startPos: -1 });
+  // Removed unused at-symbol context state
 
   // Performance optimization: Simple cache for search results
   const searchCache = useRef<Map<string, UniversalSearchResult[]>>(new Map());
@@ -135,7 +128,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
     content: controlledValue || "",
     autofocus: false, // Don't autofocus on creation
     editorProps: {
-      handleKeyDown: (view, event) => {
+      handleKeyDown: (_view, event) => {
         // Handle universal search Enter key at TipTap level to prevent default paragraph creation
         if (
           showUniversalSearch &&
@@ -178,7 +171,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
         "data-placeholder": placeholder,
         tabindex: "0",
       },
-      handleDrop: (view, event, slice, moved) => {
+      handleDrop: (_view, event) => {
         // Handle Roam block drops
         if (event.dataTransfer) {
           const uid = RoamQuery.extractUidFromDragData(event.dataTransfer);
@@ -190,7 +183,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
         }
         return false;
       },
-      handleClick: (view, pos, event) => {
+      handleClick: () => {
         // Don't interfere with default click handling
         return false;
       },
@@ -201,11 +194,10 @@ export const ChatInput: React.FC<ChatInputProps> = ({
       // Update content version to trigger canSend recalculation
       setEditorContentVersion((prev) => prev + 1);
     },
-    onCreate: ({ editor }) => {
+    onCreate: () => {
       // Initialize with controlled value if provided
       if (controlledValue) {
         initializeWithReferences(controlledValue);
-        setLastInitializedValue(controlledValue);
       }
     },
     onFocus: ({ editor }) => {
@@ -217,7 +209,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
         }
       }, 0);
     },
-    onBlur: ({ editor }) => {
+    onBlur: () => {
       // Keep caret color but allow natural blur
     },
   });
@@ -278,7 +270,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   closePromptMenuRef.current = closePromptMenu;
 
   // Handle controlled value changes (e.g., when widget reopens)
-  const [lastInitializedValue, setLastInitializedValue] = useState<string>("");
+  // Removed unused lastInitializedValue state
 
   useEffect(() => {
     if (editor && controlledValue !== undefined) {
@@ -286,7 +278,6 @@ export const ChatInput: React.FC<ChatInputProps> = ({
       const currentSerializedContent = serializeWithReferences(editor);
       if (currentSerializedContent !== controlledValue) {
         initializeWithReferences(controlledValue);
-        setLastInitializedValue(controlledValue);
       }
     }
   }, [editor, controlledValue]);
@@ -570,7 +561,6 @@ export const ChatInput: React.FC<ChatInputProps> = ({
     setSelectedUniversalIndex(0);
     setUniversalSearchTerm("");
     setUniversalSearchLoading(false);
-    setAtSymbolContext({ isInAtContext: false, startPos: -1 });
   };
 
   const searchUniversal = async (searchTerm: string) => {
@@ -745,10 +735,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
       currentSearchTerm = currentSearchTerm.replace(/\n/g, "");
       const trimmedSearchTerm = currentSearchTerm.trim();
 
-      setAtSymbolContext({
-        isInAtContext: true,
-        startPos: atSymbolPos,
-      });
+      // Context start position tracked implicitly via term updates
 
       // Use trimmed version for comparison but keep original for context
       if (trimmedSearchTerm !== universalSearchTerm) {

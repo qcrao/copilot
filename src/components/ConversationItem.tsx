@@ -1,7 +1,6 @@
 // src/components/ConversationItem.tsx
 import React, { useState } from "react";
-import { Button, Icon } from "@blueprintjs/core";
-import { IconNames } from "@blueprintjs/icons";
+import { Button } from "@blueprintjs/core";
 import { ConversationMetadata } from "../types";
 
 interface ConversationItemProps {

@@ -2,7 +2,6 @@
 import { 
   CustomPromptTemplate, 
   UserTemplateSettings, 
-  PromptTemplate,
   PromptTemplateSettings 
 } from "../types";
 

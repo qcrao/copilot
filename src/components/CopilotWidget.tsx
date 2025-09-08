@@ -1,26 +1,24 @@
 // src/components/CopilotWidget.tsx
 import React, { useState, useEffect, useRef, useCallback } from "react";
-import { Button, Icon, Spinner } from "@blueprintjs/core";
+import { Button, Icon } from "@blueprintjs/core";
 import { IconNames } from "@blueprintjs/icons";
 // Removing chatscope imports - using custom MessageList now
 import {
   ChatMessage,
   CopilotState,
   PageContext,
-  ConversationListState,
 } from "../types";
 import { AIService } from "../services/aiService";
 import { RoamService } from "../services/roamService";
 import { ConversationService } from "../services/conversationService";
 import { ContextManager } from "../services/contextManager";
-import { aiSettings, multiProviderSettings } from "../settings";
+import { multiProviderSettings } from "../settings";
 import { AI_PROVIDERS } from "../types";
 import { PROMPT_TEMPLATES } from "../data/promptTemplates";
 import { ChatInput } from "./ChatInput";
 import { ConversationList } from "./ConversationList";
 import { PromptTemplatesGrid } from "./PromptTemplatesGrid";
 import { MessageList } from "./MessageList";
-import { ContextPreview } from "./ContextPreview";
 import { PromptBuilder } from "../utils/promptBuilder";
 import { useMemoryManager } from "../utils/memoryManager";
 import { PerformanceMonitor } from "../utils/performance";
@@ -40,7 +38,7 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
   embedMode = "overlay",
 }) => {
   const isSidebar = embedMode === "sidebar";
-  const { registerCleanup, createManagedTimeout } = useMemoryManager();
+  useMemoryManager();
 
   const [state, setState] = useState<CopilotState>({
     isOpen,
@@ -51,7 +49,7 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
 
   const [pageContext, setPageContext] = useState<PageContext | null>(null);
   const [isContextLocked, setIsContextLocked] = useState(false);
-  const [preservedContext, setPreservedContext] = useState<PageContext | null>(null);
+  const [, setPreservedContext] = useState<PageContext | null>(null);
   const [excludedContextUids, setExcludedContextUids] = useState<Set<string>>(
     new Set()
   );

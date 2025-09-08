@@ -1,5 +1,5 @@
 // src/utils/promptBuilder.ts
-import { RoamQuery, BlockWithReferences } from './roamQuery';
+import { RoamQuery } from './roamQuery';
 import { RoamService } from '../services/roamService';
 
 export interface PromptBuildResult {
@@ -73,8 +73,7 @@ export class PromptBuilder {
   private static async processNode(node: any): Promise<{ text: string; referencesExpanded: number }> {
     if (!node) return { text: '', referencesExpanded: 0 };
 
-    let text = '';
-    let referencesExpanded = 0;
+    // Removed unused locals
 
     // console.log('PROMPT_BUILDER_DEBUG: Processing node:', { type: node.type, attrs: node.attrs });
 
@@ -285,8 +284,7 @@ export class PromptBuilder {
       return text;
     }
 
-    // Calculate target length
-    const targetLength = Math.floor(text.length * (maxTokens / currentTokens));
+    // Calculate and enforce token limit across sections
     
     // Split by sections (marked by ###)
     const sections = text.split('\n### ');

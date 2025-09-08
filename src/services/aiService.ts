@@ -1,7 +1,6 @@
 // src/services/aiService.ts
 import { AISettings, AI_PROVIDERS, ChatMessage } from "../types";
 import { multiProviderSettings } from "../settings";
-import { RoamService } from "./roamService";
 import { LLMUtil } from "../utils/llmUtil";
 
 // Default universal assistant prompt (not shown in template panel)
@@ -87,9 +86,7 @@ export class AIService {
     // Analyze context to provide better guidance
     const contextAnalysis = this.analyzeContext(context);
     
-    // Determine if this is first round with template
-    const isFirstRound = conversationHistory.length === 0;
-    const isFirstRoundWithTemplate = isFirstRound && !!customPrompt;
+    // First round info not needed here
     
     // Use LLMUtil without tool calling for better compatibility
     const systemMessage = this.getSystemMessage(context, customPrompt, contextAnalysis, conversationHistory);
@@ -99,8 +96,7 @@ export class AIService {
       finalUserMessage,
       conversationHistory,
       model,
-      context,
-      isFirstRoundWithTemplate
+      context
     );
 
     try {
@@ -207,9 +203,7 @@ export class AIService {
     // Analyze context to provide better guidance
     const contextAnalysis = this.analyzeContext(context);
     
-    // Determine if this is first round with template
-    const isFirstRound = conversationHistory.length === 0;
-    const isFirstRoundWithTemplate = isFirstRound && !!customPrompt;
+    // First round info not needed here
     
     // Use LLMUtil streaming
     const systemMessage = this.getSystemMessage(context, customPrompt, contextAnalysis, conversationHistory);
@@ -219,8 +213,7 @@ export class AIService {
       finalUserMessage,
       conversationHistory,
       model,
-      context,
-      isFirstRoundWithTemplate
+      context
     );
 
     try {
@@ -312,9 +305,7 @@ export class AIService {
 
     const contextAnalysis = this.analyzeContext(context);
     
-    // Determine if this is first round with template
-    const isFirstRound = conversationHistory.length === 0;
-    const isFirstRoundWithTemplate = isFirstRound && !!customPrompt;
+    // First round info not needed here
     
     const systemMessage = this.getSystemMessage(context, customPrompt, contextAnalysis, conversationHistory);
     const messagesWithHistory = this.buildMessagesWithHistory(
@@ -322,8 +313,7 @@ export class AIService {
       userMessage,
       conversationHistory,
       settings.model,
-      context,
-      isFirstRoundWithTemplate
+      context
     );
 
     // Handle Ollama requests separately
@@ -549,8 +539,7 @@ export class AIService {
     currentUserMessage: string,
     conversationHistory: ChatMessage[],
     modelName: string,
-    context?: string,
-    isFirstRoundWithTemplate?: boolean
+    context?: string
   ): Array<{ role: string; content: string }> {
     const messages: Array<{ role: string; content: string }> = [];
 

@@ -1,11 +1,7 @@
 // src/components/CustomMessageInput.tsx
 import React, { useState, useRef, useEffect, KeyboardEvent } from "react";
-import {
-  aiSettings,
-  multiProviderSettings,
-  getAvailableModels,
-} from "../settings";
-import { AI_PROVIDERS, PromptTemplate } from "../types";
+import { multiProviderSettings, getAvailableModels } from "../settings";
+import { PromptTemplate } from "../types";
 import { PROMPT_TEMPLATES } from "../data/promptTemplates";
 import { PromptMenu } from "./PromptMenu";
 import { ModelSelector } from "./ModelSelector";

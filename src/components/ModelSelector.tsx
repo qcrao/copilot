@@ -1,7 +1,6 @@
 import React from "react";
 import Select, { components, SingleValue, StylesConfig } from "react-select";
 import { Icon } from "@blueprintjs/core";
-import { IconNames } from "@blueprintjs/icons";
 import { getModelDisplayInfo } from "../utils/iconUtils";
 
 interface ModelOption {
@@ -33,7 +32,7 @@ interface ModelSelectorProps {
 
 // Custom Option component
 const CustomOption = (props: any) => {
-  const { data, isSelected, isFocused } = props;
+  const { data } = props;
   const modelInfo = data.modelInfo;
 
   const getModelDisplayName = (data: any) => {
