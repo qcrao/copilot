@@ -29,7 +29,7 @@ import {
   multiProviderSettings,
   getAvailableModels,
 } from "../settings";
-import { BLOCK_PREVIEW_LENGTH } from "../constants";
+import { CONTENT_LIMITS } from "../utils/shared/constants";
 import { ModelSelector } from "./ModelSelector";
 import { ContextPreview } from "./ContextPreview";
 import { PageContext } from "../types";
@@ -378,7 +378,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
       // Create preview text
       const preview = RoamQuery.formatBlockPreview(
         blockData.string,
-        BLOCK_PREVIEW_LENGTH
+        CONTENT_LIMITS.BLOCK_PREVIEW
       );
 
       // Insert the reference chip at drop position
@@ -456,7 +456,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
           const preview = blockData
             ? RoamQuery.formatBlockPreview(
                 blockData.string,
-                BLOCK_PREVIEW_LENGTH
+                CONTENT_LIMITS.BLOCK_PREVIEW
               )
             : `Block ${ref.uid}`;
 

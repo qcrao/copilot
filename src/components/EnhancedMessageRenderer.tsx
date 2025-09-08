@@ -7,7 +7,7 @@ import rehypeHighlight from 'rehype-highlight';
 import remarkRoamBlocks from '../utils/remarkRoamBlocks';
 import remarkRoamLinks from '../utils/remarkRoamLinks';
 import { RoamQuery } from '../utils/roamQuery';
-import { BLOCK_PREVIEW_LENGTH } from '../constants';
+import { CONTENT_LIMITS } from '../utils/shared/constants';
 
 // Global cache for block content to prevent re-loading during streaming
 const blockContentCache = new Map<string, { content: string; timestamp: number }>();
@@ -86,7 +86,7 @@ const BlockReference: React.FC<{
         const blockData = await RoamQuery.getBlock(uid);
         
         if (blockData) {
-          const preview = RoamQuery.formatBlockPreview(blockData.string, BLOCK_PREVIEW_LENGTH);
+          const preview = RoamQuery.formatBlockPreview(blockData.string, CONTENT_LIMITS.BLOCK_PREVIEW);
           setBlockContent(preview);
           // Cache the result
           blockContentCache.set(uid, { content: preview, timestamp: now });
