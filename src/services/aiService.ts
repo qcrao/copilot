@@ -766,39 +766,118 @@ export class AIService {
    * Log complete message history sent to AI for debugging
    */
   private static logCompleteMessageHistory(messages: Array<{ role: string; content: string }>): void {
-    console.log("🚀 SENDING TO AI - Complete Message History:");
-    console.log("═".repeat(80));
-    
-    let totalChars = 0;
-    let estimatedTokens = 0;
-    
-    messages.forEach((message, index) => {
-      const charCount = message.content.length;
-      totalChars += charCount;
-      estimatedTokens += this.estimateTokens(message.content);
-      
-      // Format role display
-      let roleDisplay = "";
-      switch (message.role) {
-        case "system":
-          roleDisplay = "SYSTEM MESSAGE";
-          break;
-        case "user":
-          roleDisplay = `USER MESSAGE${index === messages.length - 1 ? " - Current" : ` - Round ${Math.floor(index / 2)}`}`;
-          break;
-        case "assistant":
-          roleDisplay = `ASSISTANT MESSAGE - Round ${Math.floor(index / 2)}`;
-          break;
-        default:
-          roleDisplay = message.role.toUpperCase();
+    try {
+      // Locate the dedicated context message if present
+      const contextMsgIndex = messages.findIndex(
+        (m) =>
+          m.role === "user" &&
+          m.content.startsWith("**Please answer based on the following relevant information:**")
+      );
+
+      const contextMsg = contextMsgIndex >= 0 ? messages[contextMsgIndex] : null;
+      const userMsgIndexBeforeContext = contextMsgIndex > 0
+        ? [...messages].slice(0, contextMsgIndex).map((m, i) => ({ m, i })).reverse().find((x) => x.m.role === "user")?.i
+        : -1;
+      const userMsgBeforeContext = userMsgIndexBeforeContext != null && userMsgIndexBeforeContext >= 0
+        ? messages[userMsgIndexBeforeContext]
+        : null;
+
+      const extractTitles = (text: string): string[] => {
+        if (!text) return [];
+        const fromDoubleBrackets = Array.from(text.matchAll(/\*\*Page:\s+([^*]+)\*\*|\[\[([^\]]+)\]\]/g))
+          .map((m) => (m[1] || m[2] || "").trim())
+          .filter(Boolean);
+        // Deduplicate while preserving order
+        const seen = new Set<string>();
+        const unique: string[] = [];
+        for (const t of fromDoubleBrackets) {
+          if (!seen.has(t)) {
+            seen.add(t);
+            unique.push(t);
+          }
+        }
+        return unique;
+      };
+
+      // Summaries
+      const contextTitles = contextMsg ? extractTitles(contextMsg.content) : [];
+      const userTitles = userMsgBeforeContext ? extractTitles(userMsgBeforeContext.content) : [];
+
+      // Header
+      console.log("\n\n🚀 AI Payload — Clean Log");
+      console.log("═".repeat(88));
+
+      let totalChars = 0;
+      let estimatedTokens = 0;
+
+      messages.forEach((message, index) => {
+        const charCount = message.content.length;
+        const tokenCount = this.estimateTokens(message.content);
+        totalChars += charCount;
+        estimatedTokens += tokenCount;
+
+        // Labeling
+        const isContext = index === contextMsgIndex;
+        const label = message.role === "system"
+          ? "SYSTEM"
+          : message.role === "assistant"
+            ? "ASSISTANT"
+            : isContext
+              ? "USER (context)"
+              : "USER";
+
+        console.log(`#${index + 1}/${messages.length} ${label}  ·  ${charCount} chars  ·  ~${tokenCount} tokens`);
+
+        // For the context message, add a concise summary header
+        if (isContext) {
+          const pageList = contextTitles.length > 0 ? contextTitles.join(", ") : "(none)";
+          console.log(`🧩 Context Summary · Pages: ${pageList}`);
+        }
+
+        console.log("—— content begin ———————————————————————————————————————————");
+        console.log(message.content);
+        console.log("—— content end —————————————————————————————————————————————");
+        console.log("");
+      });
+
+      // Footer summary
+      const userList = userTitles.length > 0 ? userTitles.join(", ") : "(none)";
+      const ctxList = contextTitles.length > 0 ? contextTitles.join(", ") : "(none)";
+      console.log(`📊 Payload Summary: ${messages.length} messages  ·  ${totalChars} chars  ·  ~${estimatedTokens} tokens`);
+      if (userMsgBeforeContext) {
+        console.log(`🔗 Pages in user message: ${userList}`);
       }
-      
-      console.log(`[${index + 1}] ${roleDisplay} (${charCount} chars):`);
-      console.log(message.content);
-      console.log("─".repeat(80));
-    });
-    
-    console.log(`📊 Summary: ${messages.length} messages, ${totalChars} total chars, ~${estimatedTokens} estimated tokens`);
-    console.log("═".repeat(80));
+      if (contextMsg) {
+        console.log(`🔗 Pages in context payload: ${ctxList}`);
+      }
+      if (userTitles.length && contextTitles.length) {
+        const missingInCtx = userTitles.filter((t) => !contextTitles.includes(t));
+        const extraInCtx = contextTitles.filter((t) => !userTitles.includes(t));
+        if (missingInCtx.length || extraInCtx.length) {
+          console.log("⚠️ Mismatch detected between user refs and context:", {
+            missingInContext: missingInCtx,
+            extraInContext: extraInCtx,
+          });
+        }
+      }
+
+      console.log("═".repeat(88));
+    } catch (err) {
+      // Fallback to the previous simple logger on any error
+      console.log("🚀 SENDING TO AI - Complete Message History (fallback logger)");
+      console.log("═".repeat(80));
+      let totalChars = 0;
+      let estimatedTokens = 0;
+      messages.forEach((message, index) => {
+        const charCount = message.content.length;
+        totalChars += charCount;
+        estimatedTokens += this.estimateTokens(message.content);
+        console.log(`[${index + 1}] ${message.role.toUpperCase()} (${charCount} chars):`);
+        console.log(message.content);
+        console.log("─".repeat(80));
+      });
+      console.log(`📊 Summary: ${messages.length} messages, ${totalChars} total chars, ~${estimatedTokens} estimated tokens`);
+      console.log("═".repeat(80));
+    }
   }
 }

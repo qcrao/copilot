@@ -247,6 +247,22 @@ export function composeUnifiedContext(
   // Sort sections by priority
   sections.sort((a, b) => a.priority - b.priority);
 
+  // Prepend a concise source summary when the user explicitly selected pages
+  try {
+    const selectedPages = items
+      .filter((i) => i.type === "page" && i.level === 0)
+      .map((i) => {
+        const title = i.title || "Untitled";
+        const date = i.createdDate ? ` (${i.createdDate})` : "";
+        return `[[${title}]]${date}`;
+      });
+    if (selectedPages.length > 0) {
+      out.push(`**Context Sources:** ${selectedPages.join(", ")}`);
+    }
+  } catch (e) {
+    // Non-fatal; keep context generation robust
+  }
+
   for (const s of sections) {
     const header = s.title ? s.title + "\n" : "";
     const headerTokens = RoamService.estimateTokenCount(header);

@@ -775,6 +775,8 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
         pagesToInclude = currentPageTitle ? [currentPageTitle] : [];
       }
 
+      console.log("🎯 Pages to include in context:", pagesToInclude);
+
       contextItems = await contextManager.buildContext(
         pagesToInclude,
         blockReferences
