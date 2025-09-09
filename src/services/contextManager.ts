@@ -26,6 +26,8 @@ export interface ContextBuilderOptions {
   includeAncestorPath: boolean; // Whether to include ancestor path
   includeBacklinkChildren: boolean; // Whether to include children blocks in backlinks (can make content very long)
   autoIncludeMinimalBacklinkChildren: boolean; // Whether to automatically include children for backlinks that only contain page references
+  expandBacklinkChildrenWhenFew?: boolean; // Expand children when backlink count is small
+  fewBacklinksThreshold?: number; // Threshold to consider backlink count as "few"
   // Performance guards
   maxBacklinks?: number; // Cap backlinks processed per page (default derived from maxItems)
   maxBacklinksWithChildren?: number; // Cap backlinks for which children are expanded
@@ -68,6 +70,8 @@ export class ContextManager {
       includeAncestorPath: true,
       includeBacklinkChildren: false,
       autoIncludeMinimalBacklinkChildren: true,
+      expandBacklinkChildrenWhenFew: true,
+      fewBacklinksThreshold: 8,
       maxBacklinks: undefined,
       maxBacklinksWithChildren: undefined,
       tokenBudgetForBacklinks: undefined,
@@ -561,6 +565,11 @@ export class ContextManager {
         selected.push(s);
       }
 
+      // If backlinks are few, we can be more generous about expanding children
+      const allowExpansionDueToFew =
+        (this.options.expandBacklinkChildrenWhenFew ?? true) &&
+        selected.length <= (this.options.fewBacklinksThreshold ?? 8);
+
       let expandedChildrenCount = 0;
       const yieldEvery = this.options.yieldEveryNBacklinks ?? 20;
       let processed = 0;
@@ -590,12 +599,16 @@ export class ContextManager {
         const baseTokens = RoamService.estimateTokenCount(content);
 
         // Decide if we should expand children for this backlink
+        const budgetHeadroomFactor = allowExpansionDueToFew ? 0.9 : 0.7;
         const shouldExpandChildren =
-          (this.options.includeBacklinkChildren ||
-            (this.options.autoIncludeMinimalBacklinkChildren && withoutRefs.length < 10)) &&
+          (
+            this.options.includeBacklinkChildren ||
+            (this.options.autoIncludeMinimalBacklinkChildren && withoutRefs.length < 10) ||
+            allowExpansionDueToFew
+          ) &&
           expandedChildrenCount < maxWithChildren &&
           // Only consider expansion when we still have comfortable token headroom
-          usedBacklinkTokens + baseTokens < Math.floor(maxBacklinkTokens * 0.7);
+          usedBacklinkTokens + baseTokens < Math.floor(maxBacklinkTokens * budgetHeadroomFactor);
 
         if (shouldExpandChildren) {
           const complete = await this.getBlockWithCompleteHierarchy(block.uid);
