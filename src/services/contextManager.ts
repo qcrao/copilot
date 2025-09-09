@@ -26,6 +26,11 @@ export interface ContextBuilderOptions {
   includeAncestorPath: boolean; // Whether to include ancestor path
   includeBacklinkChildren: boolean; // Whether to include children blocks in backlinks (can make content very long)
   autoIncludeMinimalBacklinkChildren: boolean; // Whether to automatically include children for backlinks that only contain page references
+  // Performance guards
+  maxBacklinks?: number; // Cap backlinks processed per page (default derived from maxItems)
+  maxBacklinksWithChildren?: number; // Cap backlinks for which children are expanded
+  tokenBudgetForBacklinks?: number; // Estimated token budget reserved for backlinks selection/expansion
+  yieldEveryNBacklinks?: number; // Yield to event loop every N backlinks to keep UI responsive
 }
 
 export class ContextManager {
@@ -63,6 +68,10 @@ export class ContextManager {
       includeAncestorPath: true,
       includeBacklinkChildren: false,
       autoIncludeMinimalBacklinkChildren: true,
+      maxBacklinks: undefined,
+      maxBacklinksWithChildren: undefined,
+      tokenBudgetForBacklinks: undefined,
+      yieldEveryNBacklinks: 20,
       ...options
     };
   }
@@ -74,6 +83,8 @@ export class ContextManager {
     userSpecifiedPages: string[] = [], 
     userSpecifiedBlocks: string[] = []
   ): Promise<ContextItem[]> {
+    // Mark processing start for time-budget checks
+    this.processStartTime = Date.now();
     // Only log context building if debug mode is enabled
     if (process.env.NODE_ENV === 'development') {
       console.log("🔍 Building context with:", {
@@ -519,56 +530,155 @@ export class ContextManager {
       const backlinks = await RoamService.getBlocksReferencingPage(pageTitle);
       const contextItems: ContextItem[] = [];
 
-      for (const backlink of backlinks) {
-        // Get complete block hierarchy for this backlink to include children
-        const completeBacklink = await this.getBlockWithCompleteHierarchy(backlink.uid);
-        if (!completeBacklink) {
-          console.log(`❌ Could not get complete hierarchy for backlink: ${backlink.uid}`);
+      // Determine caps
+      const maxBacklinks =
+        typeof this.options.maxBacklinks === 'number'
+          ? this.options.maxBacklinks
+          : Math.min(100, Math.max(20, this.options.maxItems * 2));
+      const maxWithChildren =
+        typeof this.options.maxBacklinksWithChildren === 'number'
+          ? this.options.maxBacklinksWithChildren
+          : 15;
+
+      // Cheap pre-scoring: prefer backlinks with substantive non-reference text
+      const scored = backlinks.map((b) => {
+        const withoutRefs = b.string.replace(/\[\[[^\]]+\]\]/g, '').trim();
+        return { block: b, score: withoutRefs.length, withoutRefs };
+      });
+
+      const strong = scored
+        .filter((s) => s.score >= 10)
+        .sort((a, b) => b.score - a.score);
+      const weak = scored.filter((s) => s.score < 10);
+
+      const selected: typeof scored = [];
+      for (const s of strong) {
+        if (selected.length >= maxBacklinks) break;
+        selected.push(s);
+      }
+      for (const s of weak) {
+        if (selected.length >= maxBacklinks) break;
+        selected.push(s);
+      }
+
+      let expandedChildrenCount = 0;
+      const yieldEvery = this.options.yieldEveryNBacklinks ?? 20;
+      let processed = 0;
+
+      // Token-driven budget for backlinks as a whole
+      // Default to ~25% of a 6k window ~= 1500 tokens when not provided
+      const maxBacklinkTokens = this.options.tokenBudgetForBacklinks ?? 1500;
+      let usedBacklinkTokens = 0;
+
+      for (const { block, score, withoutRefs } of selected) {
+        // Time-budget guard
+        if (Date.now() - this.processStartTime > this.MAX_PROCESSING_TIME) {
+          break;
+        }
+
+        if (this.visitedUids.has(block.uid)) continue;
+
+        // Quick circular/self-reference filter for very short mentions
+        const selfRefPattern = new RegExp(`\\\\[\\\\[${pageTitle.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\\\]\\\\]`, 'i');
+        const hasSelfRef = selfRefPattern.test(block.string);
+        if (hasSelfRef && score < 10 && !this.options.includeBacklinkChildren) {
+          // Skip trivial mention-only backlinks unless we plan to expand children
           continue;
         }
 
-        // Check for circular references using the complete block
-        if (await this.containsCircularReference(completeBacklink, pageTitle)) {
-          // Skip circular reference silently
-          continue;
-        }
+        let content = block.string;
+        const baseTokens = RoamService.estimateTokenCount(content);
 
-        if (!this.visitedUids.has(completeBacklink.uid)) {
-          const backlinkPageTitle = await this.getBlockPageTitle(completeBacklink.uid);
-          const createdDate = await this.getBlockCreationDate(completeBacklink.uid);
-          
-          // Format backlink content - include children if option is enabled or if children provide meaningful context
-          let backlinkContent = completeBacklink.string;
-          
-          if (completeBacklink.children && completeBacklink.children.length > 0) {
-            if (this.options.includeBacklinkChildren) {
-              // User explicitly wants children included
-              backlinkContent += '\n' + RoamService.formatBlocksForAI(completeBacklink.children, 1);
+        // Decide if we should expand children for this backlink
+        const shouldExpandChildren =
+          (this.options.includeBacklinkChildren ||
+            (this.options.autoIncludeMinimalBacklinkChildren && withoutRefs.length < 10)) &&
+          expandedChildrenCount < maxWithChildren &&
+          // Only consider expansion when we still have comfortable token headroom
+          usedBacklinkTokens + baseTokens < Math.floor(maxBacklinkTokens * 0.7);
+
+        if (shouldExpandChildren) {
+          const complete = await this.getBlockWithCompleteHierarchy(block.uid);
+          if (complete) {
+            // Re-check circular with complete data, skip if still trivial
+            if (await this.containsCircularReference(complete, pageTitle)) {
+              continue;
+            }
+            content = complete.string;
+            if (complete.children && complete.children.length > 0) {
+              content += '\n' + RoamService.formatBlocksForAI(complete.children, 1);
+            }
+            // Only count as expanded if we will include it after budget check below
+            const expandedTokens = RoamService.estimateTokenCount(content);
+            if (usedBacklinkTokens + expandedTokens <= maxBacklinkTokens) {
+              expandedChildrenCount++;
             } else {
-              // Even if user doesn't want children, include them if main content is just page reference and auto-include is enabled
-              const contentWithoutRefs = completeBacklink.string.replace(/\[\[[^\]]+\]\]/g, '').trim();
-              if (contentWithoutRefs.length < 10 && this.options.autoIncludeMinimalBacklinkChildren) {
-                // Main content is minimal, include children for context
-                backlinkContent += '\n' + RoamService.formatBlocksForAI(completeBacklink.children, 1);
-                // Auto-including children for minimal backlink content
-              }
+              // Expansion too big for remaining budget; revert to base content
+              content = block.string;
             }
           }
-          
-          const backlinkItem: ContextItem = {
-            type: 'reference',
-            uid: completeBacklink.uid,
-            content: backlinkContent,
-            level: currentLevel,
-            priority: this.calculatePriority(currentLevel, 'backlink'),
-            pageTitle: backlinkPageTitle,
-            source: 'backlink',
-            createdDate,
-            blockReference: this.generateBlockReference(completeBacklink.uid)
-          };
+        }
 
-          contextItems.push(backlinkItem);
-          this.visitedUids.add(completeBacklink.uid);
+        const backlinkPageTitle = await this.getBlockPageTitle(block.uid);
+        const createdDate = await this.getBlockCreationDate(block.uid);
+
+        // Budget check and potential fallback/truncation
+        let plannedTokens = RoamService.estimateTokenCount(content);
+        if (usedBacklinkTokens + plannedTokens > maxBacklinkTokens) {
+          // Try fallback to base if we ended up with expanded content
+          if (content !== block.string) {
+            const baseOnlyTokens = baseTokens;
+            if (usedBacklinkTokens + baseOnlyTokens <= maxBacklinkTokens) {
+              content = block.string;
+              plannedTokens = baseOnlyTokens;
+            }
+          }
+
+          // If still over budget, consider truncating base content when nothing has been added yet
+          if (usedBacklinkTokens + plannedTokens > maxBacklinkTokens) {
+            const remaining = maxBacklinkTokens - usedBacklinkTokens;
+            if (remaining > 8) { // require minimum space to be meaningful
+              const maxChars = remaining * 4; // inverse of estimateTokenCount heuristic
+              const truncated = (content.length > maxChars)
+                ? content.slice(0, maxChars) + '…'
+                : content;
+              content = truncated;
+              plannedTokens = RoamService.estimateTokenCount(truncated);
+              if (usedBacklinkTokens + plannedTokens > maxBacklinkTokens) {
+                // Still doesn't fit; skip this backlink
+                processed++;
+                if (processed % yieldEvery === 0) {
+                  await new Promise((r) => setTimeout(r, 0));
+                }
+                continue;
+              }
+            } else {
+              // Too little budget left; stop processing more backlinks
+              break;
+            }
+          }
+        }
+
+        const item: ContextItem = {
+          type: 'reference',
+          uid: block.uid,
+          content: content,
+          level: currentLevel,
+          priority: this.calculatePriority(currentLevel, 'backlink'),
+          pageTitle: backlinkPageTitle,
+          source: 'backlink',
+          createdDate,
+          blockReference: this.generateBlockReference(block.uid)
+        };
+
+        contextItems.push(item);
+        this.visitedUids.add(block.uid);
+        usedBacklinkTokens += plannedTokens;
+
+        // Cooperative yield to keep UI responsive
+        processed++;
+        if (processed % yieldEvery === 0) {
+          await new Promise((r) => setTimeout(r, 0));
         }
       }
 
