@@ -12,6 +12,8 @@ import { AIService } from "../services/aiService";
 import { RoamService } from "../services/roamService";
 import { ConversationService } from "../services/conversationService";
 import { ContextManager } from "../services/contextManager";
+import type { ContextItem } from "../services/contextManager";
+import { composeUnifiedContext } from "../services/contextComposer";
 import { multiProviderSettings } from "../settings";
 import { AI_PROVIDERS } from "../types";
 import { PROMPT_TEMPLATES } from "../data/promptTemplates";
@@ -740,7 +742,7 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
 
       // Build enhanced context using ContextManager
       let contextString = "";
-      let contextItems = [];
+      let contextItems: ContextItem[] = [];
 
       console.log("🔍 Building enhanced context for:", {
         pageReferences,
@@ -798,28 +800,27 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
         messagesCount: state.messages.length
       });
 
-      // Always use enhanced context from ContextManager for consistency
+      // Always use unified composer for consistency and dynamic budgeting
       enhancedUserMessage = actualUserMessage; // Never add context to user message
-      
-      if (contextItems.length > 0) {
-        // Use ContextManager formatting for consistent context structure
-        contextString = contextManager.formatContextForAI(contextItems);
-        console.log(`✅ Using enhanced context with ${contextItems.length} items (consistently through system message)`);
-      } else if (filteredContext) {
-        // Fallback to RoamService formatting if no enhanced context available
-        const currentModel = multiProviderSettings.currentModel;
-        const provider = await AIService.getProviderForModel(currentModel);
-        contextString = RoamService.formatContextForAI(
-          filteredContext,
-          8000,
-          provider?.provider?.id || "openai",
-          currentModel
-        );
-        console.log("⚠️ Using fallback context from RoamService");
-      } else {
-        contextString = "No context available";
-        console.log("ℹ️ No context available");
-      }
+
+      const currentModelForContext = multiProviderSettings.currentModel;
+      const providerInfoForContext = await AIService.getProviderForModel(
+        currentModelForContext
+      );
+      const providerIdForContext =
+        providerInfoForContext?.provider?.id || "openai";
+
+      contextString = composeUnifiedContext(contextItems as any, filteredContext as any, {
+        provider: providerIdForContext,
+        model: currentModelForContext,
+        // Prefer settings-driven cap if provided; otherwise composer uses model window * 0.7
+        maxTokens: multiProviderSettings.maxInputTokens,
+        includeSidebarNotes: !hasSpecificIntent, // exclude ambient extras when intent is specific
+        includeDailyNotes: !hasSpecificIntent,
+        includeGuidelines: true,
+      });
+
+      console.log(`✅ Using unified context composer (${contextItems.length} curated items)`);
 
       console.log("Sending message with context:", {
         isFirstRound,
