@@ -51,10 +51,12 @@ export function composeUnifiedContext(
     ? RoamService.getModelTokenLimit(provider, model)
     : 6000; // sensible default
 
-  const maxContextTokens = Math.max(
-    1000,
-    maxTokens || Math.floor(modelLimit * contextTokenShare)
-  );
+  // Model-side budget reserved for context (e.g., 70% of window)
+  const modelBudget = Math.floor(modelLimit * contextTokenShare);
+  // User provided cap (from settings) may be undefined; clamp to modelBudget
+  const requestedBudget = typeof maxTokens === 'number' ? maxTokens : modelBudget;
+  // Enforce a practical minimum of 1000 to keep context meaningful (as agreed)
+  const maxContextTokens = Math.max(1000, Math.min(requestedBudget, modelBudget));
 
   // 2) Build curated sections by level (0,1,2,3+)
   const itemsByLevel: Record<number, ContextItem[]> = {};
@@ -263,6 +265,9 @@ export function composeUnifiedContext(
     // Non-fatal; keep context generation robust
   }
 
+  // Dynamic small-section threshold (avoid dropping all content on small budgets)
+  const minSectionThreshold = Math.max(20, Math.floor(maxContextTokens * 0.03));
+
   for (const s of sections) {
     const header = s.title ? s.title + "\n" : "";
     const headerTokens = RoamService.estimateTokenCount(header);
@@ -283,7 +288,7 @@ export function composeUnifiedContext(
       Math.min(s.allocatedTokens - headerTokens, maxContextTokens - usedTokens - headerTokens)
     );
 
-    if (available > 40) { // ensure meaningful space
+    if (available > minSectionThreshold) { // ensure meaningful space
       const truncated = truncatePreservingStructureLocal(s.content, available);
       if (truncated.trim().length > 0) {
         out.push(header + truncated);
@@ -292,14 +297,22 @@ export function composeUnifiedContext(
     }
   }
 
+  // Include guidelines only if budget allows
   if (includeGuidelines) {
-    out.push(
+    const guidelines =
       "\n\n**IMPORTANT GUIDELINES:**\n" +
-        "- Only use page references [[Page Name]] that appear in the context above\n" +
-        "- Do NOT create new page references that are not already mentioned\n" +
-        "- If you need to mention a concept that doesn't have a page reference in the context, use regular text instead of [[]]\n" +
-        "- All [[]] references in your response should be clickable and valid\n"
-    );
+      "- Only use page references [[Page Name]] that appear in the context above\n" +
+      "- Do NOT create new page references that are not already mentioned\n" +
+      "- If you need to mention a concept that doesn't have a page reference in the context, use regular text instead of [[]]\n" +
+      "- All [[]] references in your response should be clickable and valid\n";
+
+    const gTokens = RoamService.estimateTokenCount(guidelines);
+    if (usedTokens + gTokens <= maxContextTokens) {
+      out.push(guidelines);
+      usedTokens += gTokens;
+    } else {
+      // Skip guidelines when budget is very tight
+    }
   }
 
   return out.join("\n\n").trim();
