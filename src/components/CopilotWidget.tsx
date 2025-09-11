@@ -812,13 +812,22 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
       const providerIdForContext =
         providerInfoForContext?.provider?.id || "openai";
 
+      console.log("🔍 CONTEXT DEBUG:", {
+        hasSpecificIntent,
+        includeDailyNotes: !hasSpecificIntent,
+        filteredContextHasVisibleDailyNotes: !!filteredContext?.visibleDailyNotes?.length,
+        visibleDailyNotesCount: filteredContext?.visibleDailyNotes?.length || 0,
+        currentContextHasVisibleDailyNotes: !!currentContext?.visibleDailyNotes?.length,
+        currentContextVisibleDailyNotesCount: currentContext?.visibleDailyNotes?.length || 0
+      });
+
       contextString = composeUnifiedContext(contextItems as any, filteredContext as any, {
         provider: providerIdForContext,
         model: currentModelForContext,
         // Prefer settings-driven cap if provided; otherwise composer uses model window * 0.7
         maxTokens: multiProviderSettings.maxInputTokens,
         includeSidebarNotes: !hasSpecificIntent, // exclude ambient extras when intent is specific
-        includeDailyNotes: !hasSpecificIntent,
+        includeDailyNotes: !hasSpecificIntent, // exclude ambient extras when intent is specific
         includeGuidelines: true,
       });
 
@@ -1309,6 +1318,7 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
       currentRequestAbortController.current = null;
     }
 
+    // Immediately clear messages to prevent race conditions
     setState((prev) => ({
       ...prev,
       messages: [],
@@ -1324,13 +1334,11 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
     setPreservedContext(null);
     setHasConversationSpecificContext(false); // Reset specific context flag
     
+    // Clear date notes cache
+    setDateNotesCache({});
+
     // Refresh current context
     updatePageContext(true);
-    setDateNotesCache({}); // Clear date notes cache
-
-    // Update context when starting a new conversation
-    // This ensures the new conversation uses the current page's context
-    updatePageContext();
   };
 
   const toggleConversationList = () => {
