@@ -8,6 +8,7 @@ import remarkRoam from '../utils/roam/remarkRoam';
 // remarkRoamLinks functionality is now included in remarkRoam
 import { RoamQuery } from '../utils/roamQuery';
 import { CONTENT_LIMITS } from '../utils/shared/constants';
+import { RoamService } from '../services/roamService';
 
 // Global cache for block content to prevent re-loading during streaming
 const blockContentCache = new Map<string, { content: string; timestamp: number }>();
@@ -136,13 +137,12 @@ const BlockReference: React.FC<{
           });
         } catch (sidebarError) {
           try {
-            // Try direct URL navigation to the block
-            const currentUrl = window.location.href;
-            const roamDbMatch = currentUrl.match(/\/app\/([^\/]+)/);
-            if (roamDbMatch) {
-              const dbName = roamDbMatch[1];
-              const blockUrl = `${window.location.origin}/app/${dbName}/page/${uid}`;
-              window.location.href = blockUrl;
+            // Try direct URL navigation to the block using graph-aware links
+            const urls = RoamService.generateBlockUrl(uid);
+            if (urls) {
+              const isDesktop = RoamService.isDesktopApp();
+              const target = isDesktop ? urls.desktopUrl : urls.webUrl;
+              window.location.href = target;
             }
           } catch (urlError) {
             // Final fallback - try to focus on the block if it's visible
@@ -164,25 +164,24 @@ const BlockReference: React.FC<{
   return (
     <span
       style={{
-        backgroundColor: isUser ? 'rgba(33, 93, 176, 0.08)' : 'rgba(33, 93, 176, 0.08)',
-        color: isUser ? '#215db0' : '#215db0',
-        padding: '2px 4px',
+        backgroundColor: 'rgba(33, 93, 176, 0.08)',
+        color: '#215db0',
+        padding: '1px 4px',
         borderRadius: '4px',
-        fontSize: '15px',
+        fontSize: '14px',
         fontWeight: 'normal',
         textDecoration: 'underline',
-        textDecorationColor: isUser ? '#215db0' : '#215db0',
+        textDecorationColor: '#215db0',
         textUnderlineOffset: '2px',
         cursor: 'pointer',
         margin: '0 1px',
         display: 'inline',
         lineHeight: 'inherit',
         verticalAlign: 'baseline',
-        textShadow: isUser ? 'none' : '0 1px 2px rgba(33, 93, 176, 0.1)',
         transition: 'all 0.2s ease',
         border: 'none'
       }}
-      title={`Block reference: ${uid}`}
+      title={isLoading ? `Block ((${uid}))` : `Block ((${uid})) — ${blockContent}`}
       onMouseEnter={(e) => {
         e.currentTarget.style.backgroundColor = 'rgba(33, 93, 176, 0.12)';
         e.currentTarget.style.color = '#1a4d96';
@@ -197,7 +196,7 @@ const BlockReference: React.FC<{
       }}
       onClick={handleClick}
     >
-      {isLoading ? `[Loading...]` : blockContent}
+      {`((${uid}))`}
     </span>
   );
 };
@@ -305,13 +304,13 @@ const PageReference: React.FC<{
           });
         } catch (sidebarError) {
           try {
-            // Try direct URL navigation to the page
-            const currentUrl = window.location.href;
-            const roamDbMatch = currentUrl.match(/\/app\/([^\/]+)/);
-            if (roamDbMatch) {
-              const dbName = roamDbMatch[1];
-              const pageUrl = `${window.location.origin}/app/${dbName}/page/${encodeURIComponent(pageName)}`;
-              window.location.href = pageUrl;
+            // Try direct URL navigation using graph-aware links; Roam supports title in /page path
+            const graph = RoamService.getCurrentGraphName();
+            if (graph) {
+              const isDesktop = RoamService.isDesktopApp();
+              const webUrl = `https://roamresearch.com/#/app/${encodeURIComponent(graph)}/page/${encodeURIComponent(pageName)}`;
+              const desktopUrl = `roam://#/app/${encodeURIComponent(graph)}/page/${encodeURIComponent(pageName)}`;
+              window.location.href = isDesktop ? desktopUrl : webUrl;
             }
           } catch (urlError) {
             console.error('Navigation failed:', urlError);

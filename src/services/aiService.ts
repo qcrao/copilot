@@ -371,6 +371,13 @@ export class AIService {
       multiProviderSettings.responseLanguage || "English";
     const languageInstruction = `\n\n**LANGUAGE REQUIREMENT:** Please respond in ${responseLanguage}.`;
 
+    // Add a consistent citation policy so the assistant includes Roam block UIDs in replies
+    const citationPolicy = `\n\n**CITATION POLICY (IMPORTANT):**\n` +
+      `- When you use or paraphrase specific content from the context, include its Roam block reference in the exact format ((UID)).\n` +
+      `- Use only UIDs that appear in the provided context or the user's message. Never invent UIDs.\n` +
+      `- For ideas synthesized from multiple blocks, you may append multiple references, e.g. ((uid1)) ((uid2)).\n` +
+      `- If no specific source block applies, omit block citations rather than guessing.\n`;
+
     // Generate context-specific guidance
     const contextGuidance = this.generateContextGuidance(contextAnalysis);
 
@@ -400,11 +407,11 @@ export class AIService {
 
     // First round with custom prompt (Template): Use template as system message (without context)
     if (isFirstRound && customPrompt) {
-      return `${customPrompt}${contextGuidance}${languageInstruction}`;
+      return `${customPrompt}${contextGuidance}${citationPolicy}${languageInstruction}`;
     }
     
     // For all other cases (second round onwards, or first round without template), use universal assistant (without context)
-    return `${UNIVERSAL_ASSISTANT_PROMPT}${contextGuidance}${languageInstruction}`;
+    return `${UNIVERSAL_ASSISTANT_PROMPT}${contextGuidance}${citationPolicy}${languageInstruction}`;
   }
 
   /**
