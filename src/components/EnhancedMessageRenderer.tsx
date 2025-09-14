@@ -1,5 +1,5 @@
 // src/components/EnhancedMessageRenderer.tsx
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import rehypeHighlight from 'rehype-highlight';
@@ -28,7 +28,8 @@ interface EnhancedMessageRendererProps {
 const BlockReference: React.FC<{
   uid: string;
   isUser: boolean;
-}> = ({ uid, isUser }) => {
+  index?: number; // numeric citation index (1-based)
+}> = ({ uid, isUser, index }) => {
   // Check cache immediately for initial state
   const getCachedContent = (uid: string): { content: string; isLoading: boolean } => {
     const now = Date.now();
@@ -164,39 +165,25 @@ const BlockReference: React.FC<{
   return (
     <span
       style={{
-        backgroundColor: 'rgba(33, 93, 176, 0.08)',
         color: '#215db0',
-        padding: '1px 4px',
-        borderRadius: '4px',
-        fontSize: '14px',
-        fontWeight: 'normal',
-        textDecoration: 'underline',
-        textDecorationColor: '#215db0',
-        textUnderlineOffset: '2px',
         cursor: 'pointer',
-        margin: '0 1px',
         display: 'inline',
         lineHeight: 'inherit',
         verticalAlign: 'baseline',
-        transition: 'all 0.2s ease',
-        border: 'none'
+        transition: 'color 0.15s ease'
       }}
-      title={isLoading ? `Block ((${uid}))` : `Block ((${uid})) — ${blockContent}`}
+      title={isLoading ? `Block citation ((${uid}))` : `${blockContent}`}
       onMouseEnter={(e) => {
-        e.currentTarget.style.backgroundColor = 'rgba(33, 93, 176, 0.12)';
         e.currentTarget.style.color = '#1a4d96';
-        e.currentTarget.style.textDecorationColor = '#1a4d96';
-        e.currentTarget.style.textShadow = '0 1px 3px rgba(33, 93, 176, 0.15)';
+        (e.currentTarget as HTMLElement).style.textDecoration = 'underline';
       }}
       onMouseLeave={(e) => {
-        e.currentTarget.style.backgroundColor = 'rgba(33, 93, 176, 0.08)';
         e.currentTarget.style.color = '#215db0';
-        e.currentTarget.style.textDecorationColor = '#215db0';
-        e.currentTarget.style.textShadow = '0 1px 2px rgba(33, 93, 176, 0.1)';
+        (e.currentTarget as HTMLElement).style.textDecoration = 'none';
       }}
       onClick={handleClick}
     >
-      {`((${uid}))`}
+      <sup style={{ fontSize: '0.75em', fontWeight: 600 }}>{index ?? '•'}</sup>
     </span>
   );
 };
@@ -354,6 +341,37 @@ export const EnhancedMessageRenderer: React.FC<EnhancedMessageRendererProps> = (
   isUser = false, 
   isStreaming = false
 }) => {
+  // Build deterministic UID -> index map based on first appearance in content
+  const buildCitationMap = (text: string): { order: string[]; map: Record<string, number> } => {
+    const order: string[] = [];
+    const seen = new Set<string>();
+
+    const uidRe = /\(\(([a-zA-Z0-9_-]{6,})\)\)/g;
+    let m: RegExpExecArray | null;
+    while ((m = uidRe.exec(text)) !== null) {
+      const uid = m[1];
+      if (!seen.has(uid)) {
+        seen.add(uid);
+        order.push(uid);
+      }
+    }
+
+    // Also support Roam deep links that include UIDs
+    const roamUrlRe = /(?:https?:\/\/roamresearch\.com\/#\/app\/[^/]+\/page\/|roam:\/\/#\/app\/[^/]+\/page\/)([a-zA-Z0-9_-]+)/g;
+    while ((m = roamUrlRe.exec(text)) !== null) {
+      const uid = m[1];
+      if (!seen.has(uid)) {
+        seen.add(uid);
+        order.push(uid);
+      }
+    }
+
+    const map: Record<string, number> = {};
+    order.forEach((u, i) => (map[u] = i + 1));
+    return { order, map };
+  };
+
+  // We compute based on the processed content (after cleanup of incomplete refs)
   // Pre-process content to remove thinking blocks and clean up formatting
   const preprocessContent = (text: string): string => {
     let processedText = text
@@ -390,6 +408,13 @@ export const EnhancedMessageRenderer: React.FC<EnhancedMessageRendererProps> = (
   };
 
   const processedContent = preprocessContent(content);
+
+  const citation = useMemo(() => buildCitationMap(processedContent), [processedContent]);
+  const dynamicMapRef = useRef<{ map: Record<string, number>; next: number }>({ map: citation.map, next: citation.order.length + 1 });
+  // Reset dynamic map when content changes
+  useEffect(() => {
+    dynamicMapRef.current = { map: citation.map, next: citation.order.length + 1 };
+  }, [citation.map, citation.order.length]);
 
   return (
     <div 
@@ -491,7 +516,13 @@ export const EnhancedMessageRenderer: React.FC<EnhancedMessageRendererProps> = (
             
             // Handle Roam block references
             if (className?.includes('roam-block-ref') && props['data-uid']) {
-              return <BlockReference uid={props['data-uid']} isUser={isUser} />;
+              const uid = props['data-uid'];
+              let index = dynamicMapRef.current.map[uid];
+              if (!index) {
+                index = dynamicMapRef.current.next++;
+                dynamicMapRef.current.map[uid] = index;
+              }
+              return <BlockReference uid={uid} isUser={isUser} index={index} />;
             }
             
             // Handle Roam page references
