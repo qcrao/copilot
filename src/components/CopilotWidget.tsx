@@ -217,6 +217,7 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
                 }
               : undefined,
             linkedReferences: filterBlocks(context.linkedReferences) as any,
+            linkedReferencesTotal: context.linkedReferencesTotal,
             sidebarNotes: context.sidebarNotes || [], // 🔧 Fix: Include sidebar notes!
             visibleDailyNotes: context.visibleDailyNotes
               ? context.visibleDailyNotes.map(dailyNote => ({

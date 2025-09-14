@@ -26,6 +26,13 @@ export class RoamService {
   private static sidebarObserver: MutationObserver | null = null;
   private static sidebarChangeCallbacks: Set<() => void> = new Set();
 
+  // Backlinks cache (counts + optional sample list)
+  private static backlinksCache: Map<
+    string,
+    { count: number; blocks: RoamBlock[]; timestamp: number }
+  > = new Map();
+  private static readonly BACKLINKS_CACHE_DURATION = 30 * 1000; // 30s
+
   /**
    * Get the current graph name
    */
@@ -405,73 +412,66 @@ export class RoamService {
    */
   static async getPageBlocks(pageUid: string): Promise<RoamBlock[]> {
     try {
-      // Getting blocks for page
-
       // Ensure pageUid is a string, not a Promise
       const resolvedPageUid = await Promise.resolve(pageUid);
+      if (!resolvedPageUid) return [];
 
-      if (!resolvedPageUid) {
-        // No valid page UID provided
-        return [];
-      }
-
-      // Try different query patterns for different types of pages (excluding backlinks query)
-      const queries = [
-        // Standard page children query
-        `[:find ?uid ?string ?order
+      // Fetch all descendants on the page in a single query, including parent and order
+      const query = `
+        [:find ?uid ?string ?parentUid ?order
          :where
          [?page :block/uid "${resolvedPageUid}"]
-         [?page :block/children ?block]
-         [?block :block/uid ?uid]
-         [?block :block/string ?string]
-         [?block :block/order ?order]]`,
+         [?desc :block/page ?page]
+         [?desc :block/uid ?uid]
+         [?desc :block/string ?string]
+         [?parent :block/children ?desc]
+         [?parent :block/uid ?parentUid]
+         [?desc :block/order ?order]]
+      `;
 
-        // Alternative query using parents relationship
-        `[:find ?uid ?string ?order
-         :where
-         [?page :block/uid "${resolvedPageUid}"]
-         [?block :block/parents ?page]
-         [?block :block/uid ?uid]
-         [?block :block/string ?string]
-         [?block :block/order ?order]]`,
+      const result = window.roamAlphaAPI.q(query) as Array<[
+        string,
+        string,
+        string,
+        number
+      ]>;
 
-        // Try without order constraint
-        `[:find ?uid ?string
-         :where
-         [?page :block/uid "${resolvedPageUid}"]
-         [?page :block/children ?block]
-         [?block :block/uid ?uid]
-         [?block :block/string ?string]]`,
-      ];
+      if (!result || result.length === 0) return [];
 
-      let result = null;
-      for (let i = 0; i < queries.length; i++) {
-        result = window.roamAlphaAPI.q(queries[i]);
-        if (result && result.length > 0) {
-          break;
+      // Build map and assemble tree
+      const nodeMap = new Map<string, RoamBlock>();
+      for (const [uid, string, , order] of result) {
+        if (!nodeMap.has(uid)) {
+          nodeMap.set(uid, { uid, string: string || "", order: order || 0, children: [] });
         }
       }
 
-      if (!result || result.length === 0) {
-        // No blocks found with any query
-        return [];
+      const topLevel: RoamBlock[] = [];
+      for (const [uid, , parentUid] of result) {
+        const node = nodeMap.get(uid)!;
+        if (parentUid === resolvedPageUid) {
+          topLevel.push(node);
+        } else {
+          const parent = nodeMap.get(parentUid);
+          if (parent) {
+            if (!parent.children) parent.children = [];
+            parent.children.push(node);
+          }
+        }
       }
 
-      const blocks: RoamBlock[] = result.map((row: any[]) => ({
-        uid: row[0],
-        string: row[1] || "",
-        order: row[2] || 0,
-      }));
+      // Sort by order recursively
+      const sortRecursively = (block: RoamBlock) => {
+        if (block.children && block.children.length > 0) {
+          block.children.sort((a, b) => (a.order || 0) - (b.order || 0));
+          block.children.forEach(sortRecursively);
+        }
+      };
 
-      // Sort by order and get children for each block
-      blocks.sort((a, b) => (a.order || 0) - (b.order || 0));
+      topLevel.sort((a, b) => (a.order || 0) - (b.order || 0));
+      topLevel.forEach(sortRecursively);
 
-      // Get children for each block recursively
-      for (const block of blocks) {
-        block.children = await this.getBlockChildren(block.uid);
-      }
-
-      return blocks;
+      return topLevel;
     } catch (error) {
       console.error("Error getting page blocks:", error);
       return [];
@@ -1333,10 +1333,13 @@ export class RoamService {
       }
     }
 
-    // Get linked references if we have a current page (using comprehensive method)
+    // Get backlinks with performance guard (count + capped sample)
     let linkedReferences: RoamBlock[] = [];
+    let linkedReferencesTotal = 0;
     if (currentPage) {
-      linkedReferences = await this.getBlocksReferencingPage(currentPage.title);
+      const backlinks = await this.getBacklinksForContext(currentPage.title, 50);
+      linkedReferences = backlinks.blocks;
+      linkedReferencesTotal = backlinks.count;
     }
 
     // Log page context summary
@@ -1365,6 +1368,7 @@ export class RoamService {
       selectedText: undefined, // Removed selectedText feature
       dailyNote: undefined,
       linkedReferences,
+      linkedReferencesTotal,
       sidebarNotes,
       visibleDailyNotes, // New: visible daily notes for daily notes view
     };
@@ -1632,6 +1636,7 @@ export class RoamService {
 
     // 4. Linked References (Lower priority)
     if (context.linkedReferences && context.linkedReferences.length > 0) {
+      const totalLinked = context.linkedReferencesTotal ?? context.linkedReferences.length;
       const referencesContent = context.linkedReferences
         .slice(0, 5) // Limit to 5 most relevant
         .map((ref) => `- ${ref.string}`)
@@ -1639,10 +1644,7 @@ export class RoamService {
 
       sections.push({
         priority: 4,
-        title: `**Linked References (${Math.min(
-          context.linkedReferences.length,
-          5
-        )} references):**`,
+        title: `**Linked References (${Math.min(totalLinked, 5)} references):**`,
         content: referencesContent,
         maxTokens: Math.floor(
           actualMaxTokens * priorityAllocations.linkedReferences
@@ -2020,7 +2022,8 @@ export class RoamService {
 
     // Add linked references
     if (context.linkedReferences.length > 0) {
-      formattedContext += `**Linked References (${context.linkedReferences.length} references):**\n`;
+      const totalLinked = context.linkedReferencesTotal ?? context.linkedReferences.length;
+      formattedContext += `**Linked References (${totalLinked} references):**\n`;
       for (const ref of context.linkedReferences.slice(0, 10)) {
         const blockUrls = this.generateBlockUrl(
           ref.uid,
@@ -2472,6 +2475,96 @@ export class RoamService {
     } catch (error) {
       console.error("Error getting blocks referencing page:", error);
       return [];
+    }
+  }
+
+  /**
+   * Fast path: get total backlinks count for a page (uses cache + aggregate query)
+   */
+  static async getBacklinksCount(pageTitle: string): Promise<number> {
+    try {
+      const cacheKey = pageTitle;
+      const cached = this.backlinksCache.get(cacheKey);
+      if (
+        cached &&
+        Date.now() - cached.timestamp < this.BACKLINKS_CACHE_DURATION &&
+        typeof cached.count === "number"
+      ) {
+        return cached.count;
+      }
+
+      // Aggregate count of blocks that formally reference the page
+      const escaped = pageTitle.replace(/"/g, '\\"');
+      const countQuery = `
+        [:find (count ?block)
+         :where
+         [?page :node/title "${escaped}"]
+         [?block :block/refs ?page]]
+      `;
+      const result = window.roamAlphaAPI.q(countQuery);
+      const count = Array.isArray(result) && result[0] ? Number(result[0][0]) : 0;
+
+      // Update cache (preserve any existing sample blocks)
+      this.backlinksCache.set(cacheKey, {
+        count,
+        blocks: cached?.blocks || [],
+        timestamp: Date.now(),
+      });
+
+      return count;
+    } catch (error) {
+      console.error("Error getting backlinks count:", error);
+      return 0;
+    }
+  }
+
+  /**
+   * Get backlinks for context preview with a protective cap.
+   * - Uses cached count
+   * - Returns empty list when count exceeds cap to avoid heavy queries
+   */
+  static async getBacklinksForContext(
+    pageTitle: string,
+    cap: number = 50
+  ): Promise<{ blocks: RoamBlock[]; count: number }> {
+    try {
+      const cacheKey = pageTitle;
+      const cached = this.backlinksCache.get(cacheKey);
+
+      // If cache fresh and either blocks length <= cap or already empty-by-design, reuse
+      if (
+        cached &&
+        Date.now() - cached.timestamp < this.BACKLINKS_CACHE_DURATION
+      ) {
+        return { blocks: cached.blocks || [], count: cached.count || 0 };
+      }
+
+      // Always get current count first (cheap aggregate)
+      const count = await this.getBacklinksCount(pageTitle);
+
+      // If too many backlinks, skip fetching the full list for responsiveness
+      if (count > cap) {
+        this.backlinksCache.set(cacheKey, {
+          count,
+          blocks: [],
+          timestamp: Date.now(),
+        });
+        return { blocks: [], count };
+      }
+
+      // Otherwise fetch the full list (still bounded by count <= cap)
+      const blocks = await this.getBlocksReferencingPage(pageTitle);
+      const limited = blocks.slice(0, cap);
+
+      this.backlinksCache.set(cacheKey, {
+        count,
+        blocks: limited,
+        timestamp: Date.now(),
+      });
+      return { blocks: limited, count };
+    } catch (error) {
+      console.error("Error getting backlinks for context:", error);
+      return { blocks: [], count: 0 };
     }
   }
 

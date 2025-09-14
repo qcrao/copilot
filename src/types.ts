@@ -69,6 +69,7 @@ export interface PageContext {
   selectedText?: string;
   dailyNote?: RoamPage;
   linkedReferences: RoamBlock[];
+  linkedReferencesTotal?: number; // Total backlinks count (may exceed array length)
   sidebarNotes?: RoamPage[];
   visibleDailyNotes?: RoamPage[]; // New: visible daily notes for daily notes view
 }

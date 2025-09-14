@@ -63,7 +63,7 @@ export const ContextPreview: React.FC<ContextPreviewProps> = ({
     [key: string]: number;
   }>({});
 
-  // Fetch backlinks count for sidebar notes
+  // Fetch backlinks count for sidebar notes (use count-only API for performance)
   useEffect(() => {
     if (!context?.sidebarNotes || context.sidebarNotes.length === 0) return;
 
@@ -72,8 +72,8 @@ export const ContextPreview: React.FC<ContextPreviewProps> = ({
 
       for (const note of context.sidebarNotes || []) {
         try {
-          const backlinks = await RoamService.getBlocksReferencingPage(note.title);
-          backlinkCounts[note.uid] = backlinks.length;
+          const count = await RoamService.getBacklinksCount(note.title);
+          backlinkCounts[note.uid] = count;
         } catch (error) {
           console.warn("Error fetching backlinks for", note.title, error);
           backlinkCounts[note.uid] = 0;
@@ -160,6 +160,7 @@ export const ContextPreview: React.FC<ContextPreviewProps> = ({
   const visibleBlocks = context.visibleBlocks || [];
   const dailyNoteBlocks = context.dailyNote?.blocks || [];
   const backlinks = context.linkedReferences || [];
+  const backlinksTotal = context.linkedReferencesTotal ?? backlinks.length;
   const sidebarNotes = context.sidebarNotes || [];
 
   // Helper function to check if a page title is a daily note
@@ -231,7 +232,7 @@ export const ContextPreview: React.FC<ContextPreviewProps> = ({
     countNonEmptyBlocks(visibleBlocks) > 0 ||
     countNonEmptyBlocks(dailyNoteBlocks) > 0 ||
     (context.visibleDailyNotes && context.visibleDailyNotes.some(dn => countNonEmptyBlocks(dn.blocks) > 0));
-  const hasBacklinks = backlinks.length > 0;
+  const hasBacklinks = backlinksTotal > 0;
   const hasSidebarNotes = sidebarNotes.length > 0;
 
   // Debug logging for visibleDailyNotes
@@ -361,9 +362,9 @@ export const ContextPreview: React.FC<ContextPreviewProps> = ({
           <ContextChip
             icon="link"
             text="Backlinks"
-            count={backlinks.length}
+            count={backlinksTotal}
             variant="backlinks"
-            title={`Backlinks: ${backlinks.length}`}
+            title={`Backlinks: ${backlinksTotal}`}
           />
         </Popover>
       )}
