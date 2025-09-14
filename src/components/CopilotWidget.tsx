@@ -831,6 +831,33 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
         includeGuidelines: true,
       });
 
+      // Fallback: if unified composer produced minimal placeholder, rebuild with full ambient context
+      const isMinimalContext =
+        !contextString ||
+        contextString.trim().startsWith(
+          "**Context Note:** This is minimal context for tool execution"
+        );
+
+      if (isMinimalContext) {
+        try {
+          console.warn(
+            "⚠️ Unified context is minimal; falling back to full page context"
+          );
+          const fallback = RoamService.formatContextForAI(
+            // Use the unfiltered current context to ensure we have content
+            currentContext || ({} as any),
+            multiProviderSettings.maxInputTokens,
+            providerIdForContext,
+            currentModelForContext
+          );
+          if (fallback && fallback.trim().length > 0) {
+            contextString = fallback;
+          }
+        } catch (e) {
+          console.error("❌ Fallback context build failed:", e);
+        }
+      }
+
       console.log(`✅ Using unified context composer (${contextItems.length} curated items)`);
 
       console.log("Sending message with context:", {
