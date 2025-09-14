@@ -43,6 +43,7 @@ const BlockReference: React.FC<{
   const initialState = getCachedContent(uid);
   const [blockContent, setBlockContent] = useState<string>(initialState.content);
   const [isLoading, setIsLoading] = useState(initialState.isLoading);
+  const [isValidBlock, setIsValidBlock] = useState<boolean>(!initialState.isLoading && initialState.content !== '');
 
   useEffect(() => {
     const loadBlockContent = async () => {
@@ -52,6 +53,7 @@ const BlockReference: React.FC<{
         if (!uid || typeof uid !== 'string') {
           setBlockContent(`Invalid block reference`);
           setIsLoading(false);
+          setIsValidBlock(false);
           return;
         }
 
@@ -59,6 +61,7 @@ const BlockReference: React.FC<{
         if (uid.length < 6 || uid.length > 20) {
           setBlockContent(`[Invalid UID length]`);
           setIsLoading(false);
+          setIsValidBlock(false);
           return;
         }
 
@@ -66,6 +69,7 @@ const BlockReference: React.FC<{
         if (uid.includes(' ') || uid.includes('\n') || uid.includes('\t')) {
           setBlockContent(`[Invalid UID format]`);
           setIsLoading(false);
+          setIsValidBlock(false);
           return;
         }
 
@@ -73,6 +77,7 @@ const BlockReference: React.FC<{
         if (!/^[a-zA-Z0-9_-]+$/.test(uid)) {
           setBlockContent(`[Invalid UID characters]`);
           setIsLoading(false);
+          setIsValidBlock(false);
           return;
         }
 
@@ -81,6 +86,7 @@ const BlockReference: React.FC<{
         const cached = blockContentCache.get(uid);
         if (cached && (now - cached.timestamp) < CACHE_DURATION) {
           setBlockContent(cached.content);
+          setIsValidBlock(!cached.content.startsWith('[Invalid') && !cached.content.startsWith('[Block') && !cached.content.startsWith('[Error'));
           setIsLoading(false);
           return;
         }
@@ -90,11 +96,13 @@ const BlockReference: React.FC<{
         if (blockData) {
           const preview = RoamQuery.formatBlockPreview(blockData.string, CONTENT_LIMITS.BLOCK_PREVIEW);
           setBlockContent(preview);
+          setIsValidBlock(true);
           // Cache the result
           blockContentCache.set(uid, { content: preview, timestamp: now });
         } else {
           const errorMsg = `[Block ${uid} not found]`;
           setBlockContent(errorMsg);
+          setIsValidBlock(false);
           // Cache error result for shorter duration
           blockContentCache.set(uid, { content: errorMsg, timestamp: now - CACHE_DURATION + 30000 }); // 30 second cache for errors
           
@@ -109,6 +117,7 @@ const BlockReference: React.FC<{
         console.error('Error loading block content for UID:', uid, error);
         const errorMsg = `[Error loading block]`;
         setBlockContent(errorMsg);
+        setIsValidBlock(false);
         // Cache error result for shorter duration
         const now = Date.now();
         blockContentCache.set(uid, { content: errorMsg, timestamp: now - CACHE_DURATION + 30000 });
@@ -123,7 +132,8 @@ const BlockReference: React.FC<{
   const handleClick = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    
+    if (!isValidBlock || isLoading) return; // Disable navigation if invalid
+
     // Navigate to the block in Roam
     if (uid && typeof window !== "undefined" && (window as any).roamAlphaAPI) {
       try {
@@ -165,20 +175,22 @@ const BlockReference: React.FC<{
   return (
     <span
       style={{
-        color: '#215db0',
-        cursor: 'pointer',
+        color: isValidBlock ? '#215db0' : '#6b7280',
+        cursor: isValidBlock ? 'pointer' : 'default',
         display: 'inline',
         lineHeight: 'inherit',
         verticalAlign: 'baseline',
         transition: 'color 0.15s ease'
       }}
+      aria-disabled={!isValidBlock}
       title={isLoading ? `Block citation ((${uid}))` : `${blockContent}`}
       onMouseEnter={(e) => {
+        if (!isValidBlock) return;
         e.currentTarget.style.color = '#1a4d96';
         (e.currentTarget as HTMLElement).style.textDecoration = 'underline';
       }}
       onMouseLeave={(e) => {
-        e.currentTarget.style.color = '#215db0';
+        e.currentTarget.style.color = isValidBlock ? '#215db0' : '#6b7280';
         (e.currentTarget as HTMLElement).style.textDecoration = 'none';
       }}
       onClick={handleClick}
@@ -192,7 +204,7 @@ const BlockReference: React.FC<{
 const PageReference: React.FC<{
   pageName: string;
   needsValidation?: boolean;
-}> = ({ pageName, needsValidation = false }) => {
+}> = ({ pageName, needsValidation = true }) => {
   // Check cache immediately for initial state
   const getCachedPageExists = (pageName: string): { exists: boolean | null; isChecking: boolean } => {
     if (!needsValidation) return { exists: true, isChecking: false };
@@ -205,12 +217,14 @@ const PageReference: React.FC<{
     return { exists: null, isChecking: true };
   };
 
+  // Always validate by default to avoid broken navigation
   const initialState = getCachedPageExists(pageName);
   const [pageExists, setPageExists] = useState<boolean | null>(initialState.exists);
   const [isChecking, setIsChecking] = useState(initialState.isChecking);
+  const [pageUid, setPageUid] = useState<string | null>(null);
 
   useEffect(() => {
-    if (needsValidation && isChecking) {
+    if (isChecking) {
       const checkPageExists = async () => {
         try {
           // Check cache first
@@ -229,19 +243,17 @@ const PageReference: React.FC<{
             return;
           }
 
-          const pageQuery = `
-            [:find ?uid
-             :where
-             [?page :node/title "${pageName}"]
-             [?page :block/uid ?uid]]
-          `;
+          // Use q with input binding to avoid quote-escaping issues
+          const pageQuery = `[:find ?u :in $ ?t :where [?p :node/title ?t] [?p :block/uid ?u]]`;
 
-          const result = (window as any).roamAlphaAPI.q(pageQuery);
-          const exists = result && result.length > 0;
+          const result = (window as any).roamAlphaAPI.q(pageQuery, pageName);
+          const exists = Array.isArray(result) && result.length > 0 && Array.isArray(result[0]) && result[0].length > 0;
           setPageExists(exists);
           setIsChecking(false);
           // Cache the result
           pageExistenceCache.set(pageName, { exists, timestamp: now });
+          // Store UID for reliable navigation fallback
+          setPageUid(exists ? result[0][0] : null);
         } catch (error) {
           console.error('Error checking page existence:', error);
           setPageExists(false);
@@ -254,12 +266,12 @@ const PageReference: React.FC<{
 
       checkPageExists();
     }
-  }, [pageName, needsValidation, isChecking]);
+  }, [pageName, isChecking]);
 
   // If page doesn't exist, render as plain text
-  if (needsValidation && !isChecking && pageExists === false) {
+  if (!isChecking && pageExists === false) {
     return (
-      <span style={{ color: '#393A3D' }}>
+      <span style={{ color: '#393A3D' }} title={`Page not found: ${pageName}`}>
         {pageName}
       </span>
     );
@@ -291,13 +303,13 @@ const PageReference: React.FC<{
           });
         } catch (sidebarError) {
           try {
-            // Try direct URL navigation using graph-aware links; Roam supports title in /page path
-            const graph = RoamService.getCurrentGraphName();
-            if (graph) {
-              const isDesktop = RoamService.isDesktopApp();
-              const webUrl = `https://roamresearch.com/#/app/${encodeURIComponent(graph)}/page/${encodeURIComponent(pageName)}`;
-              const desktopUrl = `roam://#/app/${encodeURIComponent(graph)}/page/${encodeURIComponent(pageName)}`;
-              window.location.href = isDesktop ? desktopUrl : webUrl;
+            // Fallback: only navigate by UID. Never use title in /page path to avoid 404.
+            if (pageUid) {
+              const urls = RoamService.generatePageUrl(pageUid);
+              if (urls) {
+                const isDesktop = RoamService.isDesktopApp();
+                window.location.href = isDesktop ? urls.desktopUrl : urls.webUrl;
+              }
             }
           } catch (urlError) {
             console.error('Navigation failed:', urlError);
@@ -429,7 +441,7 @@ export const EnhancedMessageRenderer: React.FC<EnhancedMessageRendererProps> = (
         skipHtml={false}
         unwrapDisallowed={true}
         remarkPlugins={[
-          remarkGfm,
+          // Process Roam syntax BEFORE GFM to avoid accidental [text](url) parsing
           [remarkRoam, { 
             processBlocks: true,
             processPages: true,
@@ -437,7 +449,8 @@ export const EnhancedMessageRenderer: React.FC<EnhancedMessageRendererProps> = (
             validateReferences: true,
             debugMode: false,
             isStreaming
-          }]
+          }],
+          remarkGfm
         ]}
         rehypePlugins={[
           [rehypeHighlight, { detect: true, subset: false }]
@@ -545,11 +558,33 @@ export const EnhancedMessageRenderer: React.FC<EnhancedMessageRendererProps> = (
             const handleLinkClick = (e: React.MouseEvent) => {
               e.preventDefault();
               try {
-                if (href?.startsWith('roam://')) {
+                if (!href) return;
+
+                // Intercept accidental Markdown link like [[Page]]((uid)) => href becomes "(uid)"
+                const accidentalUidMatch = href.match(/^\(([a-zA-Z0-9_-]{6,20})\)$/);
+                if (accidentalUidMatch && accidentalUidMatch[1]) {
+                  const uid = accidentalUidMatch[1];
+                  if (typeof window !== 'undefined' && (window as any).roamAlphaAPI) {
+                    try {
+                      (window as any).roamAlphaAPI.ui.mainWindow.openBlock({ block: { uid } });
+                      return;
+                    } catch (err) {
+                      // Fallback to URL navigation by UID
+                      const urls = RoamService.generateBlockUrl(uid);
+                      if (urls) {
+                        const isDesktop = RoamService.isDesktopApp();
+                        window.location.href = isDesktop ? urls.desktopUrl : urls.webUrl;
+                        return;
+                      }
+                    }
+                  }
+                }
+
+                if (href.startsWith('roam://')) {
                   window.location.href = href;
-                } else if (href?.startsWith('http://') || href?.startsWith('https://')) {
+                } else if (href.startsWith('http://') || href.startsWith('https://')) {
                   window.open(href, '_blank', 'noopener,noreferrer');
-                } else if (href) {
+                } else {
                   window.location.href = href;
                 }
               } catch (error) {
