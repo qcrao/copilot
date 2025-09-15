@@ -49,7 +49,8 @@ Roam Copilot brings the power of advanced AI directly into your Roam workspace. 
   - Add descriptions and icons
   - Organize by categories
 
-![](https://github.com/qcrao/copilot/blob/main/assets/prompt-template.png?raw=true)
+<img src="https://github.com/qcrao/copilot/blob/main/assets/prompt-template.png?raw=true" width="400">
+
 
 ## 🚀 Quick Start
 
