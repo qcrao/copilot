@@ -298,8 +298,8 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
         }
 
         updateContextTimeoutRef.current = setTimeout(() => {
-          updatePageContext();
-        }, 800); // Longer debounce to avoid thrash on navigation
+          updatePageContext(true);
+        }, 400); // Faster context refresh after navigation while still debounced
       }
     };
 
