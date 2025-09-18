@@ -1552,6 +1552,16 @@ export class RoamService {
     const modelLimit = this.getModelTokenLimit(provider, model);
     const actualMaxTokens = maxTokens || Math.floor(modelLimit * 0.7);
 
+    const graphName = this.getCurrentGraphName();
+    const isDesktop = this.isDesktopApp();
+
+    const formatUrls = (webUrl: string, desktopUrl: string) => {
+      if (isDesktop) {
+        return `[🔗 Open in Roam](${desktopUrl})`;
+      }
+      return `[🔗 Web](${webUrl}) | [🔗 Desktop](${desktopUrl})`;
+    };
+
     // Define content priority levels with token allocations (removed selectedText)
     const priorityAllocations = {
       currentPage: 0.35, // 35% - page content (increased from 25%)
@@ -1570,7 +1580,12 @@ export class RoamService {
 
     // 1. Current Page Content (Highest Priority)
     if (context.currentPage && context.currentPage.blocks.length > 0) {
-      const pageContent = this.formatBlocksForAI(context.currentPage.blocks, 0);
+      const pageContent = this.formatBlocksForAIWithClickableReferences(
+        context.currentPage.blocks,
+        0,
+        graphName,
+        isDesktop
+      );
       sections.push({
         priority: 1,
         title: `**Current Page: "${context.currentPage.title}"**`,
@@ -1587,11 +1602,17 @@ export class RoamService {
       const sidebarContent = context.sidebarNotes
         .slice(0, 3) // Limit to 3 most relevant
         .map((note) => {
-          const noteContent = this.formatBlocksForAI(
+          const noteUrls = graphName
+            ? this.generatePageUrl(note.uid, graphName)
+            : null;
+          const noteLinks = noteUrls ? formatUrls(noteUrls.webUrl, noteUrls.desktopUrl) : "";
+          const noteContent = this.formatBlocksForAIWithClickableReferences(
             note.blocks.slice(0, 5),
-            0
+            0,
+            graphName,
+            isDesktop
           ); // First 5 blocks per note
-          return `**Sidebar: "${note.title}"**\n${noteContent}`;
+          return `**Sidebar: "${note.title}"** ${noteLinks}\n${noteContent}`;
         })
         .join("\n\n");
 
@@ -1621,7 +1642,12 @@ export class RoamService {
 
       // Include visible blocks if they're from different pages or if there's no current page
       if (!context.currentPage || visibleBlocksFromDifferentPages.length > 0) {
-        const visibleContent = this.formatBlocksForAI(context.visibleBlocks, 0);
+        const visibleContent = this.formatBlocksForAIWithClickableReferences(
+          context.visibleBlocks,
+          0,
+          graphName,
+          isDesktop
+        );
         sections.push({
           priority: 3,
           title: "**Visible Content:**",
@@ -1639,7 +1665,15 @@ export class RoamService {
       const totalLinked = context.linkedReferencesTotal ?? context.linkedReferences.length;
       const referencesContent = context.linkedReferences
         .slice(0, 5) // Limit to 5 most relevant
-        .map((ref) => `- ${ref.string}`)
+        .map((ref) => {
+          const blockUrls = graphName
+            ? this.generateBlockUrl(ref.uid, graphName)
+            : null;
+          const blockLinks = blockUrls
+            ? formatUrls(blockUrls.webUrl, blockUrls.desktopUrl)
+            : "";
+          return `- ${ref.string} ((${ref.uid})) ${blockLinks}`.trim();
+        })
         .join("\n");
 
       sections.push({
@@ -1750,6 +1784,24 @@ export class RoamService {
           }
         }
       }
+    }
+
+    const guidelines =
+      "**IMPORTANT GUIDELINES:**\n" +
+      "- Only use page references [[Page Name]] that appear in the context above\n" +
+      "- Do NOT create new page references that are not already mentioned\n" +
+      "- If you need to mention a concept that doesn't have a page reference in the context, use regular text instead of [[]]\n" +
+      "- All [[]] references in your response should be clickable and valid\n" +
+      "- Cite blocks using ((uid)) only when that exact UID appears above; never invent or alter UIDs. If the supporting block is missing, call that out instead of guessing.\n" +
+      "- When citing specific content, append the block UID in the exact format ((UID)) using only UIDs present above\n" +
+      "- For ideas drawn from multiple blocks, you may include multiple citations like ((uid1)) ((uid2))";
+
+    const guidelinesText = `\n\n${guidelines}`;
+    const guidelinesTokens = this.estimateTokenCount(guidelinesText);
+
+    if (usedTokens + guidelinesTokens <= actualMaxTokens) {
+      finalContext += guidelinesText;
+      usedTokens += guidelinesTokens;
     }
 
     // Add context statistics for debugging
@@ -2083,6 +2135,7 @@ export class RoamService {
     formattedContext += `- Do NOT create new page references that are not already mentioned\n`;
     formattedContext += `- If you need to mention a concept that doesn't have a page reference in the context, use regular text instead of [[]]\n`;
     formattedContext += `- All [[]] references in your response should be clickable and valid\n`;
+    formattedContext += `- Cite blocks using ((uid)) only when that exact UID appears above; never invent or alter UIDs. If the supporting block is missing, call that out instead of guessing.\n`;
     formattedContext += `- When citing specific content, append the block UID in the exact format ((UID)) using only UIDs present above\n`;
     formattedContext += `- For ideas drawn from multiple blocks, you may include multiple citations like ((uid1)) ((uid2))\n`;
 

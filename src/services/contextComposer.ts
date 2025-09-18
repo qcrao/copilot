@@ -304,7 +304,10 @@ export function composeUnifiedContext(
       "- Only use page references [[Page Name]] that appear in the context above\n" +
       "- Do NOT create new page references that are not already mentioned\n" +
       "- If you need to mention a concept that doesn't have a page reference in the context, use regular text instead of [[]]\n" +
-      "- All [[]] references in your response should be clickable and valid\n";
+      "- All [[]] references in your response should be clickable and valid\n" +
+      "- Cite blocks using ((uid)) only when that exact UID appears above; never invent or alter UIDs. If the supporting block is missing, call that out instead of guessing.\n" +
+      "- When citing specific content, append the block UID in the exact format ((UID)) using only UIDs present above\n" +
+      "- For ideas drawn from multiple blocks, you may include multiple citations like ((uid1)) ((uid2))\n";
 
     const gTokens = RoamService.estimateTokenCount(guidelines);
     if (usedTokens + gTokens <= maxContextTokens) {
