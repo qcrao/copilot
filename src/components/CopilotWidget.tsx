@@ -121,11 +121,14 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
     left: number;
   }>({ top: 0, left: 0 });
   const [isUnmounting, setIsUnmounting] = useState(false);
-  const [lastContextUpdate, setLastContextUpdate] = useState<number>(0);
-  const [isUpdatingContext, setIsUpdatingContext] = useState<boolean>(false);
+  const [, setLastContextUpdate] = useState<number>(0);
+  const [, setIsUpdatingContext] = useState<boolean>(false);
   const updateContextTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
     null
   );
+  const throttledUpdateRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isUpdatingContextRef = useRef(false);
+  const lastContextUpdateRef = useRef(0);
   const currentRequestAbortController = useRef<AbortController | null>(null);
 
   useEffect(() => {
@@ -151,8 +154,12 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
 
   const updatePageContext = useCallback(
     async (forceUpdate: boolean = false) => {
-      if (isUnmounting || isUpdatingContext) return;
-      
+      if (isUnmounting) return;
+      if (isUpdatingContextRef.current && !forceUpdate) {
+        console.log("⏸ Context update already in progress, skipping");
+        return;
+      }
+
       // Don't update context if it's locked to a conversation
       if (isContextLocked && !forceUpdate) {
         console.log('🔒 Context is locked, skipping update');
@@ -162,19 +169,37 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
       // Prevent rapid successive updates that could cause infinite loops (unless forced)
       if (!forceUpdate) {
         const now = Date.now();
-        const timeSinceLastUpdate = now - lastContextUpdate;
-        // Dynamic throttling based on context: daily notes need faster updates when scrolling
-        const isDailyNotesView = window.location.href.includes('/page/Daily Notes') || 
-                                document.querySelector('.roam-log-page') !== null;
-        // Make context refresh more responsive while avoiding thrash
-        const MIN_UPDATE_INTERVAL = isDailyNotesView ? 180 : 700;
+        const timeSinceLastUpdate = now - lastContextUpdateRef.current;
+        const isDailyNotesView =
+          window.location.href.includes("/page/Daily Notes") ||
+          document.querySelector(".roam-log-page") !== null;
+        const MIN_UPDATE_INTERVAL = isDailyNotesView ? 1200 : 2500;
 
         if (timeSinceLastUpdate < MIN_UPDATE_INTERVAL) {
+          const remaining = Math.max(
+            MIN_UPDATE_INTERVAL - timeSinceLastUpdate,
+            150
+          );
           console.log(
             `⏳ Context update throttled (${timeSinceLastUpdate}ms since last update, daily notes: ${isDailyNotesView})`
           );
+
+          if (!throttledUpdateRef.current) {
+            throttledUpdateRef.current = setTimeout(() => {
+              throttledUpdateRef.current = null;
+              updatePageContext();
+            }, remaining);
+          }
           return;
         }
+      } else if (throttledUpdateRef.current) {
+        clearTimeout(throttledUpdateRef.current);
+        throttledUpdateRef.current = null;
+      }
+
+      if (throttledUpdateRef.current) {
+        clearTimeout(throttledUpdateRef.current);
+        throttledUpdateRef.current = null;
       }
 
       // Clear any pending timeout
@@ -184,8 +209,10 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
       }
 
       try {
-        setIsUpdatingContext(true);
         const now = Date.now();
+        isUpdatingContextRef.current = true;
+        lastContextUpdateRef.current = now;
+        setIsUpdatingContext(true);
         setLastContextUpdate(now);
         console.log("🔄 Updating page context...");
 
@@ -233,12 +260,14 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
       } catch (error) {
         console.error("❌ Failed to get page context:", error);
         // Reset throttle on error to allow retry
+        lastContextUpdateRef.current = 0;
         setLastContextUpdate(0);
       } finally {
         setIsUpdatingContext(false);
+        isUpdatingContextRef.current = false;
       }
     },
-    [isUnmounting, lastContextUpdate, isUpdatingContext, excludedContextUids, isContextLocked]
+    [isUnmounting, excludedContextUids, isContextLocked]
   );
 
   useEffect(() => {
@@ -270,7 +299,7 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
 
         updateContextTimeoutRef.current = setTimeout(() => {
           updatePageContext();
-        }, 500); // 500ms delay
+        }, 800); // Longer debounce to avoid thrash on navigation
       }
     };
 
@@ -346,7 +375,7 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
         }
         updateContextTimeoutRef.current = setTimeout(() => {
           updatePageContext();
-        }, 300); // Shorter delay for content changes
+        }, 600); // Slightly longer delay to coalesce rapid content edits
       }
     });
 
@@ -372,7 +401,7 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
       }
       updateContextTimeoutRef.current = setTimeout(() => {
         updatePageContext();
-      }, 300); // 300ms delay for selection changes
+      }, 600); // Extra delay to prevent frequent selection churn
     };
 
     // Listen for scroll events to update context when user scrolls
@@ -381,7 +410,7 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
       // Dynamic delay based on content type: daily notes need faster updates
       const isDailyNotesView = window.location.href.includes('/page/Daily Notes') || 
                               document.querySelector('.roam-log-page') !== null;
-      const scrollDelay = isDailyNotesView ? 120 : 250; // Faster scroll response
+      const scrollDelay = isDailyNotesView ? 350 : 650; // Balance responsiveness with heavy graphs
       
       // Debounce the update to avoid too frequent calls during scrolling
       if (updateContextTimeoutRef.current) {
@@ -415,7 +444,7 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
       }
       updateContextTimeoutRef.current = setTimeout(() => {
         updatePageContext();
-      }, 200); // Quick response for sidebar changes
+      }, 500); // Debounced to reduce repeated sidebar pulls
     };
 
     // Register with RoamService's sidebar monitoring system
@@ -426,6 +455,10 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
       if (updateContextTimeoutRef.current) {
         clearTimeout(updateContextTimeoutRef.current);
         updateContextTimeoutRef.current = null;
+      }
+      if (throttledUpdateRef.current) {
+        clearTimeout(throttledUpdateRef.current);
+        throttledUpdateRef.current = null;
       }
       window.removeEventListener("hashchange", handleHashChange);
       document.removeEventListener("selectionchange", handleSelectionChange);

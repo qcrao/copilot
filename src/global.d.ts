@@ -4,6 +4,7 @@ declare global {
   interface Window {
     roamAlphaAPI: {
       q: (query: string) => any[];
+      pull?: (selector: any, eid: any) => any;
       ui: {
         mainWindow: {
           getOpenPageOrBlockUid?: () => string | null | Promise<string | null>;

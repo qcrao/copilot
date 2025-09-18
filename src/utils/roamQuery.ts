@@ -10,7 +10,94 @@ export interface BlockWithReferences extends RoamBlock {
   ancestorPath?: RoamBlock[];
 }
 
+type BlockPullEntity = {
+  [":block/uid"]?: string;
+  [":block/string"]?: string;
+  [":block/order"]?: number;
+  [":block/children"]?: BlockPullEntity[];
+  [":block/parents"]?: BlockPullEntity[];
+};
+
 export class RoamQuery {
+  private static readonly DEFAULT_CHILD_DEPTH = 2;
+
+  private static buildBlockPullSpec(
+    childrenDepth: number,
+    includeParents: boolean = false
+  ): any[] {
+    const spec: any[] = [":block/uid", ":block/string", ":block/order"];
+
+    if (childrenDepth > 0) {
+      spec.push({
+        ":block/children": RoamQuery.buildBlockPullSpec(childrenDepth - 1),
+      });
+    }
+
+    if (includeParents) {
+      spec.push({ ":block/parents": RoamQuery.buildParentSpec() });
+    }
+
+    return spec;
+  }
+
+  private static buildParentSpec(): any[] {
+    return [
+      ":block/uid",
+      ":block/string",
+      ":block/order",
+      { ":block/children": RoamQuery.buildBlockPullSpec(1) },
+    ];
+  }
+
+  private static transformBlockEntity(
+    entity: BlockPullEntity,
+    childrenDepth: number
+  ): RoamBlock {
+    const uid = entity?.[":block/uid"] || "";
+    const blockString = entity?.[":block/string"] || "";
+    const order = entity?.[":block/order"] ?? 0;
+
+    let children: RoamBlock[] = [];
+    if (childrenDepth > 0 && Array.isArray(entity?.[":block/children"])) {
+      const nestedDepth = Math.max(0, childrenDepth - 1);
+      children = (entity[":block/children"] as BlockPullEntity[])
+        .map((child) =>
+          RoamQuery.transformBlockEntity(child, nestedDepth)
+        )
+        .filter((child) => !!child.uid)
+        .sort((a, b) => (a.order || 0) - (b.order || 0));
+    }
+
+    return {
+      uid,
+      string: blockString,
+      order,
+      children,
+    };
+  }
+
+  private static extractImmediateParent(
+    entity?: BlockPullEntity | null
+  ): BlockPullEntity | null {
+    if (!entity) return null;
+    const parents = entity[":block/parents"];
+    if (!Array.isArray(parents) || parents.length === 0) {
+      return null;
+    }
+    return parents[parents.length - 1] || null;
+  }
+
+  private static mapAncestors(entity?: BlockPullEntity | null): RoamBlock[] {
+    if (!entity) return [];
+    const parents = entity[":block/parents"];
+    if (!Array.isArray(parents) || parents.length === 0) {
+      return [];
+    }
+
+    return parents
+      .map((ancestor) => RoamQuery.transformBlockEntity(ancestor, 0))
+      .filter((ancestor) => !!ancestor.uid);
+  }
   
   /**
    * Get a block and its content recursively (2 levels deep)
@@ -19,138 +106,67 @@ export class RoamQuery {
   static async getBlock(uid: string): Promise<BlockWithReferences | null> {
     try {
       if (roamLogger.isEnabled()) {
-        roamLogger.log("Getting block:", uid);
-        roamLogger.log("UID sanitized:", JSON.stringify(uid));
+        roamLogger.log("Getting block via pull:", uid);
       }
 
-      // Query for the block itself
-      const blockQuery = `
-        [:find ?string
-         :where
-         [?block :block/uid "${uid}"]
-         [?block :block/string ?string]]
-      `;
-
-      if (roamLogger.isEnabled()) {
-        roamLogger.log("Executing query:", blockQuery);
-      }
-      const blockResult = window.roamAlphaAPI.q(blockQuery);
-      if (roamLogger.isEnabled()) {
-        roamLogger.log("Query result:", blockResult);
-      }
-      
-      if (!blockResult || blockResult.length === 0) {
-        if (roamLogger.isEnabled()) {
-          roamLogger.log("Block not found:", uid);
-        }
-        
-        // Try alternative queries for robustness
-        try {
-          // Try with different case sensitivity
-          const caseInsensitiveQuery = `
-            [:find ?uid ?string
-             :where
-             [?block :block/uid ?uid]
-             [?block :block/string ?string]
-             [(clojure.string/upper-case ?uid) "${uid.toUpperCase()}"]]
-          `;
-          
-          const caseResult = window.roamAlphaAPI.q(caseInsensitiveQuery);
-          if (caseResult && caseResult.length > 0) {
-            if (roamLogger.isEnabled()) {
-              roamLogger.log("Found block with case-insensitive match");
-            }
-                         const blockString = caseResult[0][1];
-             const children = (await this.getBlockChildren(uid, 2)) || [];
-             const parent = (await this.getBlockParent(uid)) || undefined;
-             const siblings = (await this.getBlockSiblings(uid)) || [];
-             const ancestorPath = (await this.getBlockAncestorPath(uid)) || [];
-             const references = await this.resolvePageReferences(blockString);
-            
-            return {
-              uid,
-              string: blockString,
-              children,
-              parent,
-              siblings,
-              ancestorPath,
-              references
-            };
-          }
-        } catch (altError) {
-          if (roamLogger.isEnabled()) {
-            roamLogger.log("Alternative query failed:", altError);
-          }
-        }
-        
-        // Additional debugging: check if any partial matches exist (only for troubleshooting)
-        if (roamLogger.isEnabled() && uid.length >= 6) {
-          try {
-            const partialQuery = `
-              [:find ?uid ?string
-               :where
-               [?block :block/uid ?uid]
-               [?block :block/string ?string]
-               [(clojure.string/starts-with? ?uid "${uid.substring(0, 6)}")]]
-            `;
-            
-            const partialMatches = window.roamAlphaAPI.q(partialQuery);
-            if (partialMatches && partialMatches.length > 0) {
-              roamLogger.log("Found blocks with similar UID prefix:", 
-                partialMatches.slice(0, 3).map(([blockUid, blockString]) => ({ 
-                  uid: blockUid, 
-                  preview: blockString.substring(0, 50) + '...' 
-                }))
-              );
-            } else {
-              roamLogger.log("No blocks found with similar UID prefix");
-            }
-          } catch (debugError) {
-            roamLogger.log("Could not search for partial UID matches:", debugError);
-          }
-        }
-        
+      const pull = window.roamAlphaAPI?.pull;
+      if (typeof pull !== "function") {
+        roamLogger.error("Roam pull API unavailable");
         return null;
       }
 
-      const blockString = blockResult[0][0];
-      
-      // Get children recursively (2 levels deep)
-      const children = await this.getBlockChildren(uid, 2);
-      
-      // Get parent block
-      const parent = await this.getBlockParent(uid);
-      
-      // Get sibling blocks
-      const siblings = await this.getBlockSiblings(uid);
-      
-      // Get ancestor path
-      const ancestorPath = await this.getBlockAncestorPath(uid);
-      
-      // Parse page references from block string
-      const references = await this.resolvePageReferences(blockString);
+      const rawBlock = pull(
+        RoamQuery.buildBlockPullSpec(
+          RoamQuery.DEFAULT_CHILD_DEPTH,
+          true
+        ),
+        [":block/uid", uid]
+      ) as BlockPullEntity | null;
 
-      roamLogger.log("Retrieved block with enhanced context:", {
-        uid,
-        string: blockString,
-        children: children.length,
-        parent: parent ? parent.uid : null,
-        siblings: siblings.length,
-        ancestorPath: ancestorPath.length,
-        references: references.length
-      });
+      if (!rawBlock) {
+        if (roamLogger.isEnabled()) {
+          roamLogger.log("Block not found via pull:", uid);
+        }
+        return null;
+      }
 
-      return {
-        uid,
-        string: blockString,
-        children,
+      const block = RoamQuery.transformBlockEntity(
+        rawBlock,
+        RoamQuery.DEFAULT_CHILD_DEPTH
+      );
+      const parentEntity = RoamQuery.extractImmediateParent(rawBlock);
+      const parent = parentEntity
+        ? RoamQuery.transformBlockEntity(parentEntity, 1)
+        : null;
+
+      const siblings = parent?.children
+        ? parent.children.filter((sibling) => sibling.uid !== uid)
+        : [];
+
+      const ancestorPath = RoamQuery.mapAncestors(rawBlock);
+      const references = await this.resolvePageReferences(block.string);
+
+      const enhanced: BlockWithReferences = {
+        ...block,
         parent: parent || undefined,
         siblings,
         ancestorPath,
-        references
+        references,
       };
+
+      if (roamLogger.isEnabled()) {
+        roamLogger.log("Retrieved block via pull:", {
+          uid: enhanced.uid,
+          children: enhanced.children?.length || 0,
+          parent: enhanced.parent?.uid,
+          siblings: enhanced.siblings?.length || 0,
+          ancestors: enhanced.ancestorPath?.length || 0,
+        });
+      }
+
+      return enhanced;
     } catch (error) {
-      roamLogger.error("Error getting block:", error);
+      roamLogger.error("Error getting block via pull:", error);
       return null;
     }
   }
@@ -162,35 +178,23 @@ export class RoamQuery {
     if (maxDepth <= 0) return [];
 
     try {
-      const childrenQuery = `
-        [:find ?uid ?string ?order
-         :where
-         [?parent :block/uid "${blockUid}"]
-         [?parent :block/children ?child]
-         [?child :block/uid ?uid]
-         [?child :block/string ?string]
-         [?child :block/order ?order]]
-      `;
-
-      const result = window.roamAlphaAPI.q(childrenQuery);
-      if (!result) return [];
-
-      const children: RoamBlock[] = result.map(
-        ([uid, string, order]: [string, string, number]) => ({
-          uid,
-          string,
-          order,
-        })
-      );
-
-      children.sort((a, b) => (a.order || 0) - (b.order || 0));
-
-      // Recursively get children of children (reduce depth)
-      for (const child of children) {
-        child.children = await this.getBlockChildren(child.uid, maxDepth - 1);
+      const pull = window.roamAlphaAPI?.pull;
+      if (typeof pull !== "function") {
+        roamLogger.error("Roam pull API unavailable");
+        return [];
       }
 
-      return children;
+      const rawBlock = pull(
+        RoamQuery.buildBlockPullSpec(maxDepth, false),
+        [":block/uid", blockUid]
+      ) as BlockPullEntity | null;
+
+      if (!rawBlock) {
+        return [];
+      }
+
+      const block = RoamQuery.transformBlockEntity(rawBlock, maxDepth);
+      return block.children || [];
     } catch (error) {
       roamLogger.error("Error getting block children:", error);
       return [];
@@ -273,27 +277,28 @@ export class RoamQuery {
    */
   static async getPageFirstLevelBlocks(pageUid: string): Promise<RoamBlock[]> {
     try {
-      const query = `
-        [:find ?uid ?string ?order
-         :where
-         [?page :block/uid "${pageUid}"]
-         [?page :block/children ?block]
-         [?block :block/uid ?uid]
-         [?block :block/string ?string]
-         [?block :block/order ?order]]
-      `;
+      const pull = window.roamAlphaAPI?.pull;
+      if (typeof pull !== "function") {
+        roamLogger.error("Roam pull API unavailable");
+        return [];
+      }
 
-      const result = window.roamAlphaAPI.q(query);
-      if (!result) return [];
+      const rawPage = pull(
+        [
+          ":block/uid",
+          { ":block/children": RoamQuery.buildBlockPullSpec(0) },
+        ],
+        [":block/uid", pageUid]
+      ) as BlockPullEntity | null;
 
-      const blocks: RoamBlock[] = result.map(
-        ([uid, string, order]: [string, string, number]) => ({
-          uid,
-          string,
-          order,
-          children: [] // No children to keep it lightweight
-        })
-      );
+      const children = rawPage?.[":block/children"];
+      if (!Array.isArray(children) || children.length === 0) {
+        return [];
+      }
+
+      const blocks = children
+        .map((child) => RoamQuery.transformBlockEntity(child, 0))
+        .filter((block) => !!block.uid);
 
       blocks.sort((a, b) => (a.order || 0) - (b.order || 0));
       
@@ -352,27 +357,23 @@ export class RoamQuery {
    */
   static async getBlockParent(blockUid: string): Promise<RoamBlock | null> {
     try {
-      const parentQuery = `
-        [:find ?parentUid ?parentString ?parentOrder
-         :where
-         [?block :block/uid "${blockUid}"]
-         [?parent :block/children ?block]
-         [?parent :block/uid ?parentUid]
-         [?parent :block/string ?parentString]
-         [?parent :block/order ?parentOrder]]
-      `;
-
-      const result = window.roamAlphaAPI.q(parentQuery);
-      if (!result || result.length === 0) {
+      const pull = window.roamAlphaAPI?.pull;
+      if (typeof pull !== "function") {
+        roamLogger.error("Roam pull API unavailable");
         return null;
       }
 
-      const [parentUid, parentString, parentOrder] = result[0];
-      return {
-        uid: parentUid,
-        string: parentString,
-        order: parentOrder
-      };
+      const rawBlock = pull(
+        RoamQuery.buildBlockPullSpec(0, true),
+        [":block/uid", blockUid]
+      ) as BlockPullEntity | null;
+
+      const parentEntity = RoamQuery.extractImmediateParent(rawBlock);
+      if (!parentEntity) {
+        return null;
+      }
+
+      return RoamQuery.transformBlockEntity(parentEntity, 1);
     } catch (error) {
       roamLogger.error("Error getting block parent:", error);
       return null;
@@ -384,31 +385,24 @@ export class RoamQuery {
    */
   static async getBlockSiblings(blockUid: string): Promise<RoamBlock[]> {
     try {
-      const siblingsQuery = `
-        [:find ?siblingUid ?siblingString ?siblingOrder
-         :where
-         [?block :block/uid "${blockUid}"]
-         [?parent :block/children ?block]
-         [?parent :block/children ?sibling]
-         [?sibling :block/uid ?siblingUid]
-         [?sibling :block/string ?siblingString]
-         [?sibling :block/order ?siblingOrder]
-         [(not= ?siblingUid "${blockUid}")]]
-      `;
+      const pull = window.roamAlphaAPI?.pull;
+      if (typeof pull !== "function") {
+        roamLogger.error("Roam pull API unavailable");
+        return [];
+      }
 
-      const result = window.roamAlphaAPI.q(siblingsQuery);
-      if (!result) return [];
+      const rawBlock = pull(
+        RoamQuery.buildBlockPullSpec(0, true),
+        [":block/uid", blockUid]
+      ) as BlockPullEntity | null;
 
-      const siblings: RoamBlock[] = result.map(
-        ([uid, string, order]: [string, string, number]) => ({
-          uid,
-          string,
-          order
-        })
-      );
+      const parentEntity = RoamQuery.extractImmediateParent(rawBlock);
+      if (!parentEntity) {
+        return [];
+      }
 
-      siblings.sort((a, b) => (a.order || 0) - (b.order || 0));
-      return siblings;
+      const parent = RoamQuery.transformBlockEntity(parentEntity, 1);
+      return parent.children?.filter((child) => child.uid !== blockUid) || [];
     } catch (error) {
       roamLogger.error("Error getting block siblings:", error);
       return [];
@@ -420,19 +414,18 @@ export class RoamQuery {
    */
   static async getBlockAncestorPath(blockUid: string): Promise<RoamBlock[]> {
     try {
-      const ancestors: RoamBlock[] = [];
-      let currentBlockUid = blockUid;
-      
-      // Traverse up the hierarchy until we reach the root (page level)
-      while (currentBlockUid) {
-        const parent = await this.getBlockParent(currentBlockUid);
-        if (!parent) break;
-        
-        ancestors.unshift(parent); // Add to beginning to maintain order
-        currentBlockUid = parent.uid;
+      const pull = window.roamAlphaAPI?.pull;
+      if (typeof pull !== "function") {
+        roamLogger.error("Roam pull API unavailable");
+        return [];
       }
-      
-      return ancestors;
+
+      const rawBlock = pull(
+        RoamQuery.buildBlockPullSpec(0, true),
+        [":block/uid", blockUid]
+      ) as BlockPullEntity | null;
+
+      return RoamQuery.mapAncestors(rawBlock);
     } catch (error) {
       roamLogger.error("Error getting block ancestor path:", error);
       return [];

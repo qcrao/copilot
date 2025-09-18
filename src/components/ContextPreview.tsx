@@ -227,11 +227,13 @@ export const ContextPreview: React.FC<ContextPreviewProps> = ({
     context.currentPage.uid === context.dailyNote.uid;
 
   // Check if page has any content (only count non-empty blocks)
+  const hasVisibleDailyNotes = (context.visibleDailyNotes?.length || 0) > 0;
   const hasPageContent =
     countNonEmptyBlocks(currentPageBlocks) > 0 ||
     countNonEmptyBlocks(visibleBlocks) > 0 ||
     countNonEmptyBlocks(dailyNoteBlocks) > 0 ||
-    (context.visibleDailyNotes && context.visibleDailyNotes.some(dn => countNonEmptyBlocks(dn.blocks) > 0));
+    (context.visibleDailyNotes && context.visibleDailyNotes.some(dn => countNonEmptyBlocks(dn.blocks) > 0)) ||
+    hasVisibleDailyNotes;
   const hasBacklinks = backlinksTotal > 0;
   const hasSidebarNotes = sidebarNotes.length > 0;
 
