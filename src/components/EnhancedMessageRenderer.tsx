@@ -3,15 +3,17 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import rehypeHighlight from 'rehype-highlight';
+import { Popover, Position } from '@blueprintjs/core';
 
 import remarkRoam from '../utils/roam/remarkRoam';
 // remarkRoamLinks functionality is now included in remarkRoam
 import { RoamQuery } from '../utils/roamQuery';
 import { CONTENT_LIMITS } from '../utils/shared/constants';
 import { RoamService } from '../services/roamService';
+import { ValidationUtils } from '../utils/shared/validation';
 
 // Global cache for block content to prevent re-loading during streaming
-const blockContentCache = new Map<string, { content: string; timestamp: number }>();
+const blockContentCache = new Map<string, { content: string; timestamp: number; isFallback?: boolean }>();
 const pageExistenceCache = new Map<string, { exists: boolean; timestamp: number }>();
 const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes cache
 
@@ -34,169 +36,376 @@ const BlockReference: React.FC<{
   const getCachedContent = (uid: string): { content: string; isLoading: boolean } => {
     const now = Date.now();
     const cached = blockContentCache.get(uid);
-    if (cached && (now - cached.timestamp) < CACHE_DURATION) {
+    if (cached && !cached.isFallback && (now - cached.timestamp) < CACHE_DURATION) {
       return { content: cached.content, isLoading: false };
     }
     return { content: '', isLoading: true };
   };
 
   const initialState = getCachedContent(uid);
+  const defaultValidity = ValidationUtils.isValidUID(uid);
   const [blockContent, setBlockContent] = useState<string>(initialState.content);
   const [isLoading, setIsLoading] = useState(initialState.isLoading);
-  const [isValidBlock, setIsValidBlock] = useState<boolean>(!initialState.isLoading && initialState.content !== '');
+  const [isValidBlock, setIsValidBlock] = useState<boolean>(
+    initialState.isLoading ? defaultValidity : initialState.content !== ''
+  );
 
   useEffect(() => {
-    const loadBlockContent = async () => {
+    let isMounted = true;
+    let retryTimeout: number | null = null;
+
+    const FALLBACK_TEXT = (targetUid: string) => `Block ((${targetUid}))`;
+    const MAX_RETRIES = 3;
+    const RETRY_DELAY_MS = 600;
+
+    const scheduleRetry = (attempt: number, loader: (nextAttempt: number) => void) => {
+      if (attempt >= MAX_RETRIES - 1) {
+        return;
+      }
+      if (retryTimeout !== null) {
+        window.clearTimeout(retryTimeout);
+        retryTimeout = null;
+      }
+      retryTimeout = window.setTimeout(() => {
+        if (!isMounted) return;
+        loader(attempt + 1);
+      }, RETRY_DELAY_MS);
+    };
+
+    const loadBlockContent = async (attempt: number) => {
       try {
-        
+        if (attempt > 0 && isMounted) {
+          setIsLoading(true);
+        }
+
         // Validate UID
         if (!uid || typeof uid !== 'string') {
+          if (!isMounted) return;
           setBlockContent(`Invalid block reference`);
-          setIsLoading(false);
           setIsValidBlock(false);
           return;
         }
 
-        // Roam UIDs are typically 9 characters but can vary from 6-20 characters
-        if (uid.length < 6 || uid.length > 20) {
-          setBlockContent(`[Invalid UID length]`);
-          setIsLoading(false);
-          setIsValidBlock(false);
-          return;
-        }
-
-        // Check for common invalid UID patterns  
-        if (uid.includes(' ') || uid.includes('\n') || uid.includes('\t')) {
+        // Validate UID structure once up front
+        if (!defaultValidity) {
+          if (!isMounted) return;
           setBlockContent(`[Invalid UID format]`);
-          setIsLoading(false);
           setIsValidBlock(false);
           return;
         }
 
-        // Check for valid UID characters (alphanumeric, hyphens, underscores)
-        if (!/^[a-zA-Z0-9_-]+$/.test(uid)) {
-          setBlockContent(`[Invalid UID characters]`);
-          setIsLoading(false);
-          setIsValidBlock(false);
-          return;
-        }
-
-        // Check cache first
         const now = Date.now();
         const cached = blockContentCache.get(uid);
-        if (cached && (now - cached.timestamp) < CACHE_DURATION) {
+        if (cached && !cached.isFallback && (now - cached.timestamp) < CACHE_DURATION) {
+          if (!isMounted) return;
           setBlockContent(cached.content);
-          setIsValidBlock(!cached.content.startsWith('[Invalid') && !cached.content.startsWith('[Block') && !cached.content.startsWith('[Error'));
-          setIsLoading(false);
+          setIsValidBlock(true);
           return;
         }
 
-        const blockData = await RoamQuery.getBlock(uid);
-        
-        if (blockData) {
-          const preview = RoamQuery.formatBlockPreview(blockData.string, CONTENT_LIMITS.BLOCK_PREVIEW);
-          setBlockContent(preview);
+        const roamAPI = typeof window !== 'undefined' ? (window as any).roamAlphaAPI : null;
+        const canQueryRoam = !!(roamAPI && typeof roamAPI.pull === 'function');
+
+        if (!canQueryRoam) {
+          const fallback = FALLBACK_TEXT(uid);
+          if (isMounted) {
+            setBlockContent(fallback);
+            setIsValidBlock(true);
+          }
+          blockContentCache.set(uid, { content: fallback, timestamp: now, isFallback: true });
+          scheduleRetry(attempt, loadBlockContent);
+          return;
+        }
+
+        // Try multiple methods to get block content
+        let blockContent = null;
+        let blockFound = false;
+
+        // Method 1: Try direct query first (more reliable)
+        try {
+          const queryResult = roamAPI.q(`[:find ?s :in $ ?u :where [?b :block/uid ?u] [?b :block/string ?s]]`, uid);
+          if (queryResult && queryResult.length > 0 && queryResult[0].length > 0) {
+            blockContent = queryResult[0][0];
+            blockFound = true;
+            if (process.env.NODE_ENV === 'development') {
+              console.log(`📋 Block ${uid} found via query:`, blockContent.substring(0, 150));
+            }
+          }
+        } catch (queryError) {
+          if (process.env.NODE_ENV === 'development') {
+            console.log(`📋 Query method failed for ${uid}:`, queryError);
+          }
+        }
+
+        // Method 2: Fallback to pull API if query failed
+        if (!blockFound) {
+          try {
+            const blockData = await RoamQuery.getBlock(uid);
+            if (blockData && blockData.string) {
+              blockContent = blockData.string;
+              blockFound = true;
+              if (process.env.NODE_ENV === 'development') {
+                console.log(`📋 Block ${uid} found via pull API:`, blockContent.substring(0, 150));
+              }
+            }
+          } catch (pullError) {
+            if (process.env.NODE_ENV === 'development') {
+              console.log(`📋 Pull API method failed for ${uid}:`, pullError);
+            }
+          }
+        }
+
+        // Method 3: Try to find the block in the DOM as last resort
+        if (!blockFound) {
+          try {
+            const blockElement = document.querySelector(`[data-uid="${uid}"]`);
+            if (blockElement) {
+              // Try to get text content from the block element
+              const textElement = blockElement.querySelector('.roam-block') ||
+                                blockElement.querySelector('.rm-block-text') ||
+                                blockElement;
+              if (textElement && textElement.textContent) {
+                blockContent = textElement.textContent.trim();
+                blockFound = true;
+                if (process.env.NODE_ENV === 'development') {
+                  console.log(`📋 Block ${uid} found via DOM:`, blockContent.substring(0, 150));
+                }
+              }
+            }
+          } catch (domError) {
+            if (process.env.NODE_ENV === 'development') {
+              console.log(`📋 DOM method failed for ${uid}:`, domError);
+            }
+          }
+        }
+
+        if (!isMounted) return;
+
+        if (blockFound && blockContent) {
+          setBlockContent(blockContent);
           setIsValidBlock(true);
-          // Cache the result
-          blockContentCache.set(uid, { content: preview, timestamp: now });
+          blockContentCache.set(uid, { content: blockContent, timestamp: Date.now() });
         } else {
-          const errorMsg = `[Block ${uid} not found]`;
-          setBlockContent(errorMsg);
-          setIsValidBlock(false);
-          // Cache error result for shorter duration
-          blockContentCache.set(uid, { content: errorMsg, timestamp: now - CACHE_DURATION + 30000 }); // 30 second cache for errors
-          
-          // Optional: Log for debugging purposes
-          console.log(`📋 Block not found: ${uid}. This could mean:
-            1. The block was deleted
-            2. There's a sync issue 
-            3. The UID format is incorrect
-            4. Access permissions changed`);
+          const fallback = FALLBACK_TEXT(uid);
+          if (process.env.NODE_ENV === 'development') {
+            console.log(`📋 Block ${uid} not found with any method, using fallback:`, fallback);
+          }
+          setBlockContent(fallback);
+          setIsValidBlock(true);
+          blockContentCache.set(uid, { content: fallback, timestamp: Date.now(), isFallback: true });
+          console.warn(`📋 Block content could not be retrieved for ${uid}; using fallback preview.`);
+          scheduleRetry(attempt, loadBlockContent);
         }
       } catch (error) {
         console.error('Error loading block content for UID:', uid, error);
-        const errorMsg = `[Error loading block]`;
-        setBlockContent(errorMsg);
-        setIsValidBlock(false);
-        // Cache error result for shorter duration
-        const now = Date.now();
-        blockContentCache.set(uid, { content: errorMsg, timestamp: now - CACHE_DURATION + 30000 });
+        const fallback = FALLBACK_TEXT(uid);
+        if (isMounted) {
+          setBlockContent(fallback);
+          setIsValidBlock(defaultValidity);
+        }
+        blockContentCache.set(uid, { content: fallback, timestamp: Date.now(), isFallback: true });
+        scheduleRetry(attempt, loadBlockContent);
       } finally {
-        setIsLoading(false);
+        if (isMounted) {
+          setIsLoading(false);
+        }
       }
     };
 
-    loadBlockContent();
-  }, [uid]);
+    loadBlockContent(0);
+
+    return () => {
+      isMounted = false;
+      if (retryTimeout !== null) {
+        window.clearTimeout(retryTimeout);
+        retryTimeout = null;
+      }
+    };
+  }, [uid, defaultValidity]);
 
   const handleClick = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    if (!isValidBlock || isLoading) return; // Disable navigation if invalid
+    if (!isValidBlock || isLoading) return;
 
-    // Navigate to the block in Roam
-    if (uid && typeof window !== "undefined" && (window as any).roamAlphaAPI) {
+    const roamAPI = typeof window !== 'undefined' ? (window as any).roamAlphaAPI : null;
+
+    const tryUrlNavigation = (): boolean => {
       try {
-        const roamAPI = (window as any).roamAlphaAPI;
-        roamAPI.ui.mainWindow.openBlock({ block: { uid: uid } });
-      } catch (error) {
+        const urls = RoamService.generateBlockUrl(uid);
+        if (!urls) return false;
+        const isDesktop = RoamService.isDesktopApp();
+        const target = isDesktop ? urls.desktopUrl : urls.webUrl;
+        window.location.href = target;
+        return true;
+      } catch (urlError) {
+        console.error('Navigation via URL failed:', urlError);
+        return false;
+      }
+    };
+
+    const tryDomFocus = () => {
+      try {
+        const blockElement = document.querySelector(`[data-uid="${uid}"]`);
+        if (blockElement) {
+          blockElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          (blockElement as HTMLElement).focus();
+        }
+      } catch (focusError) {
+        console.error('Navigation failed:', focusError);
+      }
+    };
+
+    if (roamAPI) {
+      try {
+        roamAPI.ui.mainWindow.openBlock({ block: { uid } });
+        return;
+      } catch (mainWindowError) {
+        console.warn('Main window navigation failed, attempting fallbacks:', mainWindowError);
         try {
-          // Try opening in right sidebar
-          const roamAPI = (window as any).roamAlphaAPI;
           roamAPI.ui.rightSidebar.addWindow({
-            window: { type: "block", "block-uid": uid }
+            window: { type: 'block', 'block-uid': uid }
           });
+          return;
         } catch (sidebarError) {
-          try {
-            // Try direct URL navigation to the block using graph-aware links
-            const urls = RoamService.generateBlockUrl(uid);
-            if (urls) {
-              const isDesktop = RoamService.isDesktopApp();
-              const target = isDesktop ? urls.desktopUrl : urls.webUrl;
-              window.location.href = target;
-            }
-          } catch (urlError) {
-            // Final fallback - try to focus on the block if it's visible
-            try {
-              const blockElement = document.querySelector(`[data-uid="${uid}"]`);
-              if (blockElement) {
-                blockElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                (blockElement as HTMLElement).focus();
-              }
-            } catch (focusError) {
-              console.error('Navigation failed:', focusError);
-            }
-          }
+          console.warn('Sidebar navigation failed, attempting URL fallback:', sidebarError);
         }
       }
     }
+
+    if (tryUrlNavigation()) {
+      return;
+    }
+
+    tryDomFocus();
+  };
+
+  const renderPreviewPopover = () => {
+    // Debug logging (can be removed later)
+    if (process.env.NODE_ENV === 'development') {
+      console.log('📋 Preview Debug:', { uid, isLoading, isValidBlock, blockContent: blockContent?.substring(0, 100) });
+    }
+
+    if (isLoading) {
+      return (
+        <div style={{
+          padding: '8px 12px',
+          fontSize: '12px',
+          color: '#6b7280',
+          fontStyle: 'italic',
+          backgroundColor: 'white',
+          border: '1px solid #d1d9e0',
+          borderRadius: '6px',
+          boxShadow: '0 4px 8px rgba(0,0,0,0.1)'
+        }}>
+          Loading block content...
+        </div>
+      );
+    }
+
+    if (!isValidBlock) {
+      return (
+        <div style={{
+          padding: '8px 12px',
+          fontSize: '12px',
+          color: '#6b7280',
+          backgroundColor: 'white',
+          border: '1px solid #d1d9e0',
+          borderRadius: '6px',
+          boxShadow: '0 4px 8px rgba(0,0,0,0.1)'
+        }}>
+          Block reference invalid: (({uid}))
+        </div>
+      );
+    }
+
+    if (!blockContent || blockContent.trim() === '') {
+      return (
+        <div style={{
+          padding: '8px 12px',
+          fontSize: '12px',
+          color: '#6b7280',
+          backgroundColor: 'white',
+          border: '1px solid #d1d9e0',
+          borderRadius: '6px',
+          boxShadow: '0 4px 8px rgba(0,0,0,0.1)'
+        }}>
+          <div style={{
+            fontSize: '11px',
+            color: '#6b7280',
+            marginBottom: '4px',
+            fontFamily: 'monospace'
+          }}>
+            (({uid}))
+          </div>
+          Block content not available
+        </div>
+      );
+    }
+
+    return (
+      <div style={{
+        padding: '8px 12px',
+        maxWidth: '300px',
+        fontSize: '13px',
+        lineHeight: '1.4',
+        color: '#24292f',
+        backgroundColor: 'white',
+        border: '1px solid #d1d9e0',
+        borderRadius: '6px',
+        boxShadow: '0 4px 8px rgba(0,0,0,0.1)'
+      }}>
+        <div style={{
+          fontSize: '11px',
+          color: '#6b7280',
+          marginBottom: '4px',
+          fontFamily: 'monospace'
+        }}>
+          (({uid}))
+        </div>
+        <div style={{
+          wordBreak: 'break-word',
+          whiteSpace: 'pre-wrap'
+        }}>
+          {blockContent.length > 200 ? blockContent.substring(0, 200) + '...' : blockContent}
+        </div>
+      </div>
+    );
   };
 
   return (
-    <span
-      style={{
-        color: isValidBlock ? '#215db0' : '#6b7280',
-        cursor: isValidBlock ? 'pointer' : 'default',
-        display: 'inline',
-        lineHeight: 'inherit',
-        verticalAlign: 'baseline',
-        transition: 'color 0.15s ease'
-      }}
-      aria-disabled={!isValidBlock}
-      title={isLoading ? `Block citation ((${uid}))` : `${blockContent}`}
-      onMouseEnter={(e) => {
-        if (!isValidBlock) return;
-        e.currentTarget.style.color = '#1a4d96';
-        (e.currentTarget as HTMLElement).style.textDecoration = 'underline';
-      }}
-      onMouseLeave={(e) => {
-        e.currentTarget.style.color = isValidBlock ? '#215db0' : '#6b7280';
-        (e.currentTarget as HTMLElement).style.textDecoration = 'none';
-      }}
-      onClick={handleClick}
+    <Popover
+      content={renderPreviewPopover()}
+      position={Position.TOP}
+      interactionKind="hover"
+      minimal
+      hoverOpenDelay={300}
+      hoverCloseDelay={100}
     >
-      <sup style={{ fontSize: '0.75em', fontWeight: 600 }}>{index ?? '•'}</sup>
-    </span>
+      <span
+        style={{
+          color: isValidBlock ? '#215db0' : '#6b7280',
+          cursor: isValidBlock ? 'pointer' : 'default',
+          display: 'inline',
+          lineHeight: 'inherit',
+          verticalAlign: 'baseline',
+          transition: 'color 0.15s ease'
+        }}
+        aria-disabled={!isValidBlock}
+        onMouseEnter={(e) => {
+          if (!isValidBlock) return;
+          e.currentTarget.style.color = '#1a4d96';
+          (e.currentTarget as HTMLElement).style.textDecoration = 'underline';
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.color = isValidBlock ? '#215db0' : '#6b7280';
+          (e.currentTarget as HTMLElement).style.textDecoration = 'none';
+        }}
+        onClick={handleClick}
+      >
+        <sup style={{ fontSize: '0.75em', fontWeight: 600 }}>{index ?? '•'}</sup>
+      </span>
+    </Popover>
   );
 };
 
