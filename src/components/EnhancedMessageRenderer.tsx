@@ -292,11 +292,7 @@ const BlockReference: React.FC<{
           padding: '8px 12px',
           fontSize: '12px',
           color: '#6b7280',
-          fontStyle: 'italic',
-          backgroundColor: 'white',
-          border: '1px solid #d1d9e0',
-          borderRadius: '6px',
-          boxShadow: '0 4px 8px rgba(0,0,0,0.1)'
+          fontStyle: 'italic'
         }}>
           Loading block content...
         </div>
@@ -308,13 +304,9 @@ const BlockReference: React.FC<{
         <div style={{
           padding: '8px 12px',
           fontSize: '12px',
-          color: '#6b7280',
-          backgroundColor: 'white',
-          border: '1px solid #d1d9e0',
-          borderRadius: '6px',
-          boxShadow: '0 4px 8px rgba(0,0,0,0.1)'
+          color: '#6b7280'
         }}>
-          Block reference invalid: (({uid}))
+          Block reference invalid
         </div>
       );
     }
@@ -324,20 +316,8 @@ const BlockReference: React.FC<{
         <div style={{
           padding: '8px 12px',
           fontSize: '12px',
-          color: '#6b7280',
-          backgroundColor: 'white',
-          border: '1px solid #d1d9e0',
-          borderRadius: '6px',
-          boxShadow: '0 4px 8px rgba(0,0,0,0.1)'
+          color: '#6b7280'
         }}>
-          <div style={{
-            fontSize: '11px',
-            color: '#6b7280',
-            marginBottom: '4px',
-            fontFamily: 'monospace'
-          }}>
-            (({uid}))
-          </div>
           Block content not available
         </div>
       );
@@ -350,25 +330,10 @@ const BlockReference: React.FC<{
         fontSize: '13px',
         lineHeight: '1.4',
         color: '#24292f',
-        backgroundColor: 'white',
-        border: '1px solid #d1d9e0',
-        borderRadius: '6px',
-        boxShadow: '0 4px 8px rgba(0,0,0,0.1)'
+        wordBreak: 'break-word',
+        whiteSpace: 'pre-wrap'
       }}>
-        <div style={{
-          fontSize: '11px',
-          color: '#6b7280',
-          marginBottom: '4px',
-          fontFamily: 'monospace'
-        }}>
-          (({uid}))
-        </div>
-        <div style={{
-          wordBreak: 'break-word',
-          whiteSpace: 'pre-wrap'
-        }}>
-          {blockContent.length > 200 ? blockContent.substring(0, 200) + '...' : blockContent}
-        </div>
+        {blockContent.length > 200 ? blockContent.substring(0, 200) + '...' : blockContent}
       </div>
     );
   };
@@ -528,32 +493,90 @@ const PageReference: React.FC<{
     }
   };
 
+  const renderPagePreview = () => {
+    if (isChecking) {
+      return (
+        <div style={{
+          padding: '8px 12px',
+          fontSize: '12px',
+          color: '#6b7280',
+          fontStyle: 'italic'
+        }}>
+          Checking page...
+        </div>
+      );
+    }
+
+    if (pageExists === false) {
+      return (
+        <div style={{
+          padding: '8px 12px',
+          fontSize: '12px',
+          color: '#6b7280'
+        }}>
+          Page not found: {pageName}
+        </div>
+      );
+    }
+
+    return (
+      <div style={{
+        padding: '8px 12px',
+        maxWidth: '300px',
+        fontSize: '13px',
+        lineHeight: '1.4',
+        color: '#24292f'
+      }}>
+        <div style={{
+          fontWeight: 'bold',
+          marginBottom: '4px'
+        }}>
+          {pageName}
+        </div>
+        <div style={{
+          fontSize: '11px',
+          color: '#6b7280'
+        }}>
+          Click to navigate to this page
+        </div>
+      </div>
+    );
+  };
+
   return (
-    <span
-      style={{
-        color: '#106ba3',
-        cursor: 'pointer',
-        textDecoration: 'none',
-        fontWeight: 'normal',
-        margin: '0 1px',
-        display: 'inline',
-        lineHeight: 'inherit',
-        verticalAlign: 'baseline',
-        transition: 'color 0.2s ease'
-      }}
-      title={`Navigate to page: ${pageName}`}
-      onMouseEnter={(e) => {
-        e.currentTarget.style.color = '#0c5689';
-        e.currentTarget.style.textDecoration = 'underline';
-      }}
-      onMouseLeave={(e) => {
-        e.currentTarget.style.color = '#106ba3';
-        e.currentTarget.style.textDecoration = 'none';
-      }}
-      onClick={handleClick}
+    <Popover
+      content={renderPagePreview()}
+      position={Position.TOP}
+      interactionKind="hover"
+      minimal
+      hoverOpenDelay={300}
+      hoverCloseDelay={100}
     >
-      [[{pageName}]]
-    </span>
+      <span
+        style={{
+          color: '#106ba3',
+          cursor: 'pointer',
+          textDecoration: 'none',
+          fontWeight: 'normal',
+          margin: '0 1px',
+          display: 'inline',
+          lineHeight: 'inherit',
+          verticalAlign: 'baseline',
+          transition: 'color 0.2s ease'
+        }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.color = '#0c5689';
+          e.currentTarget.style.textDecoration = 'underline';
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.color = '#106ba3';
+          e.currentTarget.style.textDecoration = 'none';
+        }}
+        onClick={handleClick}
+      >
+        [[{pageName}]]
+      </span>
+    </Popover>
   );
 };
 
