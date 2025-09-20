@@ -258,8 +258,8 @@ export class RoamQuery {
 
       const pageUid = pageResult[0][0];
       
-      // Get first level blocks only (avoid infinite recursion)
-      const blocks = await this.getPageFirstLevelBlocks(pageUid);
+      // Get blocks with full hierarchy (using default depth to include nested blocks)
+      const blocks = await this.getPageBlocksWithHierarchy(pageUid);
 
       return {
         title,
@@ -273,7 +273,45 @@ export class RoamQuery {
   }
 
   /**
+   * Get blocks of a page with full hierarchy (including nested children)
+   */
+  static async getPageBlocksWithHierarchy(pageUid: string): Promise<RoamBlock[]> {
+    try {
+      const pull = window.roamAlphaAPI?.pull;
+      if (typeof pull !== "function") {
+        roamLogger.error("Roam pull API unavailable");
+        return [];
+      }
+
+      const rawPage = pull(
+        [
+          ":block/uid",
+          { ":block/children": RoamQuery.buildBlockPullSpec(RoamQuery.DEFAULT_CHILD_DEPTH) },
+        ],
+        [":block/uid", pageUid]
+      ) as BlockPullEntity | null;
+
+      const children = rawPage?.[":block/children"];
+      if (!Array.isArray(children) || children.length === 0) {
+        return [];
+      }
+
+      const blocks = children
+        .map((child) => RoamQuery.transformBlockEntity(child, RoamQuery.DEFAULT_CHILD_DEPTH))
+        .filter((block) => !!block.uid);
+
+      blocks.sort((a, b) => (a.order || 0) - (b.order || 0));
+      
+      return blocks;
+    } catch (error) {
+      roamLogger.error("Error getting page blocks with hierarchy:", error);
+      return [];
+    }
+  }
+
+  /**
    * Get only first level blocks of a page (no children)
+   * @deprecated Use getPageBlocksWithHierarchy for full context
    */
   static async getPageFirstLevelBlocks(pageUid: string): Promise<RoamBlock[]> {
     try {

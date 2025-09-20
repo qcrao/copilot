@@ -2485,6 +2485,76 @@ export class RoamService {
   }
 
   /**
+   * Get a block with its children hierarchy using pull API
+   */
+  private static async getBlockWithChildren(blockUid: string, depth: number = 2): Promise<RoamBlock | null> {
+    try {
+      const pull = window.roamAlphaAPI?.pull;
+      if (typeof pull !== "function") {
+        debugRoamWarn("Roam pull API unavailable for block children fetch");
+        return null;
+      }
+
+      // Build pull spec for children with specified depth
+      const buildChildrenSpec = (remainingDepth: number): any => {
+        if (remainingDepth <= 0) {
+          return [":block/uid", ":block/string", ":block/order"];
+        }
+        return [
+          ":block/uid", 
+          ":block/string", 
+          ":block/order",
+          { ":block/children": buildChildrenSpec(remainingDepth - 1) }
+        ];
+      };
+
+      const rawBlock = pull(
+        [
+          ":block/uid",
+          ":block/string", 
+          ":block/order",
+          { ":block/children": buildChildrenSpec(depth) }
+        ],
+        [":block/uid", blockUid]
+      ) as any;
+
+      if (!rawBlock) {
+        return null;
+      }
+
+      // Transform the raw block entity to RoamBlock format
+      return this.transformBlockEntity(rawBlock, depth);
+    } catch (error) {
+      debugRoamWarn(`Error fetching block with children for ${blockUid}:`, error);
+      return null;
+    }
+  }
+
+  /**
+   * Transform block entity from pull API to RoamBlock format
+   */
+  private static transformBlockEntity(entity: any, remainingDepth: number): RoamBlock {
+    const uid = entity?.[":block/uid"] || "";
+    const string = entity?.[":block/string"] || "";
+    const order = entity?.[":block/order"] ?? 0;
+
+    let children: RoamBlock[] = [];
+    if (remainingDepth > 0 && Array.isArray(entity?.[":block/children"])) {
+      children = entity[":block/children"]
+        .map((child: any) => this.transformBlockEntity(child, remainingDepth - 1))
+        .filter((child: RoamBlock) => !!child.uid)
+        .sort((a: RoamBlock, b: RoamBlock) => (a.order || 0) - (b.order || 0));
+    }
+
+    return {
+      uid,
+      string,
+      order,
+      children
+    };
+  }
+
+  /**
    * Get blocks that reference a specific page (new method for getRoamNotes tool)
    */
   static async getBlocksReferencingPage(
@@ -2515,11 +2585,31 @@ export class RoamService {
           debugRoamLog("Reference query result:", result);
 
           if (result) {
-            const blocks = result.map(([uid, string]: [string, string]) => ({
-              uid,
-              string: string || "",
-              children: [],
-            }));
+            // For each block, fetch its complete hierarchy including children
+            const blocks = await Promise.all(
+              result.map(async ([uid, string]: [string, string]) => {
+                try {
+                  // Get the complete block with children using pull API
+                  const completeBlock = await this.getBlockWithChildren(uid);
+                  if (completeBlock) {
+                    return completeBlock;
+                  }
+                  // Fallback: return block without children if fetching fails
+                  return {
+                    uid,
+                    string: string || "",
+                    children: [],
+                  };
+                } catch (error) {
+                  debugRoamWarn(`Failed to fetch children for block ${uid}:`, error);
+                  return {
+                    uid,
+                    string: string || "",
+                    children: [],
+                  };
+                }
+              })
+            );
             allResults.push(...blocks);
           }
         } catch (queryError) {
