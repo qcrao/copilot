@@ -2,6 +2,13 @@
 import { RoamService } from "./roamService";
 import { RoamBlock, RoamPage } from "../types";
 
+const VERBOSE_CONTEXT_MANAGER_LOGS = false;
+const contextManagerLog = (...args: unknown[]) => {
+  if (VERBOSE_CONTEXT_MANAGER_LOGS) {
+    globalThis.console.log(...args);
+  }
+};
+
 export interface ContextItem {
   type: 'page' | 'block' | 'reference';
   uid: string;
@@ -91,7 +98,7 @@ export class ContextManager {
     this.processStartTime = Date.now();
     // Only log context building if debug mode is enabled
     if (process.env.NODE_ENV === 'development') {
-      console.log("🔍 Building context with:", {
+      contextManagerLog("🔍 Building context with:", {
         pages: userSpecifiedPages.length,
         blocks: userSpecifiedBlocks.length,
         maxDepth: this.options.maxDepth,
@@ -133,7 +140,7 @@ export class ContextManager {
     
     // Only log detailed context stats in development
     if (process.env.NODE_ENV === 'development') {
-      console.log("🔍 Context built:", {
+      contextManagerLog("🔍 Context built:", {
         totalItems: limitedItems.length,
         levels: this.getLevelDistribution(limitedItems),
         processingTime: `${processingTime}ms`
@@ -966,7 +973,7 @@ export class ContextManager {
     
     // Only log detailed context stats in development mode
     if (process.env.NODE_ENV === 'development') {
-      console.log("📋 Context formatting stats:", {
+      contextManagerLog("📋 Context formatting stats:", {
         totalItems: items.length,
         totalSections: sections.length,
         formattedContextLength: formattedContext.length

@@ -20,6 +20,13 @@ const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes cache
 // Import Highlight.js CSS for code highlighting
 import 'highlight.js/styles/github.css';
 
+const VERBOSE_MESSAGE_RENDERER_LOGS = false;
+const messageRendererLog = (...args: unknown[]) => {
+  if (VERBOSE_MESSAGE_RENDERER_LOGS) {
+    globalThis.console.log(...args);
+  }
+};
+
 interface EnhancedMessageRendererProps {
   content: string;
   isUser?: boolean;
@@ -128,12 +135,12 @@ const BlockReference: React.FC<{
             blockContent = queryResult[0][0];
             blockFound = true;
             if (process.env.NODE_ENV === 'development') {
-              console.log(`📋 Block ${uid} found via query:`, blockContent.substring(0, 150));
+              messageRendererLog(`📋 Block ${uid} found via query:`, blockContent.substring(0, 150));
             }
           }
         } catch (queryError) {
           if (process.env.NODE_ENV === 'development') {
-            console.log(`📋 Query method failed for ${uid}:`, queryError);
+            messageRendererLog(`📋 Query method failed for ${uid}:`, queryError);
           }
         }
 
@@ -145,12 +152,12 @@ const BlockReference: React.FC<{
               blockContent = blockData.string;
               blockFound = true;
               if (process.env.NODE_ENV === 'development') {
-                console.log(`📋 Block ${uid} found via pull API:`, blockContent.substring(0, 150));
+                messageRendererLog(`📋 Block ${uid} found via pull API:`, blockContent.substring(0, 150));
               }
             }
           } catch (pullError) {
             if (process.env.NODE_ENV === 'development') {
-              console.log(`📋 Pull API method failed for ${uid}:`, pullError);
+              messageRendererLog(`📋 Pull API method failed for ${uid}:`, pullError);
             }
           }
         }
@@ -168,13 +175,13 @@ const BlockReference: React.FC<{
                 blockContent = textElement.textContent.trim();
                 blockFound = true;
                 if (process.env.NODE_ENV === 'development') {
-                  console.log(`📋 Block ${uid} found via DOM:`, blockContent.substring(0, 150));
+                  messageRendererLog(`📋 Block ${uid} found via DOM:`, blockContent.substring(0, 150));
                 }
               }
             }
           } catch (domError) {
             if (process.env.NODE_ENV === 'development') {
-              console.log(`📋 DOM method failed for ${uid}:`, domError);
+              messageRendererLog(`📋 DOM method failed for ${uid}:`, domError);
             }
           }
         }
@@ -188,7 +195,7 @@ const BlockReference: React.FC<{
         } else {
           const fallback = FALLBACK_TEXT(uid);
           if (process.env.NODE_ENV === 'development') {
-            console.log(`📋 Block ${uid} not found with any method, using fallback:`, fallback);
+            messageRendererLog(`📋 Block ${uid} not found with any method, using fallback:`, fallback);
           }
           setBlockContent(fallback);
           setIsValidBlock(true);
@@ -283,7 +290,7 @@ const BlockReference: React.FC<{
   const renderPreviewPopover = () => {
     // Debug logging (can be removed later)
     if (process.env.NODE_ENV === 'development') {
-      console.log('📋 Preview Debug:', { uid, isLoading, isValidBlock, blockContent: blockContent?.substring(0, 100) });
+      messageRendererLog('📋 Preview Debug:', { uid, isLoading, isValidBlock, blockContent: blockContent?.substring(0, 100) });
     }
 
     if (isLoading) {

@@ -17,7 +17,7 @@ import { composeUnifiedContext } from "../services/contextComposer";
 import { multiProviderSettings } from "../settings";
 import { AI_PROVIDERS } from "../types";
 import { PROMPT_TEMPLATES } from "../data/promptTemplates";
-import { ChatInput } from "./ChatInput";
+import { ChatInput, ChatInputHandle } from "./ChatInput";
 import { ConversationList } from "./ConversationList";
 import { PromptTemplatesGrid } from "./PromptTemplatesGrid";
 import { MessageList } from "./MessageList";
@@ -25,6 +25,13 @@ import { PromptBuilder } from "../utils/promptBuilder";
 import { useMemoryManager } from "../utils/memoryManager";
 import { PerformanceMonitor } from "../utils/performance";
 import { UI_CONSTANTS } from "../utils/shared/constants";
+
+const VERBOSE_COPILOT_LOGS = false;
+const copilotDebugLog = (...args: unknown[]) => {
+  if (VERBOSE_COPILOT_LOGS) {
+    globalThis.console.log(...args);
+  }
+};
 
 interface CopilotWidgetProps {
   isOpen: boolean;
@@ -76,7 +83,6 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
   useEffect(() => {
     conversationIdRef.current = currentConversationId;
   }, [currentConversationId]);
-  const [inputValue, setInputValue] = useState("");
   const [showTemplates, setShowTemplates] = useState(false);
   const [dateNotesCache, setDateNotesCache] = useState<{
     [date: string]: string;
@@ -130,6 +136,7 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
   const isUpdatingContextRef = useRef(false);
   const lastContextUpdateRef = useRef(0);
   const currentRequestAbortController = useRef<AbortController | null>(null);
+  const chatInputRef = useRef<ChatInputHandle | null>(null);
 
   useEffect(() => {
     if (isUnmounting) return;
@@ -156,13 +163,13 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
     async (forceUpdate: boolean = false) => {
       if (isUnmounting) return;
       if (isUpdatingContextRef.current && !forceUpdate) {
-        console.log("⏸ Context update already in progress, skipping");
+        copilotDebugLog("⏸ Context update already in progress, skipping");
         return;
       }
 
       // Don't update context if it's locked to a conversation
       if (isContextLocked && !forceUpdate) {
-        console.log('🔒 Context is locked, skipping update');
+        copilotDebugLog('🔒 Context is locked, skipping update');
         return;
       }
 
@@ -180,7 +187,7 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
             MIN_UPDATE_INTERVAL - timeSinceLastUpdate,
             150
           );
-          console.log(
+          copilotDebugLog(
             `⏳ Context update throttled (${timeSinceLastUpdate}ms since last update, daily notes: ${isDailyNotesView})`
           );
 
@@ -214,7 +221,7 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
         lastContextUpdateRef.current = now;
         setIsUpdatingContext(true);
         setLastContextUpdate(now);
-        console.log("🔄 Updating page context...");
+        copilotDebugLog("🔄 Updating page context...");
 
         const context = await PerformanceMonitor.measure(
           "updatePageContext",
@@ -255,7 +262,7 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
           } as PageContext;
 
           setPageContext(filtered);
-          console.log("✅ Page context updated successfully");
+          copilotDebugLog("✅ Page context updated successfully");
         }
       } catch (error) {
         console.error("❌ Failed to get page context:", error);
@@ -288,7 +295,7 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
       const currentTitle = document.title;
 
       if (currentUrl !== lastUrl || currentTitle !== lastTitle) {
-        console.log("📄 Page change detected, updating context...");
+        copilotDebugLog("📄 Page change detected, updating context...");
         lastUrl = currentUrl;
         lastTitle = currentTitle;
 
@@ -305,7 +312,7 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
 
     // Check for URL changes (hash changes, etc.)
     const handleHashChange = () => {
-      console.log("🔗 Hash change detected");
+      copilotDebugLog("🔗 Hash change detected");
       checkForPageChange();
     };
 
@@ -394,7 +401,7 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
 
     // Listen for text selection changes to update context
     const handleSelectionChange = () => {
-      console.log("📝 Selection change detected");
+      copilotDebugLog("📝 Selection change detected");
       // Debounce the update to avoid too frequent calls
       if (updateContextTimeoutRef.current) {
         clearTimeout(updateContextTimeoutRef.current);
@@ -406,7 +413,7 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
 
     // Listen for scroll events to update context when user scrolls
     const handleScroll = () => {
-      console.log("📜 Scroll detected");
+      copilotDebugLog("📜 Scroll detected");
       // Dynamic delay based on content type: daily notes need faster updates
       const isDailyNotesView = window.location.href.includes('/page/Daily Notes') || 
                               document.querySelector('.roam-log-page') !== null;
@@ -515,11 +522,11 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
             
             // Lock context after saving first message
             if (pageContext) {
-              console.log('🔒 Context locked for new conversation:', newConversationId);
+              copilotDebugLog('🔒 Context locked for new conversation:', newConversationId);
               setPreservedContext(pageContext);
               setIsContextLocked(true);
             }
-            console.log(
+            copilotDebugLog(
               "Immediately saved new conversation:",
               newConversationId
             );
@@ -593,7 +600,7 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
         // Get model-specific token limit
         const currentModel = multiProviderSettings.currentModel;
         const provider = await AIService.getProviderForModel(currentModel);
-        // console.log(`DEBUG: Model "${currentModel}" detected provider:`, provider?.provider?.id || 'null');
+        // copilotDebugLog(`DEBUG: Model "${currentModel}" detected provider:`, provider?.provider?.id || 'null');
         const maxTokens = RoamService.getModelTokenLimit(
           provider?.provider?.id || "openai",
           currentModel
@@ -606,7 +613,7 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
         );
         finalUserMessage = promptResult.text;
 
-        console.log("Prompt expansion result:", {
+        copilotDebugLog("Prompt expansion result:", {
           originalLength: userMessage.length,
           expandedLength: finalUserMessage.length,
           referencesExpanded: promptResult.metadata.referencesExpanded,
@@ -633,12 +640,12 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
     if (currentTemplate) {
       customPrompt = currentTemplate.prompt;
       actualUserMessage = ""; // Clear user message since we're using the template as system prompt
-      console.log(
+      copilotDebugLog(
         "🎯 Using template:",
         currentTemplate.id,
         "- using as custom system prompt"
       );
-      console.log(
+      copilotDebugLog(
         "🎯 Custom prompt set to:",
         customPrompt.substring(0, 100) + "..."
       );
@@ -652,7 +659,7 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
         template?.contextType === "current-page";
 
       if (templateRequiresCurrentPage) {
-        console.log(
+        copilotDebugLog(
           "🔄 Template requires current page context, will refresh context"
         );
       }
@@ -662,8 +669,8 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
         setSelectedTemplate(null);
       }
     } else {
-      console.log("📝 No template selected. User message will be sent as-is.");
-      console.log(
+      copilotDebugLog("📝 No template selected. User message will be sent as-is.");
+      copilotDebugLog(
         "📝 First 100 chars of user message:",
         userMessage.substring(0, 100)
       );
@@ -675,8 +682,9 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
         "Please analyze the current context and provide insights.";
     }
 
-    // Clear input value
-    setInputValue("");
+    if (typeof messageInput === "string") {
+      chatInputRef.current?.clear();
+    }
 
     // Check if message contains date references and add cached notes
     const datePattern = /\[(\d{4}-\d{2}-\d{2})\]/g;
@@ -708,13 +716,13 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
       // If template requires current page context, refresh it
       let currentContext = pageContext;
       if (templateRequiresCurrentPage) {
-        console.log("🔄 Refreshing page context for template");
+        copilotDebugLog("🔄 Refreshing page context for template");
         try {
           await updatePageContext(true); // Force update for template
           // updatePageContext updates the state, but we need immediate access
           const latestContext = await RoamService.getPageContext();
           currentContext = latestContext;
-          console.log(
+          copilotDebugLog(
             "✅ Got fresh context for template, current page:",
             latestContext?.currentPage?.title || "None"
           );
@@ -758,7 +766,7 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
       let filteredContext = currentContext;
       if (hasSpecificIntent) {
         // User has specific intent - exclude ambient context to avoid confusion
-        console.log(
+        copilotDebugLog(
           "🎯 User has specific intent, filtering out ambient context"
         );
         filteredContext = {
@@ -769,7 +777,7 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
           linkedReferences: [], // Don't include current page's backlinks
         };
       } else {
-        console.log(
+        copilotDebugLog(
           "🌍 No specific intent detected, using full ambient context"
         );
       }
@@ -778,7 +786,7 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
       let contextString = "";
       let contextItems: ContextItem[] = [];
 
-      console.log("🔍 Building enhanced context for:", {
+      copilotDebugLog("🔍 Building enhanced context for:", {
         pageReferences,
         blockReferences,
         hasSpecificIntent,
@@ -809,7 +817,7 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
         pagesToInclude = currentPageTitle ? [currentPageTitle] : [];
       }
 
-      console.log("🎯 Pages to include in context:", pagesToInclude);
+      copilotDebugLog("🎯 Pages to include in context:", pagesToInclude);
 
       contextItems = await contextManager.buildContext(
         pagesToInclude,
@@ -829,7 +837,7 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
       const isFirstRound = state.messages.length === 0;
       const isFirstRoundWithTemplate = isFirstRound && !!customPrompt;
       
-      console.log("🔄 Conversation stage:", {
+      copilotDebugLog("🔄 Conversation stage:", {
         isFirstRound,
         isFirstRoundWithTemplate,
         hasCustomPrompt: !!customPrompt,
@@ -846,7 +854,7 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
       const providerIdForContext =
         providerInfoForContext?.provider?.id || "openai";
 
-      console.log("🔍 CONTEXT DEBUG:", {
+      copilotDebugLog("🔍 CONTEXT DEBUG:", {
         hasSpecificIntent,
         includeDailyNotes: !hasSpecificIntent,
         filteredContextHasVisibleDailyNotes: !!filteredContext?.visibleDailyNotes?.length,
@@ -892,9 +900,9 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
         }
       }
 
-      console.log(`✅ Using unified context composer (${contextItems.length} curated items)`);
+      copilotDebugLog(`✅ Using unified context composer (${contextItems.length} curated items)`);
 
-      console.log("Sending message with context:", {
+      copilotDebugLog("Sending message with context:", {
         isFirstRound,
         isFirstRoundWithTemplate,
         currentPage: filteredContext?.currentPage?.title,
@@ -935,7 +943,7 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
         currentRequestAbortController.current = abortController;
 
         // Use streaming response
-        console.log("🚀 Calling AI service with:", {
+        copilotDebugLog("🚀 Calling AI service with:", {
           userMessage: enhancedUserMessage,
           hasCustomPrompt: !!customPrompt,
           customPrompt: customPrompt,
@@ -966,7 +974,7 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
             // Check if request was cancelled - just exit without changing content
             // The handleCancelRequest already updated the message state
             if (abortController.signal.aborted) {
-              console.log("🛑 Stream processing cancelled, exiting gracefully");
+              copilotDebugLog("🛑 Stream processing cancelled, exiting gracefully");
               return;
             }
 
@@ -986,7 +994,7 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
                       : msg
                   );
 
-                  console.log(
+                  copilotDebugLog(
                     "🔧 Stream error detected - setting isStreaming to false"
                   );
 
@@ -1054,7 +1062,7 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
             false;
 
           if (isAbortError) {
-            console.log("🛑 Stream iteration stopped due to user cancellation");
+            copilotDebugLog("🛑 Stream iteration stopped due to user cancellation");
             // Don't update the message content - handleCancelRequest already did
             return;
           }
@@ -1071,7 +1079,7 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
                 : msg
             );
 
-            console.log(
+            copilotDebugLog(
               "🔧 Stream iteration error - setting isStreaming to false"
             );
 
@@ -1113,13 +1121,13 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
           false;
 
         if (isAbortError) {
-          console.log("🛑 Request was cancelled - preserving partial content");
+          copilotDebugLog("🛑 Request was cancelled - preserving partial content");
           // Don't update the message content - handleCancelRequest already did
           return;
         }
 
         // Handle real errors
-        console.log(
+        copilotDebugLog(
           "🔧 Handling real streaming error:",
           streamingError.message
         );
@@ -1134,7 +1142,7 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
               : msg
           );
 
-          console.log(
+          copilotDebugLog(
             "🔧 Updated streaming message with error, isStreaming set to false"
           );
 
@@ -1158,7 +1166,7 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
 
   const handleCancelRequest = () => {
     if (currentRequestAbortController.current) {
-      console.log("🛑 User requested cancellation");
+      copilotDebugLog("🛑 User requested cancellation");
       currentRequestAbortController.current.abort();
 
       // Find the currently streaming message and mark it as cancelled but keep content
@@ -1194,7 +1202,7 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
   };
 
   const handleModelChange = (newModel: string) => {
-    console.log("Model changed to:", newModel);
+    copilotDebugLog("Model changed to:", newModel);
     // The model is already updated in the ChatInput component
     // We could add additional logic here if needed
   };
@@ -1204,7 +1212,7 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
       await navigator.clipboard.writeText(content);
       setCopiedMessageIndex(messageIndex);
       setTimeout(() => setCopiedMessageIndex(null), 2000); // Reset after 2 seconds
-      console.log("Message copied to clipboard");
+      copilotDebugLog("Message copied to clipboard");
     } catch (error) {
       console.error("Failed to copy message:", error);
       // Fallback for older browsers
@@ -1250,12 +1258,12 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
                 latestConversationId,
                 messages
               );
-              console.log(
+              copilotDebugLog(
                 "Updated existing conversation:",
                 latestConversationId
               );
             } catch (updateError) {
-              console.log(
+              copilotDebugLog(
                 "Conversation doesn't exist yet, creating:",
                 latestConversationId
               );
@@ -1295,7 +1303,7 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
               setCurrentConversationId(newConversationId);
             }
           }
-          console.log("Conversation auto-saved");
+          copilotDebugLog("Conversation auto-saved");
         } catch (error) {
           console.error("Failed to auto-save conversation:", error);
         } finally {
@@ -1322,7 +1330,7 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
       // Try to restore preserved context
       const restoredContext = await ConversationService.restorePreservedContext(conversationId);
       if (restoredContext) {
-        console.log('🔒 Context locked for conversation:', conversationId);
+        copilotDebugLog('🔒 Context locked for conversation:', conversationId);
         setPreservedContext(restoredContext);
         setPageContext(restoredContext);
         setIsContextLocked(true);
@@ -1338,13 +1346,13 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
         });
 
         if (hasSpecificReferences) {
-          console.log('🎯 History contains specific references, clearing ambient context');
+          copilotDebugLog('🎯 History contains specific references, clearing ambient context');
           setIsContextLocked(false);
           setPreservedContext(null);
           setPageContext(null); // Clear current context since user had specific intent
           setHasConversationSpecificContext(true); // Mark this conversation as having specific context
         } else {
-          console.log('🔓 No preserved context and no specific references, using current context');
+          copilotDebugLog('🔓 No preserved context and no specific references, using current context');
           setIsContextLocked(false);
           setPreservedContext(null);
           setHasConversationSpecificContext(false); // No specific context in this conversation
@@ -1360,7 +1368,7 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
 
       conversationIdRef.current = conversationId;
       setCurrentConversationId(conversationId);
-      console.log(
+      copilotDebugLog(
         "Loaded conversation:",
         conversationId,
         messages.length,
@@ -1387,10 +1395,10 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
     }));
     conversationIdRef.current = null;
     setCurrentConversationId(null);
-    setInputValue(""); // Clear input value for new conversation
+    chatInputRef.current?.clear();
     
     // Unlock context for new conversation
-    console.log('🔓 Context unlocked for new conversation');
+    copilotDebugLog('🔓 Context unlocked for new conversation');
     setIsContextLocked(false);
     setPreservedContext(null);
     setHasConversationSpecificContext(false); // Reset specific context flag
@@ -1461,7 +1469,7 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
   };
 
   const handlePromptSelect = async (prompt: string) => {
-    console.log("📝 Template selected:", prompt.substring(0, 100) + "...");
+    copilotDebugLog("📝 Template selected:", prompt.substring(0, 100) + "...");
 
     try {
       // Import UserTemplateService dynamically to avoid circular imports
@@ -1497,7 +1505,7 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
       }
 
       if (template) {
-        console.log("🎯 Found matching template:", template.id, template.title);
+        copilotDebugLog("🎯 Found matching template:", template.id, template.title);
 
         // Hide templates since we're sending a message
         setShowTemplates(false);
@@ -1512,7 +1520,7 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
           "❌ No matching template found for prompt:",
           prompt.substring(0, 100) + "..."
         );
-        console.log(
+        copilotDebugLog(
           "Available templates:",
           allTemplates.map((t: any) => ({ id: t.id, title: t.title }))
         );
@@ -1533,11 +1541,13 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
     }));
 
     // Update input value with new date
-    setInputValue((prev) => prev.replace(/\[\d{4}-\d{2}-\d{2}\]/, `[${date}]`));
+    void chatInputRef.current?.updateContent((prev) =>
+      prev.replace(/\[\d{4}-\d{2}-\d{2}\]/, `[${date}]`)
+    );
   };
 
   const handleTemplateSelect = (templateId: string, prompt: string) => {
-    console.log("📝 Template selected from slash command:", templateId);
+    copilotDebugLog("📝 Template selected from slash command:", templateId);
     // Note: For slash commands, the template content is already in the input
     // We just need to set the template state so it's detected when sent
     setSelectedTemplate({
@@ -2183,12 +2193,11 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
           {/* Context Preview moved into ChatInput for placement control */}
 
           <ChatInput
+            ref={chatInputRef}
             placeholder={UI_CONSTANTS.CHAT_INPUT.PLACEHOLDER_TEXT}
             onSend={handleSendMessage}
             disabled={false} // Don't disable input while loading
             onModelChange={handleModelChange}
-            value={inputValue}
-            onChange={setInputValue}
             onDateSelect={handleDateSelect}
             onTemplateSelect={handleTemplateSelect}
             isLoading={state.isLoading} // Pass loading state for send button

@@ -5,6 +5,7 @@ import React, {
   useEffect,
   useCallback,
   useMemo,
+  useImperativeHandle,
 } from "react";
 import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
@@ -49,7 +50,17 @@ interface ChatInputProps {
   templateSettingsVersion?: number;
 }
 
-export const ChatInput: React.FC<ChatInputProps> = ({
+export interface ChatInputHandle {
+  clear: () => void;
+  setContent: (value: string) => Promise<void>;
+  updateContent: (
+    updater: (current: string) => string
+  ) => Promise<void>;
+  getSerializedContent: () => string;
+}
+
+export const ChatInput = React.forwardRef<ChatInputHandle, ChatInputProps>((
+  {
   placeholder = UI_CONSTANTS.CHAT_INPUT.PLACEHOLDER_TEXT,
   onSend,
   disabled = false,
@@ -65,7 +76,9 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   isContextLocked = false,
   hasConversationSpecificContext = false,
   templateSettingsVersion = 0,
-}) => {
+  },
+  ref
+) => {
   const [availableModels, setAvailableModels] = useState<
     Array<{ model: string; provider: string; providerName: string }>
   >([]);
@@ -102,6 +115,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   // Performance optimization: Simple cache for search results
   const searchCache = useRef<Map<string, UniversalSearchResult[]>>(new Map());
   const debounceTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const serializedContentRef = useRef<string>(controlledValue || "");
 
   // Create refs for functions that need to be called from TipTap handleKeyDown
   const handlePromptSelectRef = useRef<(template: PromptTemplate) => void>();
@@ -214,6 +228,16 @@ export const ChatInput: React.FC<ChatInputProps> = ({
     },
   });
 
+  const updateSerializedContent = useCallback(() => {
+    if (!editor) {
+      serializedContentRef.current = "";
+      return "";
+    }
+    const serialized = serializeWithReferences(editor);
+    serializedContentRef.current = serialized;
+    return serialized;
+  }, [editor]);
+
   // Define prompt menu functions and assign to refs
   const handlePromptSelect = (template: PromptTemplate) => {
     if (!editor) return;
@@ -268,19 +292,6 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   // Assign functions to refs
   handlePromptSelectRef.current = handlePromptSelect;
   closePromptMenuRef.current = closePromptMenu;
-
-  // Handle controlled value changes (e.g., when widget reopens)
-  // Removed unused lastInitializedValue state
-
-  useEffect(() => {
-    if (editor && controlledValue !== undefined) {
-      // Always update if controlled value is different from current editor content
-      const currentSerializedContent = serializeWithReferences(editor);
-      if (currentSerializedContent !== controlledValue) {
-        initializeWithReferences(controlledValue);
-      }
-    }
-  }, [editor, controlledValue]);
 
   // Load all visible templates (official + custom) on mount and when settings change
   useEffect(() => {
@@ -390,7 +401,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
           if (editor && editor.view && editor.view.dom) {
             editor.commands.focus();
             // Trigger a content change to ensure the editor is properly updated
-            const serializedContent = serializeWithReferences(editor);
+            const serializedContent = updateSerializedContent();
             if (onChange) {
               onChange(serializedContent);
             }
@@ -405,81 +416,133 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   };
 
   // Initialize editor with references from text
-  const initializeWithReferences = async (text: string) => {
-    if (!editor) return;
+  const initializeWithReferences = useCallback(
+    async (text: string) => {
+      if (!editor) return;
 
-    setIsInitializing(true);
+      setIsInitializing(true);
 
-    try {
-      const references = parseReferencesFromText(text);
+      try {
+        const references = parseReferencesFromText(text);
 
-      if (references.length === 0) {
-        editor.commands.setContent(text);
-        return;
-      }
+        if (references.length === 0) {
+          editor.commands.setContent(text);
+        } else {
+          // Build the content with reference chips
+          let currentText = text;
+          const sortedReferences = references.sort(
+            (a, b) => currentText.indexOf(a.text) - currentText.indexOf(b.text)
+          );
 
-      // Build the content with reference chips
-      let currentText = text;
-      const sortedReferences = references.sort(
-        (a, b) => currentText.indexOf(a.text) - currentText.indexOf(b.text)
-      );
+          // Clear the editor first
+          editor.commands.clearContent();
 
-      // Clear the editor first
-      editor.commands.clearContent();
+          // Process text parts and references in order
+          let lastIndex = 0;
 
-      // Process text parts and references in order
-      let lastIndex = 0;
+          for (const ref of sortedReferences) {
+            const refIndex = currentText.indexOf(ref.text, lastIndex);
 
-      for (const ref of sortedReferences) {
-        const refIndex = currentText.indexOf(ref.text, lastIndex);
+            // Add text before the reference
+            if (refIndex > lastIndex) {
+              const textBefore = currentText.slice(lastIndex, refIndex);
+              if (textBefore) {
+                editor.commands.insertContent(textBefore);
+              }
+            }
 
-        // Add text before the reference
-        if (refIndex > lastIndex) {
-          const textBefore = currentText.slice(lastIndex, refIndex);
-          if (textBefore) {
-            editor.commands.insertContent(textBefore);
+            // Add the reference chip
+            try {
+              const blockData = await RoamQuery.getBlock(ref.uid);
+              const preview = blockData
+                ? RoamQuery.formatBlockPreview(
+                    blockData.string,
+                    CONTENT_LIMITS.BLOCK_PREVIEW
+                  )
+                : `Block ${ref.uid}`;
+
+              insertReferenceChip(editor, ref.uid, preview);
+            } catch (error) {
+              console.error("Error loading reference:", ref.uid, error);
+              // Fallback to text
+              editor.commands.insertContent(`[Block ${ref.uid}]`);
+            }
+
+            lastIndex = refIndex + ref.text.length;
+          }
+
+          // Add any remaining text after the last reference
+          if (lastIndex < currentText.length) {
+            const textAfter = currentText.slice(lastIndex);
+            if (textAfter) {
+              editor.commands.insertContent(textAfter);
+            }
           }
         }
 
-        // Add the reference chip
-        try {
-          const blockData = await RoamQuery.getBlock(ref.uid);
-          const preview = blockData
-            ? RoamQuery.formatBlockPreview(
-                blockData.string,
-                CONTENT_LIMITS.BLOCK_PREVIEW
-              )
-            : `Block ${ref.uid}`;
-
-          insertReferenceChip(editor, ref.uid, preview);
-        } catch (error) {
-          console.error("Error loading reference:", ref.uid, error);
-          // Fallback to text
-          editor.commands.insertContent(`[Block ${ref.uid}]`);
-        }
-
-        lastIndex = refIndex + ref.text.length;
+        updateSerializedContent();
+      } finally {
+        setIsInitializing(false);
+        // Trigger canSend recalculation after initialization
+        setEditorContentVersion((prev) => prev + 1);
       }
+    },
+    [editor, updateSerializedContent]
+  );
 
-      // Add any remaining text after the last reference
-      if (lastIndex < currentText.length) {
-        const textAfter = currentText.slice(lastIndex);
-        if (textAfter) {
-          editor.commands.insertContent(textAfter);
-        }
+  // Handle controlled value changes (e.g., when widget reopens)
+  useEffect(() => {
+    if (editor && controlledValue !== undefined) {
+      // Always update if controlled value is different from current editor content
+      const currentSerializedContent =
+        serializedContentRef.current || updateSerializedContent();
+      if (currentSerializedContent !== controlledValue) {
+        initializeWithReferences(controlledValue);
       }
-    } finally {
-      setIsInitializing(false);
-      // Trigger canSend recalculation after initialization
-      setEditorContentVersion((prev) => prev + 1);
     }
-  };
+  }, [editor, controlledValue, initializeWithReferences, updateSerializedContent]);
+
+  useImperativeHandle(
+    ref,
+    () => ({
+      clear: () => {
+        if (!editor) return;
+        editor.commands.clearContent();
+        serializedContentRef.current = "";
+        if (onChange) {
+          onChange("");
+        }
+        setEditorContentVersion((prev) => prev + 1);
+      },
+      setContent: async (value: string) => {
+        if (!editor) return;
+        await initializeWithReferences(value);
+        if (onChange) {
+          onChange(serializedContentRef.current || value);
+        }
+      },
+      updateContent: async (updater: (current: string) => string) => {
+        if (!editor) return;
+        const currentValue = serializedContentRef.current || updateSerializedContent();
+        const nextValue = updater(currentValue);
+        if (nextValue === currentValue) {
+          return;
+        }
+        await initializeWithReferences(nextValue);
+        if (onChange) {
+          onChange(serializedContentRef.current || nextValue);
+        }
+      },
+      getSerializedContent: () => serializedContentRef.current || "",
+    }),
+    [editor, initializeWithReferences, onChange, updateSerializedContent]
+  );
 
   // Handle content changes
   const handleContentChange = (text: string) => {
+    const serializedContent = updateSerializedContent();
+
     if (onChange && !isComposing && !isInitializing) {
-      // Serialize the editor content to include reference chips as ((UID)) format
-      const serializedContent = editor ? serializeWithReferences(editor) : text;
       onChange(serializedContent);
     }
 
@@ -697,7 +760,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
 
     // Update React state as before
     closeUniversalSearch();
-    const serializedContent = serializeWithReferences(editor);
+    const serializedContent = updateSerializedContent();
     if (onChange) {
       onChange(serializedContent);
     }
@@ -911,7 +974,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
     if (!editor) return;
 
     const text = editor.getText().trim();
-    const serializedContent = serializeWithReferences(editor);
+    const serializedContent = updateSerializedContent();
 
     if (
       (text ||
@@ -923,6 +986,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
       const editorJSON = editor.getJSON();
       onSend(editorJSON as any);
       editor.commands.clearContent();
+      serializedContentRef.current = "";
       if (onChange) {
         onChange("");
       }
@@ -965,7 +1029,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
     const hasTextContent = (editor.getText()?.trim().length || 0) > 0;
 
     // Check if editor has any reference chips
-    const serializedContent = serializeWithReferences(editor);
+    const serializedContent = serializedContentRef.current || "";
     const hasReferences =
       serializedContent.includes("((") || serializedContent.includes("[[");
 
@@ -980,7 +1044,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   const handleCompositionEnd = () => {
     setIsComposing(false);
     if (editor && onChange) {
-      const serializedContent = serializeWithReferences(editor);
+      const serializedContent = updateSerializedContent();
       onChange(serializedContent);
     }
   };
@@ -1025,7 +1089,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
     if (!editor) return hasConversationSpecificContext;
     
     // Check if there are reference chips in the input
-    const serializedContent = serializeWithReferences(editor);
+    const serializedContent = serializedContentRef.current || "";
     const hasReferences = serializedContent.includes("((") || serializedContent.includes("[[");
     
     // Check if @ symbol universal search is active
@@ -1159,4 +1223,6 @@ export const ChatInput: React.FC<ChatInputProps> = ({
       />
     </div>
   );
-};
+});
+
+ChatInput.displayName = "ChatInput";

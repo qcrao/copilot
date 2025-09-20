@@ -17,7 +17,6 @@ export interface ReferenceChipAttributes {
 // React component for rendering the chip
 const ReferenceChipComponent: React.FC<ReactNodeViewProps> = ({ node }) => {
   const { uid, preview, type = "block" } = node.attrs;
-  console.log('🎨 ReferenceChipComponent rendered with:', { uid, preview, type });
 
   const handleClick = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -147,14 +146,12 @@ export const ReferenceChip = Node.create({
   },
 
   renderHTML({ HTMLAttributes }) {
-    console.log('🎨 ReferenceChip renderHTML called with:', HTMLAttributes);
     const attributes = {
       class: "reference-chip",
       "data-uid": HTMLAttributes.uid,
       "data-preview": HTMLAttributes.preview,
       "data-type": HTMLAttributes.type || "block",
     };
-    console.log('🎨 Final attributes:', attributes);
     return [
       "span",
       mergeAttributes(HTMLAttributes, attributes),
@@ -218,7 +215,6 @@ export const insertReferenceChip = (
   preview: string,
   type: "block" | "page" = "block"
 ) => {
-  console.log('🎨 insertReferenceChip called with:', { uid, preview, type });
   return editor
     .chain()
     .focus()

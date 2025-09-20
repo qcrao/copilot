@@ -4,6 +4,18 @@ import { Icon, Popover, Position } from "@blueprintjs/core";
 import { PageContext } from "../types";
 import { RoamService } from "../services/roamService";
 
+const VERBOSE_CONTEXT_PREVIEW_LOGS = false;
+const logContextPreview = (...args: unknown[]) => {
+  if (VERBOSE_CONTEXT_PREVIEW_LOGS) {
+    console.log(...args);
+  }
+};
+const warnContextPreview = (...args: unknown[]) => {
+  if (VERBOSE_CONTEXT_PREVIEW_LOGS) {
+    console.warn(...args);
+  }
+};
+
 // Custom Context Chip Component
 interface ContextChipProps {
   icon: string;
@@ -91,7 +103,7 @@ export const ContextPreview: React.FC<ContextPreviewProps> = ({
   // Helper function to count non-empty blocks recursively (includes children)
   const countNonEmptyBlocks = (blocks: { uid: string; string: string; children?: any[] }[]): number => {
     if (!blocks || !Array.isArray(blocks)) {
-      console.warn('🔍 countNonEmptyBlocks: Invalid blocks data', blocks);
+      warnContextPreview('🔍 countNonEmptyBlocks: Invalid blocks data', blocks);
       return 0;
     }
     
@@ -109,7 +121,7 @@ export const ContextPreview: React.FC<ContextPreviewProps> = ({
       if (block.children && Array.isArray(block.children) && block.children.length > 0) {
         const childCount = countNonEmptyBlocks(block.children);
         count += childCount;
-        console.log(`🔍 Block ${block.uid}: ${block.string ? 'has content' : 'empty'}, children: ${childCount}`);
+        logContextPreview(`🔍 Block ${block.uid}: ${block.string ? 'has content' : 'empty'}, children: ${childCount}`);
       }
     }
     
@@ -238,7 +250,7 @@ export const ContextPreview: React.FC<ContextPreviewProps> = ({
   const hasSidebarNotes = sidebarNotes.length > 0;
 
   // Debug logging for visibleDailyNotes
-  console.log('🔍 CONTEXT PREVIEW DEBUG:', {
+  logContextPreview('🔍 CONTEXT PREVIEW DEBUG:', {
     visibleDailyNotes: context.visibleDailyNotes?.map(dn => ({ title: dn.title, uid: dn.uid, blocksCount: dn.blocks.length })),
     currentPage: context.currentPage ? { title: context.currentPage.title, uid: context.currentPage.uid } : null,
     isCurrentPageDaily,
@@ -274,7 +286,7 @@ export const ContextPreview: React.FC<ContextPreviewProps> = ({
               count={(() => {
                 const allBlocksCount = countNonEmptyBlocks(dailyNoteBlocks);
                 const topLevelCount = countTopLevelBlocks(dailyNoteBlocks);
-                console.log(`🔍 Current Daily Note ${context.dailyNote.title}: All blocks: ${allBlocksCount}, Top-level: ${topLevelCount}`);
+                logContextPreview(`🔍 Current Daily Note ${context.dailyNote.title}: All blocks: ${allBlocksCount}, Top-level: ${topLevelCount}`);
                 return allBlocksCount;
               })()}
               variant="daily"
@@ -309,8 +321,8 @@ export const ContextPreview: React.FC<ContextPreviewProps> = ({
               const blocksToCount = context.currentPage ? currentPageBlocks : visibleBlocks;
               const allBlocksCount = countNonEmptyBlocks(blocksToCount);
               const topLevelCount = countTopLevelBlocks(blocksToCount);
-              console.log(`🔍 Current Page ${context.currentPage?.title}: All blocks: ${allBlocksCount}, Top-level: ${topLevelCount}, currentPageBlocks:`, currentPageBlocks);
-              console.log('🔍 currentPageBlocks structure:', currentPageBlocks.map(b => ({ 
+              logContextPreview(`🔍 Current Page ${context.currentPage?.title}: All blocks: ${allBlocksCount}, Top-level: ${topLevelCount}, currentPageBlocks:`, currentPageBlocks);
+              logContextPreview('🔍 currentPageBlocks structure:', currentPageBlocks.map(b => ({ 
                 uid: b.uid, 
                 string: b.string?.slice(0, 50) + '...', 
                 childrenCount: b.children?.length || 0,
@@ -336,13 +348,13 @@ export const ContextPreview: React.FC<ContextPreviewProps> = ({
                 return count;
               };
               manualCount = countManually(currentPageBlocks);
-              console.log(`🔍 Manual count verification: ${manualCount}`);
+              logContextPreview(`🔍 Manual count verification: ${manualCount}`);
               
               // Expected count based on earlier logs
               const expectedChildrenTotal = 2 + 1 + 1 + 2 + 7; // 13 children
               const expectedTotal = 4 + expectedChildrenTotal; // 17 total
-              console.log(`🔍 Expected total blocks: ${expectedTotal} (4 top-level + ${expectedChildrenTotal} children)`);
-              console.log(`🔍 Actual vs Expected: ${allBlocksCount} vs ${expectedTotal} = ${allBlocksCount - expectedTotal} difference`);
+              logContextPreview(`🔍 Expected total blocks: ${expectedTotal} (4 top-level + ${expectedChildrenTotal} children)`);
+              logContextPreview(`🔍 Actual vs Expected: ${allBlocksCount} vs ${expectedTotal} = ${allBlocksCount - expectedTotal} difference`);
               return allBlocksCount;
             })()}
             variant={isCurrentPageDaily ? "daily" : "page"}
@@ -374,7 +386,7 @@ export const ContextPreview: React.FC<ContextPreviewProps> = ({
       {/* Visible Daily Notes - show multiple daily notes when in daily notes view, excluding current page */}
       {(() => {
         if (!context.visibleDailyNotes || context.visibleDailyNotes.length === 0) {
-          console.log('🔍 VISIBLE DAILY NOTES: None found');
+          logContextPreview('🔍 VISIBLE DAILY NOTES: None found');
           return null;
         }
 
@@ -383,7 +395,7 @@ export const ContextPreview: React.FC<ContextPreviewProps> = ({
           !context.currentPage || dailyNote.uid !== context.currentPage.uid
         );
 
-        console.log('🔍 VISIBLE DAILY NOTES FILTER:', {
+        logContextPreview('🔍 VISIBLE DAILY NOTES FILTER:', {
           original: context.visibleDailyNotes.map(dn => ({ title: dn.title, uid: dn.uid })),
           currentPageUid: context.currentPage?.uid,
           filtered: filteredNotes.map(dn => ({ title: dn.title, uid: dn.uid }))
@@ -392,7 +404,7 @@ export const ContextPreview: React.FC<ContextPreviewProps> = ({
         return filteredNotes.map((dailyNote) => {
           const allBlocksCount = countNonEmptyBlocks(dailyNote.blocks);
           const topLevelCount = countTopLevelBlocks(dailyNote.blocks);
-          console.log(`🔍 Daily Note ${dailyNote.title} (${dailyNote.uid}): All blocks: ${allBlocksCount}, Top-level: ${topLevelCount}, blocks:`, dailyNote.blocks);
+          logContextPreview(`🔍 Daily Note ${dailyNote.title} (${dailyNote.uid}): All blocks: ${allBlocksCount}, Top-level: ${topLevelCount}, blocks:`, dailyNote.blocks);
           
           return (
             <Popover

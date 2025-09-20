@@ -1,6 +1,13 @@
 // src/components/PageSuggestionDropdown.tsx
 import React, { useEffect, useRef } from "react";
 
+const VERBOSE_PAGE_SUGGESTION_LOGS = false;
+const pageSuggestionLog = (...args: unknown[]) => {
+  if (VERBOSE_PAGE_SUGGESTION_LOGS) {
+    globalThis.console.log(...args);
+  }
+};
+
 interface PageSuggestion {
   title: string;
   uid: string;
@@ -56,10 +63,10 @@ export const PageSuggestionDropdown: React.FC<PageSuggestionDropdownProps> = ({
     }
   }, [isVisible, selectedIndex]);
 
-  console.log(`🔍 PageSuggestionDropdown render: visible=${isVisible}, suggestions.length=${suggestions.length}`, suggestions.map(s => s.title));
+  pageSuggestionLog(`🔍 PageSuggestionDropdown render: visible=${isVisible}, suggestions.length=${suggestions.length}`, suggestions.map(s => s.title));
   
   if (!isVisible || suggestions.length === 0) {
-    console.log(`🔍 PageSuggestionDropdown not rendering: visible=${isVisible}, suggestions.length=${suggestions.length}`);
+    pageSuggestionLog(`🔍 PageSuggestionDropdown not rendering: visible=${isVisible}, suggestions.length=${suggestions.length}`);
     return null;
   }
 

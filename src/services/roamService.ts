@@ -8,6 +8,18 @@ import {
 } from "../types";
 import { LLMUtil } from "../utils/llmUtil";
 
+const VERBOSE_ROAM_CONTEXT_LOGS = false;
+const debugRoamLog = (...args: unknown[]) => {
+  if (VERBOSE_ROAM_CONTEXT_LOGS) {
+    globalThis.console.log(...args);
+  }
+};
+const debugRoamWarn = (...args: unknown[]) => {
+  if (VERBOSE_ROAM_CONTEXT_LOGS) {
+    globalThis.console.warn(...args);
+  }
+};
+
 export class RoamService {
   // Cache for frequently accessed data
   private static graphNameCache: {
@@ -48,7 +60,7 @@ export class RoamService {
     try {
       // Getting graph name from URL (only log in development)
       if (process.env.NODE_ENV === "development") {
-        console.log("Getting graph name from URL:", window.location.href);
+        debugRoamLog("Getting graph name from URL:", window.location.href);
       }
 
       // Try to get graph name from URL - check both href and hash
@@ -104,7 +116,7 @@ export class RoamService {
         // Try to get from the document title which often contains the graph name
         const titleMatch = document.title.match(/^(.+?)\s*-\s*Roam/);
         if (titleMatch && titleMatch[1] && titleMatch[1] !== "Roam") {
-          console.log("Graph name from document title:", titleMatch[1]);
+          debugRoamLog("Graph name from document title:", titleMatch[1]);
           return titleMatch[1].trim();
         }
       }
@@ -116,12 +128,12 @@ export class RoamService {
       if (sidebarElement && sidebarElement.textContent) {
         const sidebarText = sidebarElement.textContent.trim();
         if (sidebarText && sidebarText !== "Roam" && sidebarText.length < 50) {
-          console.log("Graph name from sidebar:", sidebarText);
+          debugRoamLog("Graph name from sidebar:", sidebarText);
           return sidebarText;
         }
       }
 
-      console.log(
+      debugRoamLog(
         "Could not determine graph name from URL:",
         window.location.href
       );
@@ -191,7 +203,7 @@ export class RoamService {
   ): { webUrl: string; desktopUrl: string } | null {
     const graph = graphName || this.getCurrentGraphName();
     if (!graph) {
-      console.log("Cannot generate URLs without graph name");
+      debugRoamLog("Cannot generate URLs without graph name");
       return null;
     }
 
@@ -210,7 +222,7 @@ export class RoamService {
   ): { webUrl: string; desktopUrl: string } | null {
     const graph = graphName || this.getCurrentGraphName();
     if (!graph) {
-      console.log("Cannot generate URLs without graph name");
+      debugRoamLog("Cannot generate URLs without graph name");
       return null;
     }
 
@@ -252,7 +264,7 @@ export class RoamService {
         const urlMatch = window.location.href.match(/\/page\/([^/?]+)/);
         if (urlMatch) {
           currentPageUid = decodeURIComponent(urlMatch[1]);
-          console.log("🔍 Got page UID from URL:", currentPageUid);
+          debugRoamLog("🔍 Got page UID from URL:", currentPageUid);
         }
       }
 
@@ -270,7 +282,7 @@ export class RoamService {
           if (titleElement) {
             const pageTitle = titleElement.textContent?.trim();
             if (pageTitle) {
-              console.log("🔍 Found main window page title:", pageTitle);
+              debugRoamLog("🔍 Found main window page title:", pageTitle);
               title = pageTitle;
               
               const titleQuery = `
@@ -282,7 +294,7 @@ export class RoamService {
               const titleResult = window.roamAlphaAPI.q(titleQuery);
               if (titleResult && titleResult.length > 0) {
                 currentPageUid = titleResult[0][0];
-                console.log("✅ Using main window page as current:", pageTitle);
+                debugRoamLog("✅ Using main window page as current:", pageTitle);
               }
             }
           }
@@ -293,7 +305,7 @@ export class RoamService {
       if (!currentPageUid) {
         const visibleBlocks = this.getVisibleBlocks();
         if (visibleBlocks.length > 0) {
-          console.log("🔍 Fallback: trying visible content detection");
+          debugRoamLog("🔍 Fallback: trying visible content detection");
           // This now works better due to the sidebar-aware visibility logic we fixed above
         }
       }
@@ -356,7 +368,7 @@ export class RoamService {
    */
   static async getActiveSidebarPageFromDOM(): Promise<RoamPage | null> {
     try {
-      console.log("🔍 Checking DOM for active sidebar page...");
+      debugRoamLog("🔍 Checking DOM for active sidebar page...");
 
       // Look for the right sidebar
       const rightSidebar =
@@ -365,7 +377,7 @@ export class RoamService {
         document.querySelector("[data-testid='right-sidebar']");
 
       if (!rightSidebar) {
-        console.log("❌ No right sidebar found in DOM");
+        debugRoamLog("❌ No right sidebar found in DOM");
         return null;
       }
 
@@ -386,10 +398,10 @@ export class RoamService {
           const pageTitle = firstVisibleTitle.textContent?.trim();
 
           if (pageTitle) {
-            console.log("🔍 Found fallback sidebar page title:", pageTitle);
+            debugRoamLog("🔍 Found fallback sidebar page title:", pageTitle);
             const page = await this.getPageByTitle(pageTitle);
             if (page) {
-              console.log(
+              debugRoamLog(
                 "✅ Successfully got fallback sidebar page from DOM:",
                 pageTitle
               );
@@ -399,7 +411,7 @@ export class RoamService {
         }
       }
 
-      console.log("❌ No sidebar page titles found in DOM");
+      debugRoamLog("❌ No sidebar page titles found in DOM");
       return null;
     } catch (error) {
       console.error("❌ Error getting active sidebar page from DOM:", error);
@@ -526,11 +538,11 @@ export class RoamService {
 
     try {
       // First, let's debug what elements actually exist in the DOM
-      console.log("🔍 DEBUG: Analyzing DOM structure...");
+      debugRoamLog("🔍 DEBUG: Analyzing DOM structure...");
 
       // Check for any elements with data-block-uid attribute
       const allBlockUidElements = document.querySelectorAll("[data-block-uid]");
-      console.log(
+      debugRoamLog(
         `🔍 Found ${allBlockUidElements.length} elements with data-block-uid`
       );
 
@@ -543,7 +555,7 @@ export class RoamService {
       const rmBlockChildren = document.querySelectorAll(".rm-block-children");
       const rmTitleDisplay = document.querySelectorAll(".rm-title-display");
 
-      console.log("🔍 DOM elements found:", {
+      debugRoamLog("🔍 DOM elements found:", {
         roamBlocks: roamBlocks.length,
         rmBlocks: rmBlocks.length,
         roamArticle: roamArticle.length,
@@ -557,21 +569,21 @@ export class RoamService {
       // If we have elements with data-block-uid, let's see what classes they have
       if (allBlockUidElements.length > 0) {
         const sampleElement = allBlockUidElements[0];
-        console.log("🔍 Sample element classes:", sampleElement.className);
-        console.log("🔍 Sample element tagName:", sampleElement.tagName);
+        debugRoamLog("🔍 Sample element classes:", sampleElement.className);
+        debugRoamLog("🔍 Sample element tagName:", sampleElement.tagName);
       } else if (roamBlocks.length > 0) {
         // Since we found .roam-block elements, let's analyze them
         const sampleRoamBlock = roamBlocks[0];
-        console.log("🔍 Sample .roam-block element:");
-        console.log("🔍 - classes:", sampleRoamBlock.className);
-        console.log("🔍 - tagName:", sampleRoamBlock.tagName);
-        console.log(
+        debugRoamLog("🔍 Sample .roam-block element:");
+        debugRoamLog("🔍 - classes:", sampleRoamBlock.className);
+        debugRoamLog("🔍 - tagName:", sampleRoamBlock.tagName);
+        debugRoamLog(
           "🔍 - attributes:",
           Array.from(sampleRoamBlock.attributes).map(
             (attr) => `${attr.name}="${attr.value}"`
           )
         );
-        console.log(
+        debugRoamLog(
           "🔍 - textContent preview:",
           sampleRoamBlock.textContent?.substring(0, 100)
         );
@@ -598,7 +610,7 @@ export class RoamService {
       for (const selector of blockSelectors) {
         blockElements = document.querySelectorAll(selector);
         if (blockElements.length > 0) {
-          console.log(
+          debugRoamLog(
             `🔍 Found ${blockElements.length} blocks using selector: ${selector}`
           );
           break;
@@ -607,7 +619,7 @@ export class RoamService {
 
       // Early return if no blocks found
       if (!blockElements || blockElements.length === 0) {
-        console.log("❌ No block elements found in DOM");
+        debugRoamLog("❌ No block elements found in DOM");
         return visibleBlocks;
       }
 
@@ -645,14 +657,14 @@ export class RoamService {
                 // Validate that it looks like a Roam UID (alphanumeric, reasonable length)
                 if (possibleUid && /^[a-zA-Z0-9_-]{6,}$/.test(possibleUid)) {
                   uid = possibleUid;
-                  console.log(`🔍 Extracted UID from element ID: ${uid}`);
+                  debugRoamLog(`🔍 Extracted UID from element ID: ${uid}`);
                 }
               }
             }
           }
           if (!uid) {
             // Skip elements without real block UIDs - they're not actual Roam blocks
-            console.log("🔍 No UID found, skipping non-block element:", element.className);
+            debugRoamLog("🔍 No UID found, skipping non-block element:", element.className);
             continue;
           }
 
@@ -718,7 +730,7 @@ export class RoamService {
 
             // Debug visibility calculation for first few elements
             if (visibleBlocks.length < 3) {
-              console.log(`🔍 Block visibility check:`, {
+              debugRoamLog(`🔍 Block visibility check:`, {
                 uid: uid.substring(0, 20),
                 hasText: string.trim().length > 0,
                 textPreview: string.substring(0, 50),
@@ -749,7 +761,7 @@ export class RoamService {
           } else {
             // Debug why block was skipped
             if (visibleBlocks.length < 3) {
-              console.log(`🔍 Block skipped:`, {
+              debugRoamLog(`🔍 Block skipped:`, {
                 hasUid: !!uid,
                 hasTextElement: !!textElement,
                 elementTagName: element.tagName,
@@ -762,7 +774,7 @@ export class RoamService {
 
       processBlocks();
 
-      console.log(
+      debugRoamLog(
         `🔍 Processed ${blockElements.length} DOM elements, found ${visibleBlocks.length} visible blocks`
       );
     } catch (error) {
@@ -801,7 +813,7 @@ export class RoamService {
       // First, check if the current page is already a daily note
       const currentPage = await this.getCurrentPageInfo();
       if (currentPage && this.isDailyNotePage(currentPage.title)) {
-        console.log("Current page is already a daily note:", currentPage.title);
+        debugRoamLog("Current page is already a daily note:", currentPage.title);
         return currentPage; // Return the current daily note page
       }
 
@@ -810,7 +822,7 @@ export class RoamService {
       const todayISO = today.toISOString().split("T")[0];
       const roamDateFormat = LLMUtil.convertToRoamDateFormat(todayISO);
 
-      console.log("Looking for today's daily note:", roamDateFormat);
+      debugRoamLog("Looking for today's daily note:", roamDateFormat);
 
       const dateFormats = [
         roamDateFormat, // Standard Roam format: "July 10th, 2025"
@@ -830,7 +842,7 @@ export class RoamService {
       ];
 
       for (const format of dateFormats) {
-        console.log("Trying date format:", format);
+        debugRoamLog("Trying date format:", format);
 
         const query = `
           [:find ?uid
@@ -933,10 +945,10 @@ export class RoamService {
       });
 
       if (process.env.NODE_ENV === "development") {
-        console.log("🔍 Started sidebar monitoring");
+        debugRoamLog("🔍 Started sidebar monitoring");
       }
     } catch (error) {
-      console.warn("Failed to start sidebar monitoring:", error);
+      debugRoamWarn("Failed to start sidebar monitoring:", error);
     }
   }
 
@@ -948,7 +960,7 @@ export class RoamService {
       this.sidebarObserver.disconnect();
       this.sidebarObserver = null;
       if (process.env.NODE_ENV === "development") {
-        console.log("🔍 Stopped sidebar monitoring");
+        debugRoamLog("🔍 Stopped sidebar monitoring");
       }
     }
   }
@@ -1000,7 +1012,7 @@ export class RoamService {
         this.sidebarCache.checksum !== currentChecksum
       ) {
         if (process.env.NODE_ENV === "development") {
-          console.log("🔍 Sidebar changed - notifying callbacks");
+          debugRoamLog("🔍 Sidebar changed - notifying callbacks");
         }
         this.sidebarCache = {
           notes: currentNotes,
@@ -1013,12 +1025,12 @@ export class RoamService {
           try {
             callback();
           } catch (error) {
-            console.warn("Error in sidebar change callback:", error);
+            debugRoamWarn("Error in sidebar change callback:", error);
           }
         });
       }
     } catch (error) {
-      console.warn("Error checking sidebar changes:", error);
+      debugRoamWarn("Error checking sidebar changes:", error);
     }
   }
 
@@ -1182,7 +1194,7 @@ export class RoamService {
             }
           }
         } catch (windowError) {
-          console.warn("❌ Error processing sidebar window:", windowError);
+          debugRoamWarn("❌ Error processing sidebar window:", windowError);
         }
       }
 
@@ -1239,7 +1251,7 @@ export class RoamService {
             }
           }
         } catch (elementError) {
-          console.warn("❌ Error processing title element:", elementError);
+          debugRoamWarn("❌ Error processing title element:", elementError);
         }
       }
 
@@ -1256,7 +1268,7 @@ export class RoamService {
    */
   static async getLinkedReferences(pageTitle: string): Promise<RoamBlock[]> {
     try {
-      console.log("Getting linked references for:", pageTitle);
+      debugRoamLog("Getting linked references for:", pageTitle);
 
       const query = `
         [:find ?uid ?string
@@ -1267,7 +1279,7 @@ export class RoamService {
       `;
 
       const result = window.roamAlphaAPI.q(query);
-      console.log("Linked references result:", result);
+      debugRoamLog("Linked references result:", result);
 
       if (!result) return [];
 
@@ -1286,7 +1298,7 @@ export class RoamService {
    * Get comprehensive page context for AI
    */
   static async getPageContext(): Promise<PageContext> {
-    console.log(
+    debugRoamLog(
       "🚀 DEBUG: getPageContext called - optimized visible detection"
     );
     // Getting comprehensive page context
@@ -1302,33 +1314,33 @@ export class RoamService {
 
     const isDailyNotesView = this.isDailyNotesView();
     if (isDailyNotesView) {
-      console.log("📅 Detected daily notes view - scanning for visible daily notes");
+      debugRoamLog("📅 Detected daily notes view - scanning for visible daily notes");
       visibleDailyNotes = await this.getVisibleDailyNotes();
-      console.log(`📅 Found ${visibleDailyNotes.length} visible daily notes`);
+      debugRoamLog(`📅 Found ${visibleDailyNotes.length} visible daily notes`);
       
       // Check if currentPage is a daily note and is in visibleDailyNotes
       // If so, keep currentPage; otherwise set it to null to avoid stale context
       if (currentPage && this.isDailyNotePage(currentPage.title)) {
         const isCurrentPageVisible = visibleDailyNotes.some(dn => dn.uid === currentPage?.uid);
         if (!isCurrentPageVisible) {
-          console.log("📅 Current daily note page not in visible notes, removing from context");
+          debugRoamLog("📅 Current daily note page not in visible notes, removing from context");
           currentPage = null;
         } else {
-          console.log("📅 Current daily note page is visible, keeping in context");
+          debugRoamLog("📅 Current daily note page is visible, keeping in context");
         }
       } else if (visibleDailyNotes.length > 0) {
         // Not a daily note or no current page, clear currentPage to avoid confusion
         currentPage = null;
       }
     } else {
-      console.log("📄 Regular page view - getting visible blocks");
+      debugRoamLog("📄 Regular page view - getting visible blocks");
       visibleBlocks = this.getVisibleBlocks();
-      console.log(`📄 Found ${visibleBlocks.length} visible blocks`);
+      debugRoamLog(`📄 Found ${visibleBlocks.length} visible blocks`);
       
       // SAFETY: If we have a current page but no visible blocks detected,
       // use the current page blocks as fallback (handles sidebar interference)
       if (visibleBlocks.length === 0 && currentPage && currentPage.blocks.length > 0) {
-        console.log("🔧 No visible blocks detected but current page has content - using page blocks as fallback");
+        debugRoamLog("🔧 No visible blocks detected but current page has content - using page blocks as fallback");
         visibleBlocks = currentPage.blocks;
       }
     }
@@ -1343,7 +1355,7 @@ export class RoamService {
     }
 
     // Log page context summary
-    console.log("📋 Page context summary:", {
+    debugRoamLog("📋 Page context summary:", {
       currentPage: currentPage?.title || "None",
       currentPageBlocks: currentPage?.blocks.length || 0,
       visibleBlocks: visibleBlocks.length,
@@ -1359,7 +1371,7 @@ export class RoamService {
       sidebarNotes &&
       sidebarNotes.length === 0
     ) {
-      console.log("❌ No sidebar notes in context");
+      debugRoamLog("❌ No sidebar notes in context");
     }
 
     const contextResult = {
@@ -1374,7 +1386,7 @@ export class RoamService {
     };
 
     // Debug: Log the final context result
-    console.log('🔍 GETPAGECONTEXT RESULT:', {
+    debugRoamLog('🔍 GETPAGECONTEXT RESULT:', {
       hasCurrentPage: !!contextResult.currentPage,
       currentPageTitle: contextResult.currentPage?.title,
       visibleBlocksCount: contextResult.visibleBlocks.length,
@@ -1391,14 +1403,14 @@ export class RoamService {
    * Get minimal page context for tool calls (to avoid interference)
    */
   static async getToolCallContext(): Promise<PageContext> {
-    console.log("🎯 Getting minimal context for tool call...");
+    debugRoamLog("🎯 Getting minimal context for tool call...");
 
     // Removed selected text feature to avoid context contamination
 
     // For debugging: get current page info but don't include it in context
     const currentPage = await this.getCurrentPageInfo();
 
-    console.log("🎯 Tool call context summary:", {
+    debugRoamLog("🎯 Tool call context summary:", {
       selectedText: "Removed (feature disabled)",
       currentPage: currentPage?.title || "None",
       strategy: "minimal - no context to avoid confusion",
@@ -1453,13 +1465,13 @@ export class RoamService {
       if (provider === "ollama") {
         return this.getOllamaTokenLimit(model);
       }
-      console.warn(`Unknown provider: ${provider}, using default limit`);
+      debugRoamWarn(`Unknown provider: ${provider}, using default limit`);
       return 6000; // Default fallback
     }
 
     const limit = providerLimits[model];
     if (!limit) {
-      console.warn(
+      debugRoamWarn(
         `Unknown model: ${model} for provider: ${provider}, using default limit`
       );
       return 6000; // Default fallback
@@ -1813,7 +1825,7 @@ export class RoamService {
         saved: Math.max(0, need.allocatedTokens - need.actualTokensNeeded),
       }));
 
-      console.log(`🧠 Dynamic Token Allocation:`, {
+      debugRoamLog(`🧠 Dynamic Token Allocation:`, {
         totalSections: sections.length,
         maxTokens: actualMaxTokens,
         usedTokens,
@@ -1931,7 +1943,7 @@ export class RoamService {
     }
 
     // Use the new smart truncation for legacy calls
-    console.log(
+    debugRoamLog(
       "📝 Using legacy truncateContext - consider upgrading to smartContextManagement"
     );
     return this.truncatePreservingStructure(
@@ -1984,13 +1996,13 @@ export class RoamService {
       (!context.sidebarNotes || context.sidebarNotes.length === 0);
 
     if (isToolCallContext) {
-      console.log("🎯 Formatting minimal tool call context");
+      debugRoamLog("🎯 Formatting minimal tool call context");
 
       // No selected text feature anymore - just add minimal guidance
       formattedContext += `**Context Note:** This is minimal context for tool execution to avoid interference.\n`;
 
       const finalContext = formattedContext.trim();
-      console.log(
+      debugRoamLog(
         "🎯 Minimal context length:",
         finalContext.length,
         "characters"
@@ -1999,7 +2011,7 @@ export class RoamService {
     }
 
     // Standard context formatting for regular queries
-    console.log("📋 Formatting full context for regular query");
+    debugRoamLog("📋 Formatting full context for regular query");
 
     // Removed selectedText feature for better user experience
 
@@ -2141,7 +2153,7 @@ export class RoamService {
 
     const finalContext = formattedContext.trim();
 
-    console.log(
+    debugRoamLog(
       "📋 Final formatted context for AI (Legacy):",
       finalContext.length,
       "characters"
@@ -2301,7 +2313,7 @@ export class RoamService {
    */
   static async getNotesFromDate(dateString: string): Promise<RoamPage | null> {
     try {
-      console.log("🗓️ Getting notes from date:", dateString);
+      debugRoamLog("🗓️ Getting notes from date:", dateString);
 
       // Validate input date
       const inputDate = new Date(dateString);
@@ -2314,7 +2326,7 @@ export class RoamService {
       const dateFormats = LLMUtil.generateRoamDateFormats(dateString);
 
       for (const format of dateFormats) {
-        console.log("🔍 Trying date format:", format);
+        debugRoamLog("🔍 Trying date format:", format);
 
         const query = `
           [:find ?uid
@@ -2324,13 +2336,13 @@ export class RoamService {
         `;
 
         const result = window.roamAlphaAPI.q(query);
-        console.log("📊 Query result for", format, ":", result);
+        debugRoamLog("📊 Query result for", format, ":", result);
 
         if (result && result.length > 0) {
           const uid = result[0][0];
           const blocks = await this.getPageBlocks(uid);
 
-          console.log("✅ Found daily note:", {
+          debugRoamLog("✅ Found daily note:", {
             format,
             uid,
             blockCount: blocks.length,
@@ -2343,7 +2355,7 @@ export class RoamService {
         }
       }
 
-      console.log("❌ No daily note found for date:", dateString);
+      debugRoamLog("❌ No daily note found for date:", dateString);
       return null;
     } catch (error) {
       console.error("❌ Error getting notes from date:", error);
@@ -2385,7 +2397,7 @@ export class RoamService {
    */
   static async getPageByTitle(title: string): Promise<RoamPage | null> {
     try {
-      console.log("Getting page by title:", title);
+      debugRoamLog("Getting page by title:", title);
 
       const query = `
         [:find ?uid
@@ -2395,7 +2407,7 @@ export class RoamService {
       `;
 
       const result = window.roamAlphaAPI.q(query);
-      console.log("Page query result:", result);
+      debugRoamLog("Page query result:", result);
 
       if (result && result.length > 0) {
         const uid = result[0][0];
@@ -2414,7 +2426,7 @@ export class RoamService {
    */
   static async getPageByUid(uid: string): Promise<RoamPage | null> {
     try {
-      console.log("Getting page by uid:", uid);
+      debugRoamLog("Getting page by uid:", uid);
 
       const query = `
         [:find ?title
@@ -2424,7 +2436,7 @@ export class RoamService {
       `;
 
       const result = window.roamAlphaAPI.q(query);
-      console.log("Page query result:", result);
+      debugRoamLog("Page query result:", result);
 
       if (result && result.length > 0) {
         const title = result[0][0];
@@ -2443,7 +2455,7 @@ export class RoamService {
    */
   static async getBlockByUid(uid: string): Promise<RoamBlock | null> {
     try {
-      console.log("Getting block by UID:", uid);
+      debugRoamLog("Getting block by UID:", uid);
 
       const query = `
         [:find ?string
@@ -2453,7 +2465,7 @@ export class RoamService {
       `;
 
       const result = window.roamAlphaAPI.q(query);
-      console.log("Block query result:", result);
+      debugRoamLog("Block query result:", result);
 
       if (result && result.length > 0) {
         const content = result[0][0];
@@ -2479,7 +2491,7 @@ export class RoamService {
     pageTitle: string
   ): Promise<RoamBlock[]> {
     try {
-      console.log("Getting blocks referencing page:", pageTitle);
+      debugRoamLog("Getting blocks referencing page:", pageTitle);
 
       // Only use formal reference relationships, exclude unlinked references
       // Escape page title for safe use in Datalog queries
@@ -2498,9 +2510,9 @@ export class RoamService {
       const allResults: RoamBlock[] = [];
       for (const query of queries) {
         try {
-          console.log("Executing reference query:", query);
+          debugRoamLog("Executing reference query:", query);
           const result = window.roamAlphaAPI.q(query);
-          console.log("Reference query result:", result);
+          debugRoamLog("Reference query result:", result);
 
           if (result) {
             const blocks = result.map(([uid, string]: [string, string]) => ({
@@ -2511,7 +2523,7 @@ export class RoamService {
             allResults.push(...blocks);
           }
         } catch (queryError) {
-          console.warn(`Reference query failed:`, queryError);
+          debugRoamWarn(`Reference query failed:`, queryError);
         }
       }
 
@@ -2521,7 +2533,7 @@ export class RoamService {
           index === self.findIndex((b) => b.uid === block.uid)
       );
 
-      console.log(
+      debugRoamLog(
         `Found ${uniqueBlocks.length} unique blocks referencing "${pageTitle}"`
       );
       return uniqueBlocks;
@@ -2626,7 +2638,7 @@ export class RoamService {
    */
   static async searchNotesFullText(searchTerm: string): Promise<RoamBlock[]> {
     try {
-      console.log("Performing full text search for:", searchTerm);
+      debugRoamLog("Performing full text search for:", searchTerm);
 
       const query = `
         [:find ?uid ?string
@@ -2636,9 +2648,9 @@ export class RoamService {
          [(clojure.string/includes? (clojure.string/lower-case ?string) "${searchTerm.toLowerCase()}")]]
       `;
 
-      console.log("Executing search query:", query);
+      debugRoamLog("Executing search query:", query);
       const result = window.roamAlphaAPI.q(query);
-      console.log("Search query result:", result);
+      debugRoamLog("Search query result:", result);
 
       if (!result) return [];
 
@@ -2648,7 +2660,7 @@ export class RoamService {
         children: [],
       }));
 
-      console.log(
+      debugRoamLog(
         `Found ${searchResults.length} blocks containing "${searchTerm}"`
       );
       return searchResults;
@@ -2668,7 +2680,7 @@ export class RoamService {
     let queryType = "unknown";
 
     try {
-      console.log("🔍 Executing queryNotes with params:", params);
+      debugRoamLog("🔍 Executing queryNotes with params:", params);
 
       // 1. Current page context query
       if (params.currentPageContext) {
@@ -2762,7 +2774,7 @@ export class RoamService {
       }
 
       const executionTime = performance.now() - startTime;
-      console.log(
+      debugRoamLog(
         `🔍 queryNotes completed in ${executionTime.toFixed(2)}ms, found ${
           notes.length
         } results`
@@ -2810,7 +2822,7 @@ export class RoamService {
       }
 
       const lowerSearchTerm = searchTerm.toLowerCase();
-      console.log(`🔍 Searching pages for: "${searchTerm}"`);
+      debugRoamLog(`🔍 Searching pages for: "${searchTerm}"`);
 
       // First, get all pages and filter in JavaScript to avoid Datalog escaping issues
       const allPagesQuery = `
@@ -2822,7 +2834,7 @@ export class RoamService {
 
       const result = window.roamAlphaAPI.q(allPagesQuery);
       if (!result || result.length === 0) {
-        console.log("No pages found in database");
+        debugRoamLog("No pages found in database");
         return [];
       }
 
@@ -2833,7 +2845,7 @@ export class RoamService {
       }));
 
       // Debug: show a few page titles to understand the data
-      console.log(
+      debugRoamLog(
         `Sample page titles:`,
         allPages.slice(0, 10).map((p) => p.title)
       );
@@ -2844,7 +2856,7 @@ export class RoamService {
           page.title.toLowerCase().includes("claude") ||
           page.title.toLowerCase().includes("code")
       );
-      console.log(
+      debugRoamLog(
         `Pages containing 'claude' or 'code':`,
         candidatePages.map((p) => p.title)
       );
@@ -2853,7 +2865,7 @@ export class RoamService {
       const searchWords = lowerSearchTerm
         .split(/[-\s]+/)
         .filter((word) => word.length > 0);
-      console.log(`Search words:`, searchWords);
+      debugRoamLog(`Search words:`, searchWords);
 
       const pages = allPages.filter((page) => {
         const pageTitle = page.title.toLowerCase();
@@ -2862,7 +2874,7 @@ export class RoamService {
 
         // Debug specific pages for troubleshooting
         if (pageTitle.includes("claude")) {
-          console.log(
+          debugRoamLog(
             `Checking page "${page.title}": searchWords=[${searchWords.join(
               ", "
             )}], matches=${matches}`
@@ -2872,12 +2884,12 @@ export class RoamService {
         return matches;
       });
 
-      console.log(
+      debugRoamLog(
         `Found ${pages.length} matching pages out of ${result.length} total pages`
       );
 
       if (pages.length === 0) {
-        console.log(`No pages found for search term: "${searchTerm}"`);
+        debugRoamLog(`No pages found for search term: "${searchTerm}"`);
         return [];
       }
 
@@ -2907,7 +2919,7 @@ export class RoamService {
       });
 
       const limitedResults = pages.slice(0, limit);
-      console.log(
+      debugRoamLog(
         `Returning ${limitedResults.length} results:`,
         limitedResults.map((p) => p.title)
       );
@@ -2926,7 +2938,7 @@ export class RoamService {
     limit: number = 50
   ): Promise<Array<{ title: string; uid: string }>> {
     try {
-      console.log("🔍 Getting all page titles");
+      debugRoamLog("🔍 Getting all page titles");
 
       const query = `
         [:find ?title ?uid
@@ -2937,7 +2949,7 @@ export class RoamService {
 
       const result = window.roamAlphaAPI.q(query);
       if (!result || result.length === 0) {
-        console.log("No pages found");
+        debugRoamLog("No pages found");
         return [];
       }
 
@@ -2950,7 +2962,7 @@ export class RoamService {
       pages.sort((a, b) => a.title.localeCompare(b.title));
 
       const limitedResults = pages.slice(0, limit);
-      console.log(
+      debugRoamLog(
         `Found ${pages.length} pages, returning ${limitedResults.length}`
       );
 
@@ -2970,7 +2982,7 @@ export class RoamService {
     limit: number = 10
   ): Promise<UniversalSearchResponse> {
     const startTime = Date.now();
-    console.log(
+    debugRoamLog(
       `🔍 UniversalSearch called with: "${searchTerm}", limit: ${limit}`
     );
 
@@ -2999,7 +3011,7 @@ export class RoamService {
       const limitedResults = sortedResults.slice(0, limit);
 
       const executionTime = Date.now() - startTime;
-      console.log(
+      debugRoamLog(
         `🔍 UniversalSearch completed: ${limitedResults.length} results in ${executionTime}ms`
       );
 
@@ -3029,7 +3041,7 @@ export class RoamService {
   ): Promise<UniversalSearchResult[]> {
     try {
       if (!window.roamAlphaAPI?.q) {
-        console.warn("Roam API not available for page search");
+        debugRoamWarn("Roam API not available for page search");
         return [];
       }
 
@@ -3046,7 +3058,7 @@ export class RoamService {
       const result = await window.roamAlphaAPI.q(allPagesQuery);
 
       if (!result || result.length === 0) {
-        console.log("No pages found in database");
+        debugRoamLog("No pages found in database");
         return [];
       }
 
@@ -3056,7 +3068,7 @@ export class RoamService {
         uid: row[1] as string,
       }));
 
-      console.log(`🔍 Found ${allPages.length} total pages`);
+      debugRoamLog(`🔍 Found ${allPages.length} total pages`);
 
       // Filter pages that match the search term
       const matchingPages = allPages.filter((page) => {
@@ -3064,7 +3076,7 @@ export class RoamService {
         return pageTitle.includes(lowerSearchTerm);
       });
 
-      console.log(
+      debugRoamLog(
         `🔍 Found ${matchingPages.length} matching pages for "${searchTerm}"`
       );
 
@@ -3100,11 +3112,11 @@ export class RoamService {
       const blockResults = await this.searchNotesFullText(searchTerm);
 
       if (!blockResults || blockResults.length === 0) {
-        console.log(`🔍 No blocks found for "${searchTerm}"`);
+        debugRoamLog(`🔍 No blocks found for "${searchTerm}"`);
         return [];
       }
 
-      console.log(
+      debugRoamLog(
         `🔍 Found ${blockResults.length} matching blocks for "${searchTerm}"`
       );
 
@@ -3146,7 +3158,7 @@ export class RoamService {
   ): Promise<string | undefined> {
     try {
       if (!window.roamAlphaAPI?.q) {
-        console.warn("Roam API not available for getting parent page title");
+        debugRoamWarn("Roam API not available for getting parent page title");
         return undefined;
       }
 
@@ -3473,14 +3485,14 @@ export class RoamService {
           
           if (isVisible) {
             processedTitles.add(title);
-            console.log("📅 Found visible daily note:", title, `(${(visibilityRatio * 100).toFixed(1)}% visible, rect: top=${rect.top}, bottom=${rect.bottom}, viewport=${viewportHeight})`);
+            debugRoamLog("📅 Found visible daily note:", title, `(${(visibilityRatio * 100).toFixed(1)}% visible, rect: top=${rect.top}, bottom=${rect.bottom}, viewport=${viewportHeight})`);
 
             const page = await this.getPageByTitle(title);
             if (page) {
               visibleDailyNotes.push(page);
             }
           } else {
-            console.log("📅 Daily note not sufficiently visible:", title, `(${(visibilityRatio * 100).toFixed(1)}% visible, rect: top=${rect.top}, bottom=${rect.bottom}, viewport=${viewportHeight})`);
+            debugRoamLog("📅 Daily note not sufficiently visible:", title, `(${(visibilityRatio * 100).toFixed(1)}% visible, rect: top=${rect.top}, bottom=${rect.bottom}, viewport=${viewportHeight})`);
           }
         }
       }
