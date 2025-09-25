@@ -167,9 +167,9 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
         return;
       }
 
-      // Don't update context if it's locked to a conversation
-      if (isContextLocked && !forceUpdate) {
-        copilotDebugLog('🔒 Context is locked, skipping update');
+      // Don't update context if it's locked to a conversation (even for forced updates)
+      if (isContextLocked) {
+        copilotDebugLog('🔒 Context is locked, skipping update (forceUpdate ignored for consistency)');
         return;
       }
 
@@ -295,10 +295,18 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
       const currentTitle = document.title;
 
       if (currentUrl !== lastUrl || currentTitle !== lastTitle) {
-        copilotDebugLog("📄 Page change detected, updating context...");
+        copilotDebugLog("📄 Page change detected");
         lastUrl = currentUrl;
         lastTitle = currentTitle;
 
+        // Skip page change updates if context is locked
+        if (isContextLocked) {
+          copilotDebugLog("🔒 Context locked, ignoring page change");
+          return;
+        }
+
+        copilotDebugLog("📄 Updating context for page change...");
+        
         // Debounce the update to avoid too frequent calls
         if (updateContextTimeoutRef.current) {
           clearTimeout(updateContextTimeoutRef.current);
@@ -402,6 +410,13 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
     // Listen for text selection changes to update context
     const handleSelectionChange = () => {
       copilotDebugLog("📝 Selection change detected");
+      
+      // Skip selection updates if context is locked
+      if (isContextLocked) {
+        copilotDebugLog("🔒 Context locked, ignoring selection change");
+        return;
+      }
+      
       // Debounce the update to avoid too frequent calls
       if (updateContextTimeoutRef.current) {
         clearTimeout(updateContextTimeoutRef.current);
@@ -414,6 +429,13 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
     // Listen for scroll events to update context when user scrolls
     const handleScroll = () => {
       copilotDebugLog("📜 Scroll detected");
+      
+      // Skip scroll updates if context is locked
+      if (isContextLocked) {
+        copilotDebugLog("🔒 Context locked, ignoring scroll update");
+        return;
+      }
+      
       // Dynamic delay based on content type: daily notes need faster updates
       const isDailyNotesView = window.location.href.includes('/page/Daily Notes') || 
                               document.querySelector('.roam-log-page') !== null;
@@ -446,6 +468,12 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
 
     // Use the new RoamService sidebar monitoring system
     const handleSidebarChange = () => {
+      // Skip sidebar updates if context is locked
+      if (isContextLocked) {
+        copilotDebugLog("🔒 Context locked, ignoring sidebar change");
+        return;
+      }
+      
       if (updateContextTimeoutRef.current) {
         clearTimeout(updateContextTimeoutRef.current);
       }
@@ -704,33 +732,97 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
       }
     }
 
-    // Add user message (display the template content if using template, otherwise original message)
-    addMessage({
-      role: "user",
-      content: customPrompt ? customPrompt : userMessage,
-    });
-
-    setState((prev) => ({ ...prev, isLoading: true }));
-
     try {
-      // If template requires current page context, refresh it
+      // CRITICAL: Get context BEFORE any state changes to ensure preview-send consistency
       let currentContext = pageContext;
-      if (templateRequiresCurrentPage) {
-        copilotDebugLog("🔄 Refreshing page context for template");
+      
+      copilotDebugLog("🔍 PRE-SEND context snapshot:", {
+        currentPage: currentContext?.currentPage?.title || "None",
+        visibleDailyNotesCount: currentContext?.visibleDailyNotes?.length || 0,
+        visibleDailyNotes: currentContext?.visibleDailyNotes?.map(dn => dn.title) || [],
+        isLocked: isContextLocked
+      });
+      
+      // Only refresh context if template specifically requires it AND context is not locked
+      if (templateRequiresCurrentPage && !isContextLocked) {
+        copilotDebugLog("🔄 Refreshing page context for template (context not locked)");
         try {
-          await updatePageContext(true); // Force update for template
-          // updatePageContext updates the state, but we need immediate access
+          // Get fresh context directly without relying on state updates
           const latestContext = await RoamService.getPageContext();
           currentContext = latestContext;
           copilotDebugLog(
-            "✅ Got fresh context for template, current page:",
-            latestContext?.currentPage?.title || "None"
+            "✅ Got fresh context for template directly from RoamService"
           );
         } catch (error) {
           console.error("❌ Failed to refresh context for template:", error);
           // Continue with existing context
         }
+      } else if (isContextLocked) {
+        copilotDebugLog("🔒 Context is locked, using preserved context for send consistency");
       }
+
+      // Add user message (display the template content if using template, otherwise original message)
+      addMessage({
+        role: "user",
+        content: customPrompt ? customPrompt : userMessage,
+      });
+
+      setState((prev) => ({ ...prev, isLoading: true }));
+      
+      // Context sync validation for debugging
+      const contextSyncInfo = {
+        isLocked: isContextLocked,
+        currentPage: currentContext?.currentPage?.title || "None",
+        currentPageBlocks: currentContext?.currentPage?.blocks?.length || 0,
+        visibleBlocks: currentContext?.visibleBlocks?.length || 0,
+        visibleDailyNotes: currentContext?.visibleDailyNotes?.length || 0,
+        dailyNote: currentContext?.dailyNote?.title || "None",
+        dailyNoteBlocks: currentContext?.dailyNote?.blocks?.length || 0,
+        linkedReferences: currentContext?.linkedReferences?.length || 0,
+        sidebarNotes: currentContext?.sidebarNotes?.length || 0,
+        hasTemplateRefresh: templateRequiresCurrentPage && !isContextLocked,
+        timestamp: new Date().toISOString()
+      };
+      
+      copilotDebugLog("📋 SEND MESSAGE - Context sync info:", contextSyncInfo);
+      
+      // Store this info for comparison with what preview shows
+      (window as any).__copilotDebug = {
+        ...((window as any).__copilotDebug || {}),
+        lastSentContext: contextSyncInfo,
+        compareContexts: () => {
+          const debugInfo = (window as any).__copilotDebug;
+          if (!debugInfo.lastPreviewContext || !debugInfo.lastSentContext) {
+            console.log("🔍 Missing context data for comparison");
+            return;
+          }
+          
+          const preview = debugInfo.lastPreviewContext;
+          const sent = debugInfo.lastSentContext;
+          
+          console.log("🔍 CONTEXT SYNC COMPARISON:");
+          console.log("Preview Context:", preview);
+          console.log("Sent Context:", sent);
+          
+          const diffs = [];
+          if (preview.currentPage !== sent.currentPage) diffs.push(`currentPage: ${preview.currentPage} ≠ ${sent.currentPage}`);
+          if (preview.currentPageBlocks !== sent.currentPageBlocks) diffs.push(`currentPageBlocks: ${preview.currentPageBlocks} ≠ ${sent.currentPageBlocks}`);
+          if (preview.visibleBlocks !== sent.visibleBlocks) diffs.push(`visibleBlocks: ${preview.visibleBlocks} ≠ ${sent.visibleBlocks}`);
+          if (preview.visibleDailyNotes !== sent.visibleDailyNotes) diffs.push(`visibleDailyNotes: ${preview.visibleDailyNotes} ≠ ${sent.visibleDailyNotes}`);
+          if (preview.dailyNote !== sent.dailyNote) diffs.push(`dailyNote: ${preview.dailyNote} ≠ ${sent.dailyNote}`);
+          if (preview.dailyNoteBlocks !== sent.dailyNoteBlocks) diffs.push(`dailyNoteBlocks: ${preview.dailyNoteBlocks} ≠ ${sent.dailyNoteBlocks}`);
+          if (preview.linkedReferences !== sent.linkedReferences) diffs.push(`linkedReferences: ${preview.linkedReferences} ≠ ${sent.linkedReferences}`);
+          if (preview.sidebarNotes !== sent.sidebarNotes) diffs.push(`sidebarNotes: ${preview.sidebarNotes} ≠ ${sent.sidebarNotes}`);
+          if (preview.isLocked !== sent.isLocked) diffs.push(`isLocked: ${preview.isLocked} ≠ ${sent.isLocked}`);
+          
+          if (diffs.length > 0) {
+            console.warn("❌ CONTEXT SYNC ISSUES DETECTED:");
+            diffs.forEach(diff => console.warn(`  ${diff}`));
+          } else {
+            console.log("✅ Context preview and sent context are in sync");
+          }
+        }
+      };
 
       // Extract page references and block references from the message
       const pageReferences = extractPageReferences(actualUserMessage);

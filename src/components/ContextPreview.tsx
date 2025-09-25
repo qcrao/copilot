@@ -250,15 +250,32 @@ export const ContextPreview: React.FC<ContextPreviewProps> = ({
   const hasSidebarNotes = sidebarNotes.length > 0;
 
   // Debug logging for visibleDailyNotes
-  logContextPreview('🔍 CONTEXT PREVIEW DEBUG:', {
-    visibleDailyNotes: context.visibleDailyNotes?.map(dn => ({ title: dn.title, uid: dn.uid, blocksCount: dn.blocks.length })),
-    currentPage: context.currentPage ? { title: context.currentPage.title, uid: context.currentPage.uid } : null,
+  const previewSyncInfo = {
+    isLocked: isContextLocked,
+    currentPage: context.currentPage?.title || "None",
+    currentPageBlocks: context.currentPage?.blocks?.length || 0,
+    visibleBlocks: context.visibleBlocks?.length || 0,
+    visibleDailyNotes: context.visibleDailyNotes?.length || 0,
+    visibleDailyNotesDetails: context.visibleDailyNotes?.map(dn => ({ title: dn.title, uid: dn.uid, blocksCount: dn.blocks.length })),
+    dailyNote: context.dailyNote?.title || "None",
+    dailyNoteBlocks: context.dailyNote?.blocks?.length || 0,
+    linkedReferences: context.linkedReferences?.length || 0,
+    sidebarNotes: context.sidebarNotes?.length || 0,
     isCurrentPageDaily,
     isCurrentPageActuallyVisible,
     hasPageContent,
     hasBacklinks,
-    hasSidebarNotes
-  });
+    hasSidebarNotes,
+    timestamp: new Date().toISOString()
+  };
+  
+  logContextPreview('🔍 CONTEXT PREVIEW - Context sync info:', previewSyncInfo);
+  
+  // Store this info for comparison with what gets sent
+  (window as any).__copilotDebug = {
+    ...((window as any).__copilotDebug || {}),
+    lastPreviewContext: previewSyncInfo
+  };
 
   if (!hasPageContent && !hasBacklinks && !hasSidebarNotes) return null;
 
