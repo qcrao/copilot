@@ -1457,6 +1457,11 @@ export class RoamService {
         "grok-beta": 60000, // 131k context window - increased from 24k
         "grok-vision-beta": 60000, // 128k context window with vision - increased from 24k
       },
+      deepseek: {
+        "deepseek-chat": 48000, // 64k context window, using 48k for safety
+        "deepseek-reasoner": 48000, // 64k context window, using 48k for safety
+        "deepseek-coder": 48000, // 64k context window, using 48k for safety
+      },
     };
 
     const providerLimits = modelLimits[provider];

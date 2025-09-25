@@ -49,7 +49,7 @@ export function composeUnifiedContext(
   // 1) Determine available token budget
   const modelLimit = provider && model
     ? RoamService.getModelTokenLimit(provider, model)
-    : 6000; // sensible default
+    : 48000; // sensible default
 
   // Model-side budget reserved for context (e.g., 70% of window)
   const modelBudget = Math.floor(modelLimit * contextTokenShare);
@@ -57,6 +57,17 @@ export function composeUnifiedContext(
   const requestedBudget = typeof maxTokens === 'number' ? maxTokens : modelBudget;
   // Enforce a practical minimum of 1000 to keep context meaningful (as agreed)
   const maxContextTokens = Math.max(1000, Math.min(requestedBudget, modelBudget));
+
+  console.log("🔧 CONTEXT COMPOSER TOKEN BUDGET:", {
+    provider,
+    model,
+    modelLimit,
+    contextTokenShare,
+    modelBudget,
+    requestedBudget,
+    maxTokens,
+    finalMaxContextTokens: maxContextTokens
+  });
 
   // 2) Build curated sections by level (0,1,2,3+)
   const itemsByLevel: Record<number, ContextItem[]> = {};
@@ -267,6 +278,18 @@ export function composeUnifiedContext(
 
   // Dynamic small-section threshold (avoid dropping all content on small budgets)
   const minSectionThreshold = Math.max(20, Math.floor(maxContextTokens * 0.03));
+  
+  console.log("🔧 CONTEXT COMPOSER SECTION ALLOCATION:", {
+    sectionsCount: sections.length,
+    minSectionThreshold,
+    sections: sections.map(s => ({
+      key: s.key,
+      priority: s.priority,
+      allocatedTokens: s.allocatedTokens,
+      contentLength: s.content.length,
+      contentPreview: s.content.substring(0, 100) + "..."
+    }))
+  });
 
   for (const s of sections) {
     const header = s.title ? s.title + "\n" : "";
@@ -374,7 +397,7 @@ function truncatePreservingStructureLocal(content: string, maxTokens: number): s
   for (let i = 0; i < paragraphs.length; i++) {
     const p = paragraphs[i];
     const t = RoamService.estimateTokenCount(p);
-    if (tokens + t <= Math.floor(maxTokens * 0.9)) { // leave room for notice
+    if (tokens + t <= Math.floor(maxTokens * 0.95)) { // leave less room, be more generous
       acc.push(p);
       tokens += t;
     } else {

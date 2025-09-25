@@ -992,9 +992,11 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
           visibleDailyNotes: filteredContext?.visibleDailyNotes?.map(dn => ({ title: dn.title, blocks: dn.blocks?.length })) || [],
           visibleDailyNotesCount: filteredContext?.visibleDailyNotes?.length || 0,
         },
-        options: {
+        tokenBudgetInfo: {
           provider: providerIdForContext,
           model: currentModelForContext,
+          modelLimit: RoamService.getModelTokenLimit(providerIdForContext, currentModelForContext),
+          maxInputTokens: multiProviderSettings.maxInputTokens,
           includeSidebarNotes: !hasSpecificIntent,
           includeDailyNotes: !hasSpecificIntent,
           hasSpecificIntent
