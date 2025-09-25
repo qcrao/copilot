@@ -120,7 +120,7 @@ export class AIService {
           apiKey: providerInfo.apiKey,
           baseUrl: providerInfo.provider.baseUrl,
           temperature: multiProviderSettings.temperature || 0.7,
-          maxTokens: multiProviderSettings.maxTokens || 8000,
+          maxTokens: multiProviderSettings.maxTokens || 24000,
         },
         messagesWithHistory
       );

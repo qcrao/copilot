@@ -252,7 +252,7 @@ export class LLMUtil {
     config: LLMConfig,
     messages: any[]
   ): Promise<LLMResult> {
-    const { temperature = 0.7, maxTokens = 8000 } = config;
+    const { temperature = 0.7, maxTokens = 24000 } = config;
 
     try {
       const model = this.getProviderClient(config);
@@ -290,7 +290,7 @@ export class LLMUtil {
     usage?: any;
     error?: string;
   }> {
-    const { temperature = 0.7, maxTokens = 8000 } = config;
+    const { temperature = 0.7, maxTokens = 24000 } = config;
 
     try {
       const model = this.getProviderClient(config);
@@ -396,7 +396,7 @@ export class LLMUtil {
       apiKey: providerInfo.apiKey,
       baseUrl: providerInfo.provider.baseUrl,
       temperature: multiProviderSettings.temperature || 0.7,
-      maxTokens: multiProviderSettings.maxTokens || 8000,
+      maxTokens: multiProviderSettings.maxTokens || 24000,
     };
 
     const messages = [

@@ -18,7 +18,7 @@ export class PromptBuilder {
    * Build AI prompt from TipTap editor JSON
    * Expands reference chips to full block content
    */
-  static async buildPrompt(editorJSON: any, maxTokens: number = 6000): Promise<PromptBuildResult> {
+  static async buildPrompt(editorJSON: any, maxTokens: number = 15000): Promise<PromptBuildResult> {
     try {
       // console.log('PROMPT_BUILDER_DEBUG: Starting buildPrompt with editor JSON:', JSON.stringify(editorJSON, null, 2));
       

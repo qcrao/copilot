@@ -1471,7 +1471,7 @@ export class RoamService {
         return this.getOllamaTokenLimit(model);
       }
       debugRoamWarn(`Unknown provider: ${provider}, using default limit`);
-      return 6000; // Default fallback
+      return 48000; // Default fallback - increased for better context
     }
 
     const limit = providerLimits[model];
@@ -1479,7 +1479,7 @@ export class RoamService {
       debugRoamWarn(
         `Unknown model: ${model} for provider: ${provider}, using default limit`
       );
-      return 6000; // Default fallback
+      return 48000; // Default fallback - increased for better context
     }
 
     return limit;
