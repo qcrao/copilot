@@ -57,6 +57,7 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
   });
 
   const [pageContext, setPageContext] = useState<PageContext | null>(null);
+  const pageContextRef = useRef<PageContext | null>(null);
   const [isContextLocked, setIsContextLocked] = useState(false);
   const [, setPreservedContext] = useState<PageContext | null>(null);
   const [excludedContextUids, setExcludedContextUids] = useState<Set<string>>(
@@ -262,6 +263,7 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
           } as PageContext;
 
           setPageContext(filtered);
+          pageContextRef.current = filtered;
           copilotDebugLog("✅ Page context updated successfully");
         }
       } catch (error) {
@@ -734,14 +736,42 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
 
     try {
       // CRITICAL: Get context BEFORE any state changes to ensure preview-send consistency
-      let currentContext = pageContext;
+      // Use ref to get the absolute latest context state
+      let currentContext = pageContextRef.current;
+      
+      copilotDebugLog("🔍 CONTEXT SOURCE COMPARISON:", {
+        fromState: pageContext?.currentPage?.title || "None (state)",
+        fromRef: pageContextRef.current?.currentPage?.title || "None (ref)",
+        stateVisibleDailyNotes: pageContext?.visibleDailyNotes?.length || 0,
+        refVisibleDailyNotes: pageContextRef.current?.visibleDailyNotes?.length || 0,
+        areEqual: pageContext === pageContextRef.current
+      });
       
       copilotDebugLog("🔍 PRE-SEND context snapshot:", {
         currentPage: currentContext?.currentPage?.title || "None",
         visibleDailyNotesCount: currentContext?.visibleDailyNotes?.length || 0,
         visibleDailyNotes: currentContext?.visibleDailyNotes?.map(dn => dn.title) || [],
-        isLocked: isContextLocked
+        visibleDailyNotesDetails: currentContext?.visibleDailyNotes?.map(dn => ({ 
+          title: dn.title, 
+          uid: dn.uid,
+          blocks: dn.blocks?.length || 0,
+          firstBlockPreview: dn.blocks?.[0]?.string?.substring(0, 50) + "..." || "No blocks"
+        })) || [],
+        isLocked: isContextLocked,
+        source: "pageContext component state"
       });
+
+      // VERIFICATION: Compare with what ContextPreview would see
+      if ((window as any).__copilotDebug?.lastPreviewContext) {
+        const preview = (window as any).__copilotDebug.lastPreviewContext;
+        copilotDebugLog("🔍 IMMEDIATE COMPARISON with last preview:", {
+          previewVisibleDailyNotes: preview.visibleDailyNotes,
+          previewDailyNotes: preview.visibleDailyNotesDetails,
+          sendVisibleDailyNotes: currentContext?.visibleDailyNotes?.length || 0,
+          sendDailyNotes: currentContext?.visibleDailyNotes?.map(dn => dn.title) || [],
+          timeDiffMs: new Date().getTime() - new Date(preview.timestamp).getTime()
+        });
+      }
       
       // Only refresh context if template specifically requires it AND context is not locked
       if (templateRequiresCurrentPage && !isContextLocked) {
@@ -955,6 +985,22 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
         currentContextVisibleDailyNotesCount: currentContext?.visibleDailyNotes?.length || 0
       });
 
+      copilotDebugLog("🔧 CONTEXT COMPOSE INPUT:", {
+        contextItems: contextItems.length,
+        filteredContextDetails: {
+          currentPage: filteredContext?.currentPage?.title || "None",
+          visibleDailyNotes: filteredContext?.visibleDailyNotes?.map(dn => ({ title: dn.title, blocks: dn.blocks?.length })) || [],
+          visibleDailyNotesCount: filteredContext?.visibleDailyNotes?.length || 0,
+        },
+        options: {
+          provider: providerIdForContext,
+          model: currentModelForContext,
+          includeSidebarNotes: !hasSpecificIntent,
+          includeDailyNotes: !hasSpecificIntent,
+          hasSpecificIntent
+        }
+      });
+
       contextString = composeUnifiedContext(contextItems as any, filteredContext as any, {
         provider: providerIdForContext,
         model: currentModelForContext,
@@ -963,6 +1009,12 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
         includeSidebarNotes: !hasSpecificIntent, // exclude ambient extras when intent is specific
         includeDailyNotes: !hasSpecificIntent, // exclude ambient extras when intent is specific
         includeGuidelines: true,
+      });
+      
+      copilotDebugLog("🔧 CONTEXT COMPOSE OUTPUT:", {
+        contextStringLength: contextString.length,
+        contextStringPreview: contextString.substring(0, 200) + "...",
+        isMinimal: contextString.trim().startsWith("**Context Note:** This is minimal context")
       });
 
       // Fallback: if unified composer produced minimal placeholder, rebuild with full ambient context
@@ -974,11 +1026,17 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
 
       if (isMinimalContext) {
         try {
-          console.warn(
-            "⚠️ Unified context is minimal; falling back to full page context"
+          copilotDebugLog(
+            "⚠️ Unified context is minimal; falling back to full page context with SAME data"
           );
+          copilotDebugLog("🔧 FALLBACK INPUT CONTEXT:", {
+            currentPage: currentContext?.currentPage?.title || "None",
+            visibleDailyNotes: currentContext?.visibleDailyNotes?.map(dn => ({ title: dn.title, blocks: dn.blocks?.length })) || [],
+            visibleDailyNotesCount: currentContext?.visibleDailyNotes?.length || 0,
+          });
+          
           const fallback = RoamService.formatContextForAI(
-            // Use the unfiltered current context to ensure we have content
+            // CRITICAL: Use the exact same currentContext to ensure consistency
             currentContext || ({} as any),
             multiProviderSettings.maxInputTokens,
             providerIdForContext,
@@ -986,6 +1044,7 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
           );
           if (fallback && fallback.trim().length > 0) {
             contextString = fallback;
+            copilotDebugLog("✅ Used fallback context, preview-send consistency maintained");
           }
         } catch (e) {
           console.error("❌ Fallback context build failed:", e);
@@ -1425,6 +1484,7 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
         copilotDebugLog('🔒 Context locked for conversation:', conversationId);
         setPreservedContext(restoredContext);
         setPageContext(restoredContext);
+        pageContextRef.current = restoredContext;
         setIsContextLocked(true);
       } else {
         // Check if the loaded messages contain specific references
@@ -1442,6 +1502,7 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
           setIsContextLocked(false);
           setPreservedContext(null);
           setPageContext(null); // Clear current context since user had specific intent
+          pageContextRef.current = null;
           setHasConversationSpecificContext(true); // Mark this conversation as having specific context
         } else {
           copilotDebugLog('🔓 No preserved context and no specific references, using current context');
