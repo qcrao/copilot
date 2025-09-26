@@ -2,6 +2,10 @@
 import { AISettings, AI_PROVIDERS, ChatMessage } from "../types";
 import { multiProviderSettings } from "../settings";
 import { LLMUtil } from "../utils/llmUtil";
+import {
+  DEFAULT_MAX_COMPLETION_TOKENS,
+  getSafeMaxCompletionTokens,
+} from "../utils/tokenLimits";
 
 // Default universal assistant prompt (not shown in template panel)
 const UNIVERSAL_ASSISTANT_PROMPT = `You are an intelligent note assistant designed to help with various knowledge work tasks. Your role is to provide helpful, contextual assistance based on the user's notes and current needs.
@@ -99,10 +103,19 @@ export class AIService {
       context
     );
 
+    const providerId = providerInfo.provider.id;
+    const requestedMaxTokens = multiProviderSettings.maxTokens;
+    const safeMaxTokens = getSafeMaxCompletionTokens(
+      providerId,
+      model,
+      requestedMaxTokens,
+      DEFAULT_MAX_COMPLETION_TOKENS
+    );
+
     try {
       // Simplified logging for better performance and consistency
       console.log("🔧 AI Service sending message:", {
-        provider: providerInfo.provider.id,
+        provider: providerId,
         model: model,
         hasApiKey: !!providerInfo.apiKey,
         userMessageLength: finalUserMessage.length,
@@ -115,12 +128,12 @@ export class AIService {
 
       const result = await LLMUtil.generateResponse(
         {
-          provider: providerInfo.provider.id,
+          provider: providerId,
           model: model,
           apiKey: providerInfo.apiKey,
           baseUrl: providerInfo.provider.baseUrl,
           temperature: multiProviderSettings.temperature || 0.7,
-          maxTokens: multiProviderSettings.maxTokens || 24000,
+          maxTokens: safeMaxTokens,
         },
         messagesWithHistory
       );
@@ -133,7 +146,7 @@ export class AIService {
       return result.text;
     } catch (error: any) {
       console.error("❌ AI Service error:", {
-        provider: providerInfo.provider.id,
+        provider: providerId,
         model: model,
         error: error.message,
         stack: error.stack,
@@ -216,9 +229,19 @@ export class AIService {
       context
     );
 
+    const providerId = providerInfo.provider.id;
+    const requestedMaxTokens = multiProviderSettings.maxTokens;
+    const safeMaxTokens = getSafeMaxCompletionTokens(
+      providerId,
+      model,
+      requestedMaxTokens,
+      DEFAULT_MAX_COMPLETION_TOKENS
+    );
+
     try {
+
       console.log("🔧 AI Service sending streaming message:", {
-        provider: providerInfo.provider.id,
+        provider: providerId,
         model: model,
         hasApiKey: !!providerInfo.apiKey,
         userMessageLength: finalUserMessage.length,
@@ -240,12 +263,12 @@ export class AIService {
       this.logCompleteMessageHistory(messagesWithHistory);
 
       const config = {
-        provider: providerInfo.provider.id,
+        provider: providerId,
         model: model,
         apiKey: providerInfo.apiKey,
         baseUrl: providerInfo.provider.baseUrl,
         temperature: multiProviderSettings.temperature || 0.7,
-        maxTokens: multiProviderSettings.maxTokens || 8000,
+        maxTokens: safeMaxTokens,
       };
 
       // Handle Ollama separately for streaming
@@ -256,7 +279,7 @@ export class AIService {
       }
     } catch (error: any) {
       console.error("❌ AI Service streaming error:", {
-        provider: providerInfo.provider.id,
+        provider: providerId,
         model: model,
         error: error.message,
         stack: error.stack,
@@ -316,6 +339,14 @@ export class AIService {
       context
     );
 
+    const requestedMaxTokens = settings.maxTokens;
+    const safeMaxTokens = getSafeMaxCompletionTokens(
+      settings.provider,
+      settings.model,
+      requestedMaxTokens,
+      DEFAULT_MAX_COMPLETION_TOKENS
+    );
+
     // Handle Ollama requests separately
     if (settings.provider === "ollama") {
       const result = await LLMUtil.handleOllamaRequest(
@@ -324,7 +355,7 @@ export class AIService {
           model: settings.model,
           apiKey: settings.apiKey,
           temperature: settings.temperature || 0.7,
-          maxTokens: settings.maxTokens || 8000,
+          maxTokens: safeMaxTokens,
         },
         messagesWithHistory
       );
@@ -341,7 +372,7 @@ export class AIService {
           baseUrl: AI_PROVIDERS.find((p) => p.id === settings.provider)
             ?.baseUrl,
           temperature: settings.temperature || 0.7,
-          maxTokens: settings.maxTokens || 8000,
+          maxTokens: safeMaxTokens,
         },
         messagesWithHistory
       );

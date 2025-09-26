@@ -5,6 +5,10 @@ import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { CoreMessage, generateText, streamText, LanguageModel } from "ai";
 import { multiProviderSettings } from "../settings";
 import { AI_PROVIDERS } from "../types";
+import {
+  DEFAULT_MAX_COMPLETION_TOKENS,
+  getSafeMaxCompletionTokens,
+} from "./tokenLimits";
 
 interface LLMConfig {
   provider: string;
@@ -252,7 +256,15 @@ export class LLMUtil {
     config: LLMConfig,
     messages: any[]
   ): Promise<LLMResult> {
-    const { temperature = 0.7, maxTokens = 24000 } = config;
+    const { temperature = 0.7, maxTokens } = config;
+    const requestedMaxTokens =
+      typeof maxTokens === "number" ? maxTokens : DEFAULT_MAX_COMPLETION_TOKENS;
+    const safeMaxTokens = getSafeMaxCompletionTokens(
+      config.provider,
+      config.model,
+      requestedMaxTokens,
+      DEFAULT_MAX_COMPLETION_TOKENS
+    );
 
     try {
       const model = this.getProviderClient(config);
@@ -264,7 +276,7 @@ export class LLMUtil {
         system: systemMessage?.content,
         messages: this.convertToAISDKMessages(conversationMessages),
         temperature,
-        maxTokens,
+        maxTokens: safeMaxTokens,
       });
 
       return {
@@ -290,7 +302,15 @@ export class LLMUtil {
     usage?: any;
     error?: string;
   }> {
-    const { temperature = 0.7, maxTokens = 24000 } = config;
+    const { temperature = 0.7, maxTokens } = config;
+    const requestedMaxTokens =
+      typeof maxTokens === "number" ? maxTokens : DEFAULT_MAX_COMPLETION_TOKENS;
+    const safeMaxTokens = getSafeMaxCompletionTokens(
+      config.provider,
+      config.model,
+      requestedMaxTokens,
+      DEFAULT_MAX_COMPLETION_TOKENS
+    );
 
     try {
       const model = this.getProviderClient(config);
@@ -304,7 +324,7 @@ export class LLMUtil {
         system: systemMessage?.content,
         messages: this.convertToAISDKMessages(conversationMessages),
         temperature,
-        maxTokens,
+        maxTokens: safeMaxTokens,
         abortSignal: signal,
         onError({ error }) {
           console.error("❌ AI SDK onError callback:", error);
@@ -396,7 +416,12 @@ export class LLMUtil {
       apiKey: providerInfo.apiKey,
       baseUrl: providerInfo.provider.baseUrl,
       temperature: multiProviderSettings.temperature || 0.7,
-      maxTokens: multiProviderSettings.maxTokens || 24000,
+      maxTokens: getSafeMaxCompletionTokens(
+        providerInfo.provider.id,
+        model,
+        multiProviderSettings.maxTokens,
+        DEFAULT_MAX_COMPLETION_TOKENS
+      ),
     };
 
     const messages = [
