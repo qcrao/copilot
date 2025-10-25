@@ -507,7 +507,7 @@ export function initPanelConfig(extensionAPI: any) {
       },
       {
         id: "copilot-max-tokens",
-        name: "Max Tokens",
+        name: "Max Output Tokens",
         description: "Maximum number of tokens in response",
         action: {
           type: "input",

@@ -17,6 +17,37 @@ const NORMALIZED_MODEL_LIMITS: Record<string, number> = {
   "gpt-4": 8192,
   "gpt-3.5-turbo": 4096,
 
+  // Anthropic Claude models
+  "claude-3-5-sonnet-20241022": 8192,
+  "claude-3-5-sonnet-20240620": 8192,
+  "claude-3-5-haiku-20241022": 8192,
+  "claude-3-opus-20240229": 8192,
+  "claude-3-sonnet-20240229": 8192,
+  "claude-3-haiku-20240307": 8192,
+
+  // Google Gemini models
+  "gemini-2.5-pro": 65536,
+  "gemini-2.5-flash": 65536,
+  "gemini-2.0-flash-exp": 8192,
+  "gemini-1.5-flash": 8192,
+  "gemini-1.5-pro": 8192,
+
+  // xAI Grok models
+  "grok-3": 16000,
+  "grok-2": 16000,
+  "grok-4": 16000,
+  "grok-beta": 16000,
+  "grok-vision-beta": 16000,
+
+  // Groq models (Llama)
+  "llama-3.3-70b-versatile": 8192,
+  "llama-3.1-8b-instant": 8192,
+  "llama3.2-90b-vision-preview": 8192,
+
+  // GitHub Models
+  "phi-3.5-mini-instruct": 8192,
+  "meta-llama-3.1-8b-instruct": 8192,
+
   // DeepSeek models
   "deepseek-chat": 8192,
   "deepseek-reasoner": 8192,
@@ -25,11 +56,33 @@ const NORMALIZED_MODEL_LIMITS: Record<string, number> = {
 };
 
 const MODEL_SUBSTRING_LIMITS: Array<{ match: string; limit: number }> = [
-  // OpenAI patterns
+  // OpenAI patterns (order matters: more specific first)
   { match: "gpt-4o", limit: 16384 },
   { match: "gpt-4-turbo", limit: 4096 },
   { match: "gpt-4", limit: 8192 },
   { match: "gpt-3.5", limit: 4096 },
+
+  // Anthropic Claude patterns
+  { match: "claude-3-5-sonnet", limit: 8192 },
+  { match: "claude-3-5-haiku", limit: 8192 },
+  { match: "claude-3-opus", limit: 8192 },
+  { match: "claude-3-sonnet", limit: 8192 },
+  { match: "claude-3-haiku", limit: 8192 },
+  { match: "claude", limit: 8192 },
+
+  // Google Gemini patterns
+  { match: "gemini-2.5", limit: 65536 },
+  { match: "gemini-2.0", limit: 8192 },
+  { match: "gemini-1.5", limit: 8192 },
+  { match: "gemini", limit: 8192 },
+
+  // xAI Grok patterns
+  { match: "grok", limit: 16000 },
+
+  // Groq Llama patterns
+  { match: "llama-3.3", limit: 8192 },
+  { match: "llama-3.1", limit: 8192 },
+  { match: "llama", limit: 8192 },
 
   // DeepSeek patterns
   { match: "deepseek/", limit: 8192 },
@@ -47,6 +100,48 @@ const COMPLETION_LIMITS: Record<string, ProviderCompletionLimits> = {
       "gpt-4-turbo-preview": 4096,
       "gpt-4": 8192,
       "gpt-3.5-turbo": 4096,
+    },
+  },
+  anthropic: {
+    models: {
+      "claude-3-5-sonnet-20241022": 8192,
+      "claude-3-5-sonnet-20240620": 8192,
+      "claude-3-5-haiku-20241022": 8192,
+      "claude-3-opus-20240229": 8192,
+      "claude-3-sonnet-20240229": 8192,
+      "claude-3-haiku-20240307": 8192,
+    },
+  },
+  gemini: {
+    models: {
+      "gemini-2.5-pro": 65536,
+      "gemini-2.5-flash": 65536,
+      "gemini-2.0-flash-exp": 8192,
+      "gemini-1.5-flash": 8192,
+      "gemini-1.5-pro": 8192,
+    },
+  },
+  xai: {
+    models: {
+      "grok-3": 16000,
+      "grok-2": 16000,
+      "grok-4": 16000,
+      "grok-beta": 16000,
+      "grok-vision-beta": 16000,
+    },
+  },
+  groq: {
+    models: {
+      "llama-3.3-70b-versatile": 8192,
+      "llama-3.1-8b-instant": 8192,
+      "llama3.2-90b-vision-preview": 8192,
+    },
+  },
+  github: {
+    models: {
+      "gpt-4o": 16384,
+      "Phi-3.5-mini-instruct": 8192,
+      "Meta-Llama-3.1-8B-Instruct": 8192,
     },
   },
   deepseek: {
@@ -82,6 +177,10 @@ const COMPLETION_LIMITS: Record<string, ProviderCompletionLimits> = {
       "openai/gpt-4o": 16384,
       "openai/gpt-4o-mini": 16384,
       "openai/gpt-4": 8192,
+
+      // Anthropic models via OpenRouter
+      "anthropic/claude-3-5-sonnet": 8192,
+      "anthropic/claude-3-opus": 8192,
     },
   },
 };
