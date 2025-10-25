@@ -8,7 +8,7 @@ const DEFAULT_AI_SETTINGS: AISettings = {
   model: "gpt-4o-mini",
   apiKey: "",
   temperature: 0.7,
-  maxTokens: 24000,
+  maxTokens: 4096,
   maxInputTokens: 120000,
 };
 
@@ -16,7 +16,7 @@ const DEFAULT_AI_SETTINGS: AISettings = {
 const DEFAULT_MULTI_PROVIDER_SETTINGS: MultiProviderSettings = {
   currentModel: "gpt-4o-mini",
   temperature: 0.7,
-  maxTokens: 24000,
+  maxTokens: 4096,
   maxInputTokens: 120000,
   responseLanguage: "English",
   apiKeys: {},
@@ -511,7 +511,7 @@ export function initPanelConfig(extensionAPI: any) {
         description: "Maximum number of tokens in response",
         action: {
           type: "input",
-          placeholder: "24000",
+          placeholder: "4096",
           value: multiProviderSettings.maxTokens?.toString(),
           onChange: (evt: any) => {
             const value = evt?.target?.value;

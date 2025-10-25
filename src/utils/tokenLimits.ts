@@ -1,4 +1,4 @@
-export const DEFAULT_MAX_COMPLETION_TOKENS = 24000;
+export const DEFAULT_MAX_COMPLETION_TOKENS = 4096;
 const MIN_COMPLETION_TOKENS = 256;
 
 type ProviderCompletionLimits = {
@@ -7,6 +7,17 @@ type ProviderCompletionLimits = {
 };
 
 const NORMALIZED_MODEL_LIMITS: Record<string, number> = {
+  // OpenAI models
+  "gpt-4o": 16384,
+  "gpt-4o-mini": 16384,
+  "gpt-4o-2024-08-06": 16384,
+  "gpt-4o-2024-05-13": 4096,
+  "gpt-4-turbo": 4096,
+  "gpt-4-turbo-preview": 4096,
+  "gpt-4": 8192,
+  "gpt-3.5-turbo": 4096,
+
+  // DeepSeek models
   "deepseek-chat": 8192,
   "deepseek-reasoner": 8192,
   "deepseek-coder": 8192,
@@ -14,20 +25,47 @@ const NORMALIZED_MODEL_LIMITS: Record<string, number> = {
 };
 
 const MODEL_SUBSTRING_LIMITS: Array<{ match: string; limit: number }> = [
+  // OpenAI patterns
+  { match: "gpt-4o", limit: 16384 },
+  { match: "gpt-4-turbo", limit: 4096 },
+  { match: "gpt-4", limit: 8192 },
+  { match: "gpt-3.5", limit: 4096 },
+
+  // DeepSeek patterns
   { match: "deepseek/", limit: 8192 },
   { match: "deepseek", limit: 8192 },
 ];
 
 const COMPLETION_LIMITS: Record<string, ProviderCompletionLimits> = {
+  openai: {
+    models: {
+      "gpt-4o": 16384,
+      "gpt-4o-mini": 16384,
+      "gpt-4o-2024-08-06": 16384,
+      "gpt-4o-2024-05-13": 4096,
+      "gpt-4-turbo": 4096,
+      "gpt-4-turbo-preview": 4096,
+      "gpt-4": 8192,
+      "gpt-3.5-turbo": 4096,
+    },
+  },
   deepseek: {
     default: 8192,
   },
   "custom-openai": {
     models: {
+      // DeepSeek models via custom OpenAI endpoint
       "deepseek-chat": 8192,
       "deepseek-reasoner": 8192,
       "deepseek-coder": 8192,
       "deepseek-r1": 8192,
+
+      // OpenAI models via custom endpoint
+      "gpt-4o": 16384,
+      "gpt-4o-mini": 16384,
+      "gpt-4o-2024-08-06": 16384,
+      "gpt-4": 8192,
+      "gpt-3.5-turbo": 4096,
     },
   },
   openrouter: {
@@ -39,6 +77,11 @@ const COMPLETION_LIMITS: Record<string, ProviderCompletionLimits> = {
       "deepseek/deepseek-chat": 8192,
       "deepseek/deepseek-reasoner": 8192,
       "deepseek/deepseek-coder": 8192,
+
+      // OpenAI models via OpenRouter
+      "openai/gpt-4o": 16384,
+      "openai/gpt-4o-mini": 16384,
+      "openai/gpt-4": 8192,
     },
   },
 };
