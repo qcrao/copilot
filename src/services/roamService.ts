@@ -178,16 +178,13 @@ export class RoamService {
   static isDesktopApp(): boolean {
     try {
       // Check for desktop app indicators
-      return (
-        window.location.protocol === "roam:" ||
-        window.location.href.startsWith("roam://") ||
-        // Check for Electron environment
-        (typeof window !== "undefined" &&
-          (window as any).process &&
-          (window as any).process.type === "renderer") ||
-        // Check user agent for desktop indicators
-        /Electron|roam/i.test(navigator.userAgent)
-      );
+      return (window.location.protocol === "roam:" ||
+      window.location.href.startsWith("roam://") ||
+      // Check for Electron environment
+      (typeof window !== "undefined" &&
+        (window as any).process &&
+        (window as any).process.type === "renderer") || // Check user agent for desktop indicators
+      /Electron|roam/i.test(navigator.userAgent));
     } catch (error) {
       console.error("Error detecting desktop app:", error);
       return false;
@@ -1591,7 +1588,7 @@ export class RoamService {
       priority: number;
       title: string;
       content: string;
-      maxTokens: number;
+      maxOutputTokens: number;
       type: keyof typeof priorityAllocations;
     }> = [];
 
@@ -1607,7 +1604,7 @@ export class RoamService {
         priority: 1,
         title: `**Current Page: "${context.currentPage.title}"**`,
         content: pageContent,
-        maxTokens: Math.floor(
+        maxOutputTokens: Math.floor(
           actualMaxTokens * priorityAllocations.currentPage
         ),
         type: "currentPage",
@@ -1640,7 +1637,7 @@ export class RoamService {
           3
         )} open):**`,
         content: sidebarContent,
-        maxTokens: Math.floor(
+        maxOutputTokens: Math.floor(
           actualMaxTokens * priorityAllocations.sidebarNotes
         ),
         type: "sidebarNotes",
@@ -1669,7 +1666,7 @@ export class RoamService {
           priority: 3,
           title: "**Visible Content:**",
           content: visibleContent,
-          maxTokens: Math.floor(
+          maxOutputTokens: Math.floor(
             actualMaxTokens * priorityAllocations.visibleBlocks
           ),
           type: "visibleBlocks",
@@ -1697,7 +1694,7 @@ export class RoamService {
         priority: 4,
         title: `**Linked References (${Math.min(totalLinked, 5)} references):**`,
         content: referencesContent,
-        maxTokens: Math.floor(
+        maxOutputTokens: Math.floor(
           actualMaxTokens * priorityAllocations.linkedReferences
         ),
         type: "linkedReferences",
@@ -1727,7 +1724,7 @@ export class RoamService {
       sectionNeeds.push({
         section,
         actualTokensNeeded: totalNeeded,
-        allocatedTokens: section.maxTokens,
+        allocatedTokens: section.maxOutputTokens,
       });
     }
 
@@ -1832,7 +1829,7 @@ export class RoamService {
 
       debugRoamLog(`🧠 Dynamic Token Allocation:`, {
         totalSections: sections.length,
-        maxTokens: actualMaxTokens,
+        maxOutputTokens: actualMaxTokens,
         usedTokens,
         efficiency: `${Math.round((usedTokens / actualMaxTokens) * 100)}%`,
         redistributedTokens: allocationDetails.reduce(

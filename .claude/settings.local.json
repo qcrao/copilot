@@ -35,7 +35,8 @@
       "WebFetch(domain:gist.github.com)",
       "WebSearch",
       "WebFetch(domain:davidbieber.com)",
-      "Bash(npx depcheck:*)"
+      "Bash(npx depcheck:*)",
+      "WebFetch(domain:www.npmjs.com)"
     ],
     "deny": [],
     "defaultMode": "acceptEdits"

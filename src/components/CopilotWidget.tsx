@@ -1007,7 +1007,7 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
         provider: providerIdForContext,
         model: currentModelForContext,
         // Prefer settings-driven cap if provided; otherwise composer uses model window * 0.7
-        maxTokens: multiProviderSettings.maxInputTokens,
+        maxOutputTokens: multiProviderSettings.maxInputTokens,
         includeSidebarNotes: !hasSpecificIntent, // exclude ambient extras when intent is specific
         includeDailyNotes: !hasSpecificIntent, // exclude ambient extras when intent is specific
         includeGuidelines: true,

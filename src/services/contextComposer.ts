@@ -6,7 +6,7 @@ import { RoamService } from "./roamService";
 export interface UnifiedContextOptions {
   provider?: string;
   model?: string;
-  maxTokens?: number; // hard cap for context tokens (optional)
+  maxOutputTokens?: number; // hard cap for context tokens (optional)
   contextTokenShare?: number; // fraction of model window used for context, default 0.7
   curatedShare?: number; // fraction of context budget reserved for curated levels, default 0.85
   includeGuidelines?: boolean; // append reference guidelines, default true
@@ -42,7 +42,7 @@ export function composeUnifiedContext(
     includeSidebarNotes = true,
     contextTokenShare = 0.7,
     curatedShare = 0.85,
-    maxTokens,
+    maxOutputTokens,
     levelWeights,
   } = options;
 
@@ -54,7 +54,7 @@ export function composeUnifiedContext(
   // Model-side budget reserved for context (e.g., 70% of window)
   const modelBudget = Math.floor(modelLimit * contextTokenShare);
   // User provided cap (from settings) may be undefined; clamp to modelBudget
-  const requestedBudget = typeof maxTokens === 'number' ? maxTokens : modelBudget;
+  const requestedBudget = typeof maxOutputTokens === 'number' ? maxOutputTokens : modelBudget;
   // Enforce a practical minimum of 1000 to keep context meaningful (as agreed)
   const maxContextTokens = Math.max(1000, Math.min(requestedBudget, modelBudget));
 
@@ -65,7 +65,7 @@ export function composeUnifiedContext(
     contextTokenShare,
     modelBudget,
     requestedBudget,
-    maxTokens,
+    maxOutputTokens,
     finalMaxContextTokens: maxContextTokens
   });
 

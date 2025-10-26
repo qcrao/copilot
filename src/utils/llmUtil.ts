@@ -2,7 +2,8 @@
 import { createOpenAI } from "@ai-sdk/openai";
 import { createAnthropic } from "@ai-sdk/anthropic";
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
-import { CoreMessage, generateText, streamText, LanguageModel } from "ai";
+import { createDeepSeek } from "@ai-sdk/deepseek";
+import { ModelMessage, generateText, streamText, LanguageModel } from "ai";
 import { multiProviderSettings } from "../settings";
 import { AI_PROVIDERS } from "../types";
 import {
@@ -22,9 +23,9 @@ interface LLMConfig {
 interface LLMResult {
   text: string;
   usage?: {
-    promptTokens: number;
-    completionTokens: number;
-    totalTokens: number;
+    promptTokens?: number;
+    completionTokens?: number;
+    totalTokens?: number;
   };
 }
 
@@ -171,32 +172,6 @@ export class LLMUtil {
         const xai = createOpenAI({
           baseURL: baseUrl || "https://api.x.ai/v1",
           apiKey: apiKey,
-          fetch: async (url: RequestInfo | URL, init?: RequestInit) => {
-            const response = await fetch(url, {
-              ...init,
-              headers: {
-                ...init?.headers,
-                "Content-Type": "application/json",
-              },
-            });
-
-            if (!response.ok) {
-              console.error(
-                "xAI API Error:",
-                response.status,
-                response.statusText
-              );
-              const errorText = await response
-                .text()
-                .catch(() => "No error details available");
-              console.error("xAI API Error Details:", errorText);
-              throw new Error(
-                `xAI API Error: ${response.status} ${response.statusText}`
-              );
-            }
-
-            return response;
-          },
         });
         return xai(model);
 
@@ -227,8 +202,8 @@ export class LLMUtil {
         return github(model);
 
       case "deepseek":
-        const deepseek = createOpenAI({
-          baseURL: baseUrl || "https://api.deepseek.com",
+        const deepseek = createDeepSeek({
+          baseURL: baseUrl,
           apiKey: apiKey,
         });
         return deepseek(model);
@@ -245,7 +220,7 @@ export class LLMUtil {
     }
   }
 
-  private static convertToAISDKMessages(messages: any[]): CoreMessage[] {
+  private static convertToAISDKMessages(messages: any[]): ModelMessage[] {
     return messages.map((msg) => ({
       role: msg.role as "user" | "assistant" | "system",
       content: msg.content,
@@ -276,14 +251,14 @@ export class LLMUtil {
         system: systemMessage?.content,
         messages: this.convertToAISDKMessages(conversationMessages),
         temperature,
-        maxTokens: safeMaxTokens,
+        maxOutputTokens: safeMaxTokens,
       });
 
       return {
         text: result.text,
         usage: result.usage && {
-          promptTokens: result.usage.promptTokens,
-          completionTokens: result.usage.completionTokens,
+          promptTokens: result.usage.inputTokens,
+          completionTokens: result.usage.outputTokens,
           totalTokens: result.usage.totalTokens,
         },
       };
@@ -324,7 +299,7 @@ export class LLMUtil {
         system: systemMessage?.content,
         messages: this.convertToAISDKMessages(conversationMessages),
         temperature,
-        maxTokens: safeMaxTokens,
+        maxOutputTokens: safeMaxTokens,
         abortSignal: signal,
         onError({ error }) {
           console.error("❌ AI SDK onError callback:", error);
@@ -338,7 +313,7 @@ export class LLMUtil {
           switch (part.type) {
             case "text-delta":
               yield {
-                text: part.textDelta,
+                text: part.text,
                 isComplete: false,
               };
               break;
@@ -346,10 +321,10 @@ export class LLMUtil {
               yield {
                 text: "",
                 isComplete: true,
-                usage: part.usage && {
-                  promptTokens: part.usage.promptTokens,
-                  completionTokens: part.usage.completionTokens,
-                  totalTokens: part.usage.totalTokens,
+                usage: part.totalUsage && {
+                  promptTokens: part.totalUsage.inputTokens,
+                  completionTokens: part.totalUsage.outputTokens,
+                  totalTokens: part.totalUsage.totalTokens,
                 },
               };
               break;
