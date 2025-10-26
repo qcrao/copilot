@@ -323,9 +323,9 @@ export const AI_PROVIDERS: AIProvider[] = [
     name: "Google Gemini",
     baseUrl: "https://generativelanguage.googleapis.com/v1beta",
     models: [
-      "models/gemini-2.5-flash", // Fast and efficient
-      "models/gemini-2.5-pro", // Most capable
-      "models/gemini-2.0-flash-exp", // Experimental model
+      "gemini-2.5-flash", // Fast and efficient
+      "gemini-2.5-pro", // Most capable
+      "gemini-2.0-flash-exp", // Experimental model
     ],
     apiKeyUrl: "https://aistudio.google.com/app/apikey",
     billingUrl: "https://console.cloud.google.com/billing",
