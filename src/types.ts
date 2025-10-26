@@ -254,7 +254,9 @@ export const AI_PROVIDERS: AIProvider[] = [
     id: "openai",
     name: "OpenAI",
     models: [
-      "gpt-4o", // Best model
+      "gpt-5", // Latest GPT-5 model
+      "gpt-5-mini", // GPT-5 Mini variant
+      "gpt-4o", // GPT-4o flagship
       "gpt-4o-mini", // Most cost-effective
     ],
     apiKeyUrl: "https://platform.openai.com/api-keys",
@@ -290,8 +292,9 @@ export const AI_PROVIDERS: AIProvider[] = [
     id: "xai",
     name: "xAI (Grok)",
     models: [
-      "grok-3", // Best model
-      "grok-2", // Most cost-effective
+      "grok-4", // Latest flagship model
+      "grok-3", // Advanced reasoning model
+      "grok-2-1212", // Stable version
     ],
     apiKeyUrl: "https://console.x.ai/",
     billingUrl: "https://console.x.ai/",
@@ -303,9 +306,12 @@ export const AI_PROVIDERS: AIProvider[] = [
     name: "GitHub Models",
     baseUrl: "https://models.inference.ai.azure.com",
     models: [
-      "gpt-4o", // GPT-4o (OpenAI's flagship model)
-      "Phi-3.5-mini-instruct", // Phi-3.5 Mini (Microsoft's efficient SLM)
-      "Meta-Llama-3.1-8B-Instruct", // Llama 3.1 8B (Meta's popular open model)
+      "gpt-5", // GPT-5 (Latest OpenAI model)
+      "gpt-5-mini", // GPT-5 Mini
+      "gpt-4o", // GPT-4o
+      "o3-mini", // OpenAI o3-mini reasoning model
+      "Phi-3.5-mini-instruct", // Microsoft Phi-3.5 Mini
+      "Meta-Llama-3.1-8B-Instruct", // Meta Llama 3.1 8B
     ],
     apiKeyUrl: "https://github.com/settings/tokens",
     billingUrl: "https://github.com/settings/billing",
@@ -317,9 +323,9 @@ export const AI_PROVIDERS: AIProvider[] = [
     name: "Google Gemini",
     baseUrl: "https://generativelanguage.googleapis.com/v1beta",
     models: [
-      "gemini-2.0-flash-exp", // Latest experimental model
-      "gemini-1.5-flash", // Fast and efficient
-      "gemini-1.5-pro", // Most capable
+      "models/gemini-2.5-flash", // Fast and efficient
+      "models/gemini-2.5-pro", // Most capable
+      "models/gemini-2.0-flash-exp", // Experimental model
     ],
     apiKeyUrl: "https://aistudio.google.com/app/apikey",
     billingUrl: "https://console.cloud.google.com/billing",
@@ -343,6 +349,8 @@ export const AI_PROVIDERS: AIProvider[] = [
     id: "custom-openai",
     name: "Custom OpenAI",
     models: [
+      "gpt-5",
+      "gpt-5-mini",
       "gpt-4o",
       "gpt-4o-mini",
       "gpt-4-turbo",
