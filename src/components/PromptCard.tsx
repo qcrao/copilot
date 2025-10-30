@@ -9,7 +9,11 @@ interface PromptCardProps {
   isCustom?: boolean;
 }
 
-export const PromptCard: React.FC<PromptCardProps> = ({ template, onClick, isCustom = false }) => {
+export const PromptCard: React.FC<PromptCardProps> = ({
+  template,
+  onClick,
+  isCustom = false,
+}) => {
   const handleClick = () => {
     onClick(template);
   };
@@ -52,52 +56,78 @@ export const PromptCard: React.FC<PromptCardProps> = ({ template, onClick, isCus
         e.currentTarget.style.boxShadow = "0 1px 3px rgba(0, 0, 0, 0.05)";
       }}
     >
-      <div style={{ flex: 1 }}>
-        <h4 style={{ 
-          fontSize: "14px", 
-          fontWeight: "600",
-          margin: "0 0 4px 0",
-          color: "#1f2937",
-          lineHeight: "1.3",
-          display: "flex",
-          alignItems: "center",
-          gap: "8px"
-        }}>
+      {/* CUSTOM tag positioned absolutely in top-right */}
+      {isCustom && (
+        <span
+          style={{
+            position: "absolute",
+            top: "6px",
+            right: "6px",
+            fontSize: "6px",
+            fontWeight: "500",
+            color: "#FFFFFF",
+            backgroundColor: "#A3A3A3",
+            padding: "3px 3px",
+            borderRadius: "6px",
+            textTransform: "uppercase",
+            letterSpacing: "0.5px",
+            lineHeight: 1,
+            display: "inline-block",
+            flexShrink: 0,
+            zIndex: 1,
+          }}
+        >
+          CUSTOM
+        </span>
+      )}
+
+      <div style={{ flex: 1, paddingRight: isCustom ? "50px" : "0" }}>
+        <h4
+          style={{
+            fontSize: "14px",
+            fontWeight: "600",
+            margin: "0 0 4px 0",
+            color: "#1f2937",
+            lineHeight: "1.3",
+            display: "flex",
+            alignItems: "center",
+            gap: "8px",
+            minWidth: 0,
+          }}
+        >
           <Icon
             icon={template.icon as any}
             size={16}
-            style={{ 
+            style={{
               color: template.color || "#666",
-              flexShrink: 0
+              flexShrink: 0,
             }}
           />
-          {template.title}
-          {isCustom && (
-            <span style={{
-              fontSize: "9px",
-              fontWeight: "500",
-              color: "#137cbd",
-              backgroundColor: "#e1f5fe",
-              padding: "2px 6px",
-              borderRadius: "10px",
-              textTransform: "uppercase",
-              letterSpacing: "0.5px"
-            }}>
-              CUSTOM
-            </span>
-          )}
+          <span
+            style={{
+              flex: 1,
+              minWidth: 0,
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
+            }}
+          >
+            {template.title}
+          </span>
         </h4>
-        
-        <p style={{ 
-          fontSize: "12px", 
-          lineHeight: "1.4", 
-          margin: 0,
-          color: "#6b7280",
-          display: "-webkit-box",
-          WebkitLineClamp: 1,
-          WebkitBoxOrient: "vertical",
-          overflow: "hidden"
-        }}>
+
+        <p
+          style={{
+            fontSize: "12px",
+            lineHeight: "1.4",
+            margin: 0,
+            color: "#6b7280",
+            display: "-webkit-box",
+            WebkitLineClamp: 1,
+            WebkitBoxOrient: "vertical",
+            overflow: "hidden",
+          }}
+        >
           {template.description}
         </p>
       </div>
