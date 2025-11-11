@@ -370,16 +370,75 @@ export const ChatInput = React.forwardRef<ChatInputHandle, ChatInputProps>((
   // Handle block drop
   const handleBlockDrop = async (uid: string, event: DragEvent) => {
     try {
-      // Get block content
-      const blockData = await RoamQuery.getBlock(uid);
-      if (!blockData) {
-        console.error("Could not fetch block data for:", uid);
+      // Validate UID
+      if (!uid || typeof uid !== 'string' || uid.length < 6 || uid.length > 20) {
+        console.error("Invalid block UID:", uid);
         return;
+      }
+
+      const roamAPI = typeof window !== 'undefined' ? (window as any).roamAlphaAPI : null;
+      const canQueryRoam = !!(roamAPI && typeof roamAPI.pull === 'function');
+
+      if (!canQueryRoam) {
+        console.error("Roam API unavailable");
+        return;
+      }
+
+      // Try multiple methods to get block content
+      let blockContent: string | null = null;
+      let blockFound = false;
+
+      // Method 1: Try direct query first (more reliable)
+      try {
+        const queryResult = roamAPI.q(`[:find ?s :in $ ?u :where [?b :block/uid ?u] [?b :block/string ?s]]`, uid);
+        if (queryResult && queryResult.length > 0 && queryResult[0].length > 0) {
+          blockContent = queryResult[0][0];
+          blockFound = true;
+        }
+      } catch (queryError) {
+        // Query method failed, try next method
+      }
+
+      // Method 2: Fallback to pull API if query failed
+      if (!blockFound) {
+        try {
+          const blockData = await RoamQuery.getBlock(uid);
+          if (blockData && blockData.string) {
+            blockContent = blockData.string;
+            blockFound = true;
+          }
+        } catch (pullError) {
+          // Pull API method failed, try next method
+        }
+      }
+
+      // Method 3: Try to find the block in the DOM as last resort
+      if (!blockFound) {
+        try {
+          const blockElement = document.querySelector(`[data-uid="${uid}"]`);
+          if (blockElement) {
+            const textElement = blockElement.querySelector('.roam-block') ||
+                              blockElement.querySelector('.rm-block-text') ||
+                              blockElement;
+            if (textElement && textElement.textContent) {
+              blockContent = textElement.textContent.trim();
+              blockFound = true;
+            }
+          }
+        } catch (domError) {
+          // DOM method failed
+        }
+      }
+
+      // If still not found, use fallback preview
+      if (!blockFound || !blockContent) {
+        console.warn("Could not fetch block data for:", uid, "- using fallback");
+        blockContent = `[[Block: ${uid}]]`;
       }
 
       // Create preview text
       const preview = RoamQuery.formatBlockPreview(
-        blockData.string,
+        blockContent,
         CONTENT_LIMITS.BLOCK_PREVIEW
       );
 
