@@ -52,7 +52,7 @@ interface ChatInputProps {
 }
 
 export interface ChatInputHandle {
-  clear: () => void;
+  clear: (options?: { preserveMentionedPageContext?: boolean }) => void;
   setContent: (value: string) => Promise<void>;
   updateContent: (
     updater: (current: string) => string
@@ -568,13 +568,15 @@ export const ChatInput = React.forwardRef<ChatInputHandle, ChatInputProps>((
   useImperativeHandle(
     ref,
     () => ({
-      clear: () => {
+      clear: (options?: { preserveMentionedPageContext?: boolean }) => {
         if (!editor) return;
+        const preserveMentionedPageContext =
+          options?.preserveMentionedPageContext ?? false;
         editor.commands.clearContent();
         serializedContentRef.current = "";
         setMentionedPageUid(null);
         setMentionedPageTitle(null);
-        if (onMentionedPageChange) {
+        if (!preserveMentionedPageContext && onMentionedPageChange) {
           onMentionedPageChange(null, null);
         }
         if (onChange) {

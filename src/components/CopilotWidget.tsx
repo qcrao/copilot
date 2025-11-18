@@ -67,6 +67,8 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
   const [mentionedPageContext, setMentionedPageContext] = useState<PageContext | null>(null);
   const [mentionedPageUid, setMentionedPageUid] = useState<string | null>(null);
   const [mentionedPageTitle, setMentionedPageTitle] = useState<string | null>(null);
+  const mentionContextVersionRef = useRef(0);
+  const preservedMentionContextVersionRef = useRef<number | null>(null);
   const handleExcludeFromContext = useCallback((uid: string) => {
     setExcludedContextUids((prev) => {
       const next = new Set(prev);
@@ -112,6 +114,7 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
     } else {
       setMentionedPageContext(null);
     }
+    mentionContextVersionRef.current += 1;
   }, []);
   const [copiedMessageIndex, setCopiedMessageIndex] = useState<number | null>(
     null
@@ -653,6 +656,7 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
     templateInfo?: { id: string; prompt: string }
   ) => {
     if (state.isLoading) return;
+    preservedMentionContextVersionRef.current = null;
 
     let userMessage: string;
     let finalUserMessage: string;
@@ -755,7 +759,13 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
     }
 
     if (typeof messageInput === "string") {
-      chatInputRef.current?.clear();
+      const hasMentionedContext = !!mentionedPageContext;
+      chatInputRef.current?.clear({
+        preserveMentionedPageContext: hasMentionedContext,
+      });
+      preservedMentionContextVersionRef.current = hasMentionedContext
+        ? mentionContextVersionRef.current
+        : null;
     }
 
     // Check if message contains date references and add cached notes
@@ -1358,6 +1368,18 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
       setState((prev) => ({ ...prev, isLoading: false }));
       // Clear the abort controller if it still exists
       currentRequestAbortController.current = null;
+      if (preservedMentionContextVersionRef.current !== null) {
+        if (
+          preservedMentionContextVersionRef.current ===
+          mentionContextVersionRef.current
+        ) {
+          setMentionedPageContext(null);
+          setMentionedPageUid(null);
+          setMentionedPageTitle(null);
+          mentionContextVersionRef.current += 1;
+        }
+        preservedMentionContextVersionRef.current = null;
+      }
     }
   };
 
@@ -1606,6 +1628,8 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
     setMentionedPageContext(null);
     setMentionedPageUid(null);
     setMentionedPageTitle(null);
+    mentionContextVersionRef.current += 1;
+    preservedMentionContextVersionRef.current = null;
 
     // Clear date notes cache
     setDateNotesCache({});
