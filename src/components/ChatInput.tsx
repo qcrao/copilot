@@ -48,6 +48,7 @@ interface ChatInputProps {
   isContextLocked?: boolean;
   hasConversationSpecificContext?: boolean;
   templateSettingsVersion?: number;
+  onMentionedPageChange?: (pageUid: string | null, pageTitle: string | null) => void;
 }
 
 export interface ChatInputHandle {
@@ -76,6 +77,7 @@ export const ChatInput = React.forwardRef<ChatInputHandle, ChatInputProps>((
   isContextLocked = false,
   hasConversationSpecificContext = false,
   templateSettingsVersion = 0,
+  onMentionedPageChange,
   },
   ref
 ) => {
@@ -110,7 +112,9 @@ export const ChatInput = React.forwardRef<ChatInputHandle, ChatInputProps>((
     left: 0,
   });
   const [universalSearchLoading, setUniversalSearchLoading] = useState(false);
-  // Removed unused at-symbol context state
+  // Track @ mentioned pages for context override
+  const [mentionedPageUid, setMentionedPageUid] = useState<string | null>(null);
+  const [mentionedPageTitle, setMentionedPageTitle] = useState<string | null>(null);
 
   // Performance optimization: Simple cache for search results
   const searchCache = useRef<Map<string, UniversalSearchResult[]>>(new Map());
@@ -568,6 +572,11 @@ export const ChatInput = React.forwardRef<ChatInputHandle, ChatInputProps>((
         if (!editor) return;
         editor.commands.clearContent();
         serializedContentRef.current = "";
+        setMentionedPageUid(null);
+        setMentionedPageTitle(null);
+        if (onMentionedPageChange) {
+          onMentionedPageChange(null, null);
+        }
         if (onChange) {
           onChange("");
         }
@@ -838,6 +847,19 @@ export const ChatInput = React.forwardRef<ChatInputHandle, ChatInputProps>((
       })
       .insertContent(" ")
       .run();
+
+    // Track mentioned page for context override (only for pages, not blocks)
+    if (result.type === "page" || result.type === "daily-note") {
+      const uid = result.uid;
+      const title = result.title || result.preview;
+      setMentionedPageUid(uid);
+      setMentionedPageTitle(title);
+
+      // Notify parent component about mentioned page change
+      if (onMentionedPageChange) {
+        onMentionedPageChange(uid, title);
+      }
+    }
 
     // Update React state as before
     closeUniversalSearch();
@@ -1170,17 +1192,20 @@ export const ChatInput = React.forwardRef<ChatInputHandle, ChatInputProps>((
   // Check if user has specified context through input
   const hasUserSpecifiedContext = useMemo(() => {
     if (!editor) return hasConversationSpecificContext;
-    
+
     // Check if there are reference chips in the input
     const serializedContent = serializedContentRef.current || "";
     const hasReferences = serializedContent.includes("((") || serializedContent.includes("[[");
-    
+
     // Check if @ symbol universal search is active
     const hasActiveSearch = showUniversalSearch && universalSearchTerm.length > 0;
-    
+
+    // Check if user has mentioned a page with @
+    const hasMentionedPage = mentionedPageUid !== null;
+
     // If this conversation already has specific context, keep hiding preview
-    return hasReferences || hasActiveSearch || hasConversationSpecificContext;
-  }, [editor, editorContentVersion, showUniversalSearch, universalSearchTerm, hasConversationSpecificContext]);
+    return hasReferences || hasActiveSearch || hasMentionedPage || hasConversationSpecificContext;
+  }, [editor, editorContentVersion, showUniversalSearch, universalSearchTerm, mentionedPageUid, hasConversationSpecificContext]);
 
   return (
     <div

@@ -64,12 +64,54 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
     new Set()
   );
   const [hasConversationSpecificContext, setHasConversationSpecificContext] = useState(false);
+  const [mentionedPageContext, setMentionedPageContext] = useState<PageContext | null>(null);
+  const [mentionedPageUid, setMentionedPageUid] = useState<string | null>(null);
+  const [mentionedPageTitle, setMentionedPageTitle] = useState<string | null>(null);
   const handleExcludeFromContext = useCallback((uid: string) => {
     setExcludedContextUids((prev) => {
       const next = new Set(prev);
       next.add(uid);
       return next;
     });
+  }, []);
+
+  const handleMentionedPageChange = useCallback(async (pageUid: string | null, pageTitle: string | null) => {
+    setMentionedPageUid(pageUid);
+    setMentionedPageTitle(pageTitle);
+
+    if (pageUid && pageTitle) {
+      copilotDebugLog("📄 Fetching context for mentioned page:", pageTitle);
+      try {
+        // Fetch the mentioned page's data
+        const page = await RoamService.getPageByTitle(pageTitle);
+        if (page) {
+          // Create a PageContext from the page data
+          const mentionedContext: PageContext = {
+            currentPage: {
+              title: page.title,
+              uid: page.uid,
+              blocks: page.blocks || [],
+            },
+            visibleBlocks: page.blocks || [],
+            selectedText: undefined,
+            dailyNote: undefined,
+            linkedReferences: [],
+            linkedReferencesTotal: 0,
+            sidebarNotes: [],
+          };
+          setMentionedPageContext(mentionedContext);
+          copilotDebugLog("✅ Mentioned page context loaded:", pageTitle);
+        } else {
+          console.warn("❌ Page not found:", pageTitle);
+          setMentionedPageContext(null);
+        }
+      } catch (error) {
+        console.error("❌ Failed to fetch mentioned page context:", error);
+        setMentionedPageContext(null);
+      }
+    } else {
+      setMentionedPageContext(null);
+    }
   }, []);
   const [copiedMessageIndex, setCopiedMessageIndex] = useState<number | null>(
     null
@@ -736,12 +778,14 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
 
     try {
       // CRITICAL: Get context BEFORE any state changes to ensure preview-send consistency
-      // Use ref to get the absolute latest context state
-      let currentContext = pageContextRef.current;
+      // Use mentioned page context if available, otherwise use current page context
+      let currentContext = mentionedPageContext || pageContextRef.current;
       
       copilotDebugLog("🔍 CONTEXT SOURCE COMPARISON:", {
         fromState: pageContext?.currentPage?.title || "None (state)",
         fromRef: pageContextRef.current?.currentPage?.title || "None (ref)",
+        fromMentioned: mentionedPageContext?.currentPage?.title || "None (mentioned)",
+        usingMentioned: !!mentionedPageContext,
         stateVisibleDailyNotes: pageContext?.visibleDailyNotes?.length || 0,
         refVisibleDailyNotes: pageContextRef.current?.visibleDailyNotes?.length || 0,
         areEqual: pageContext === pageContextRef.current
@@ -1551,13 +1595,18 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
     conversationIdRef.current = null;
     setCurrentConversationId(null);
     chatInputRef.current?.clear();
-    
+
     // Unlock context for new conversation
     copilotDebugLog('🔓 Context unlocked for new conversation');
     setIsContextLocked(false);
     setPreservedContext(null);
     setHasConversationSpecificContext(false); // Reset specific context flag
-    
+
+    // Clear mentioned page context
+    setMentionedPageContext(null);
+    setMentionedPageUid(null);
+    setMentionedPageTitle(null);
+
     // Clear date notes cache
     setDateNotesCache({});
 
@@ -2357,11 +2406,12 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
             onTemplateSelect={handleTemplateSelect}
             isLoading={state.isLoading} // Pass loading state for send button
             onCancel={handleCancelRequest} // Pass cancel handler
-            context={pageContext}
+            context={mentionedPageContext || pageContext}
             onExcludeContextBlock={handleExcludeFromContext}
             isContextLocked={isContextLocked}
             hasConversationSpecificContext={hasConversationSpecificContext}
             templateSettingsVersion={templateSettingsVersion}
+            onMentionedPageChange={handleMentionedPageChange}
           />
         </div>
       </div>
