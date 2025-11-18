@@ -829,18 +829,20 @@ export const ChatInput = React.forwardRef<ChatInputHandle, ChatInputProps>((
   // Check for @ symbol context in text
   const updateAtSymbolContext = (text: string, cursorPos: number) => {
     // Look backwards to find @ symbol
+    // Allow spaces within the search term (e.g., "@november 2")
+    // Only stop at newline or when we find a @ at word boundary
     let atSymbolPos = -1;
 
     for (let i = cursorPos - 1; i >= 0; i--) {
       if (text[i] === "@") {
-        // Check if this @ symbol is at word boundary (start of line or after space)
+        // Check if this @ symbol is at word boundary (start of line or after space/newline)
         if (i === 0 || text[i - 1] === " " || text[i - 1] === "\n") {
           atSymbolPos = i;
           break;
         }
       }
-      // For @ context, only stop on space, not newline (allow multiline @ context)
-      if (text[i] === " " && i < cursorPos - 1) {
+      // Only stop on newline, not on space (allow spaces in search term like "@november 2")
+      if (text[i] === "\n") {
         break;
       }
     }
@@ -853,7 +855,7 @@ export const ChatInput = React.forwardRef<ChatInputHandle, ChatInputProps>((
       const searchStart = atSymbolPos + 1;
       let currentSearchTerm = text.substring(searchStart, cursorPos);
 
-      // Remove newlines but preserve other whitespace for now
+      // Remove newlines but preserve spaces (for date searches like "november 2")
       currentSearchTerm = currentSearchTerm.replace(/\n/g, "");
       const trimmedSearchTerm = currentSearchTerm.trim();
 
