@@ -612,9 +612,10 @@ export const ChatInput = React.forwardRef<ChatInputHandle, ChatInputProps>((
     updateAtSymbolContext(text, cursorPos);
 
     // Check for prompt command
-    const commandInfo = parsePromptCommand(text);
+    // Don't show prompt menu if we're in @ search context (e.g., "@roam/css")
+    const commandInfo = parsePromptCommand(text, cursorPos);
 
-    if (commandInfo.isCommand) {
+    if (commandInfo.isCommand && !commandInfo.isInAtContext) {
       const newFilter = commandInfo.filter || "";
       const filtered = filterPrompts(newFilter);
 
@@ -639,16 +640,37 @@ export const ChatInput = React.forwardRef<ChatInputHandle, ChatInputProps>((
   };
 
   // Prompt menu utility functions
-  const parsePromptCommand = (inputValue: string) => {
+  const parsePromptCommand = (inputValue: string, cursorPos: number) => {
     const match = inputValue.match(/\/([^\/\s]*)$/);
-    if (match) {
+    if (match && match.index !== undefined) {
+      // Check if the / is within an @ search context
+      // Look backwards from the / position to see if there's an @ symbol before it
+      // Allow spaces in @ context (e.g., "@roam/css" or "@november 2")
+      let isInAtContext = false;
+      const slashPos = match.index;
+      
+      for (let i = slashPos - 1; i >= 0; i--) {
+        if (inputValue[i] === "@") {
+          // Check if this @ symbol is at word boundary (start of line or after space/newline)
+          if (i === 0 || inputValue[i - 1] === " " || inputValue[i - 1] === "\n") {
+            isInAtContext = true;
+            break;
+          }
+        }
+        // Only stop on newline, not on space (allow spaces in @ context like "@roam/css")
+        if (inputValue[i] === "\n") {
+          break;
+        }
+      }
+      
       return {
         isCommand: true,
         filter: match[1] || "",
         startIndex: match.index,
+        isInAtContext,
       };
     }
-    return { isCommand: false };
+    return { isCommand: false, isInAtContext: false };
   };
 
   const filterPrompts = (filter: string) => {
