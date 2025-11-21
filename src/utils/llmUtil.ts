@@ -158,6 +158,10 @@ export class LLMUtil {
         const anthropic = createAnthropic({
           baseURL: baseUrl || "https://api.anthropic.com/v1",
           apiKey: apiKey,
+          headers: {
+            // Required so Claude accepts requests directly from Roam's browser context.
+            "anthropic-dangerous-direct-browser-access": "true",
+          },
         });
         return anthropic(model);
 
