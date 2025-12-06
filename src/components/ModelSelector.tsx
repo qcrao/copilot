@@ -213,7 +213,17 @@ const customStyles: StylesConfig<ModelOption> = {
   valueContainer: (provided) => ({
     ...provided,
     height: "30px",
-    padding: "0 4px",
+    padding: "0 8px",
+    display: "flex",
+    alignItems: "center",
+  }),
+  placeholder: (provided) => ({
+    ...provided,
+    color: "#9ca3af",
+    fontSize: "12px",
+    fontWeight: "500",
+    margin: 0,
+    whiteSpace: "nowrap",
   }),
   input: (provided) => ({
     ...provided,
