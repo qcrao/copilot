@@ -6,7 +6,8 @@ import { RoamService } from "./roamService";
 export interface UnifiedContextOptions {
   provider?: string;
   model?: string;
-  maxOutputTokens?: number; // hard cap for context tokens (optional)
+  maxContextTokens?: number; // hard cap for context tokens (optional)
+  maxOutputTokens?: number; // @deprecated alias for maxContextTokens (kept for backward compatibility)
   contextTokenShare?: number; // fraction of model window used for context, default 0.7
   curatedShare?: number; // fraction of context budget reserved for curated levels, default 0.85
   includeGuidelines?: boolean; // append reference guidelines, default true
@@ -42,7 +43,8 @@ export function composeUnifiedContext(
     includeSidebarNotes = true,
     contextTokenShare = 0.7,
     curatedShare = 0.85,
-    maxOutputTokens,
+    maxContextTokens: maxContextTokensOption,
+    maxOutputTokens: maxOutputTokensLegacy, // deprecated alias
     levelWeights,
   } = options;
 
@@ -53,19 +55,20 @@ export function composeUnifiedContext(
 
   // Model-side budget reserved for context (e.g., 70% of window)
   const modelBudget = Math.floor(modelLimit * contextTokenShare);
-  // User provided cap (from settings) may be undefined; clamp to modelBudget
-  const requestedBudget = typeof maxOutputTokens === 'number' ? maxOutputTokens : modelBudget;
-  // Enforce a practical minimum of 1000 to keep context meaningful (as agreed)
+  // User provided cap; prefer maxContextTokens, fall back to legacy maxOutputTokens
+  const userCap = maxContextTokensOption ?? maxOutputTokensLegacy;
+  const requestedBudget = typeof userCap === 'number' ? userCap : modelBudget;
+  // Enforce a practical minimum of 1000 to keep context meaningful
   const maxContextTokens = Math.max(1000, Math.min(requestedBudget, modelBudget));
 
-  console.log("🔧 CONTEXT COMPOSER TOKEN BUDGET:", {
+  console.log("CONTEXT COMPOSER TOKEN BUDGET:", {
     provider,
     model,
     modelLimit,
     contextTokenShare,
     modelBudget,
     requestedBudget,
-    maxOutputTokens,
+    userCap,
     finalMaxContextTokens: maxContextTokens
   });
 

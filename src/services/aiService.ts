@@ -5,6 +5,8 @@ import { LLMUtil } from "../utils/llmUtil";
 import {
   DEFAULT_MAX_COMPLETION_TOKENS,
   getSafeMaxCompletionTokens,
+  getModelContextWindow,
+  estimateTokenCount,
 } from "../utils/tokenLimits";
 
 // Default universal assistant prompt (not shown in template panel)
@@ -123,7 +125,7 @@ export class AIService {
         contextLength: context.length,
       });
 
-      // 打印发送给AI的完整消息历史
+      // Log the complete message history sent to AI
       this.logCompleteMessageHistory(messagesWithHistory);
 
       const result = await LLMUtil.generateResponse(
@@ -259,7 +261,7 @@ export class AIService {
         },
       });
 
-      // 打印发送给AI的完整消息历史
+      // Log the complete message history sent to AI
       this.logCompleteMessageHistory(messagesWithHistory);
 
       const config = {
@@ -651,108 +653,19 @@ export class AIService {
   }
 
   /**
-   * Get token limit for a specific model
+   * Get context window size for a specific model.
+   * Delegates to the centralized tokenLimits module.
    */
   private static getModelTokenLimit(modelName: string): number {
-    const tokenLimits: { [key: string]: number } = {
-      // OpenAI models
-      "gpt-4o": 128000,
-      "gpt-4o-mini": 128000,
-      "gpt-4-turbo": 128000,
-      "gpt-4": 8000,
-      "gpt-3.5-turbo": 16000,
-
-      // Anthropic models
-      "claude-3-5-sonnet-20241022": 200000,
-      "claude-3-5-sonnet-20240620": 200000,
-      "claude-3-5-haiku-20241022": 200000,
-      "claude-3-opus-20240229": 200000,
-      "claude-3-sonnet-20240229": 200000,
-      "claude-3-haiku-20240307": 200000,
-
-      // xAI models
-      "grok-beta": 131072,
-      "grok-vision-beta": 131072,
-
-      // Google Gemini models
-      "gemini-2.0-flash-exp": 1048576,
-      "gemini-1.5-flash": 1048576,
-      "gemini-1.5-pro": 2097152,
-
-      // GitHub Models
-      "Phi-3.5-mini-instruct": 128000,
-      "Meta-Llama-3.1-8B-Instruct": 128000,
-
-      // Qwen models (Alibaba Cloud)
-      "qwen3:8b": 32000,
-      "qwen2.5:latest": 32000,
-      "qwen2.5:7b": 32000,
-      "qwen2.5:14b": 32000,
-      "qwen2.5:32b": 32000,
-      "qwen2.5:72b": 32000,
-      "qwen2:7b": 32000,
-      "qwen2:72b": 32000,
-      "qwen:7b": 32000,
-      "qwen:14b": 32000,
-      "qwen:72b": 32000,
-
-      // DeepSeek models
-      "deepseek-r1:latest": 64000,
-      "deepseek-r1:8b": 64000,
-      "deepseek-r1:14b": 64000,
-      "deepseek-r1:32b": 64000,
-      "deepseek-r1:70b": 64000,
-      "deepseek-coder:latest": 64000,
-      "deepseek-coder:6.7b": 64000,
-      "deepseek-coder:33b": 64000,
-
-      // Other common Ollama models
-      "llama3.2:latest": 128000,
-      "llama3.2:3b": 128000,
-      "llama3.2:1b": 128000,
-      "llama3.1:latest": 128000,
-      "llama3.1:8b": 128000,
-      "llama3.1:70b": 128000,
-      "llama3.1:405b": 128000,
-      "llama3:latest": 32000,
-      "llama3:8b": 32000,
-      "llama3:70b": 32000,
-      "codellama:latest": 32000,
-      "codellama:7b": 32000,
-      "codellama:13b": 32000,
-      "codellama:34b": 32000,
-      "mistral:latest": 32000,
-      "mistral:7b": 32000,
-      "mixtral:latest": 32000,
-      "mixtral:8x7b": 32000,
-      "phi3:latest": 32000,
-      "phi3:mini": 32000,
-      "phi3:medium": 32000,
-      "gemma:latest": 32000,
-      "gemma:2b": 32000,
-      "gemma:7b": 32000,
-
-      // Default for unknown models
-      default: 8000,
-    };
-
-    return tokenLimits[modelName] || tokenLimits["default"];
+    return getModelContextWindow(undefined, modelName);
   }
 
   /**
-   * Estimate token count for a given text (rough approximation)
+   * Estimate token count for a given text.
+   * Delegates to the centralized tokenLimits module.
    */
   private static estimateTokens(text: string): number {
-    if (!text || typeof text !== "string") {
-      return 0;
-    }
-
-    // Rough estimation: 1 token ≈ 4 characters for English
-    // For Chinese and other languages, it's closer to 1 token ≈ 1.5 characters
-    const chineseCharCount = (text.match(/[\u4e00-\u9fff]/g) || []).length;
-    const otherCharCount = text.length - chineseCharCount;
-
-    return Math.ceil(chineseCharCount / 1.5 + otherCharCount / 4);
+    return estimateTokenCount(text);
   }
 
   /**

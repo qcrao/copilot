@@ -7,6 +7,7 @@ import {
   UniversalSearchResponse,
 } from "../types";
 import { LLMUtil } from "../utils/llmUtil";
+import { getModelContextWindow, estimateTokenCount as centralEstimateTokenCount } from "../utils/tokenLimits";
 
 const VERBOSE_ROAM_CONTEXT_LOGS = false;
 const debugRoamLog = (...args: unknown[]) => {
@@ -1425,132 +1426,19 @@ export class RoamService {
   }
 
   /**
-   * Get model-specific maximum context tokens (increased limits for better context usage)
+   * Get model-specific maximum context tokens.
+   * Delegates to the centralized tokenLimits module.
    */
   static getModelTokenLimit(provider: string, model: string): number {
-    const modelLimits: { [key: string]: { [key: string]: number } } = {
-      openai: {
-        "gpt-4o": 60000, // 128k context window - increased from 24k
-        "gpt-4o-mini": 60000, // 128k context window - increased from 24k
-        "gpt-4-turbo": 60000, // 128k context window - increased from 24k
-        "gpt-4": 15000, // 8k context window - increased from 6k
-        "gpt-3.5-turbo": 8000, // 4k context window - increased from 2k
-      },
-      anthropic: {
-        "claude-3-5-sonnet-20241022": 300000, // Claude 3.5 Sonnet - 200k context, increased usage
-        "claude-3-5-haiku-20241022": 300000, // Claude 3.5 Haiku - 200k context, increased usage
-        "claude-3-opus-20240229": 300000, // Claude 3 Opus - 200k context, increased usage
-        "claude-3-sonnet-20240229": 300000, // Claude 3 Sonnet - 200k context, increased usage
-        "claude-3-haiku-20240307": 300000, // Claude 3 Haiku - 200k context, increased usage
-      },
-      groq: {
-        "llama-3.3-70b-versatile": 60000, // 128k context window - increased from 24k
-        "llama-3.1-70b-versatile": 60000, // 128k context window - increased from 24k
-        "llama-3.1-8b-instant": 60000, // 128k context window - increased from 24k
-        "llama3-groq-70b-8192-tool-use-preview": 15000, // 8k context window - increased from 6k
-        "llama3-groq-8b-8192-tool-use-preview": 15000, // 8k context window - increased from 6k
-      },
-      xai: {
-        "grok-beta": 60000, // 131k context window - increased from 24k
-        "grok-vision-beta": 60000, // 128k context window with vision - increased from 24k
-      },
-      deepseek: {
-        "deepseek-chat": 48000, // 64k context window, using 48k for safety
-        "deepseek-reasoner": 48000, // 64k context window, using 48k for safety
-        "deepseek-coder": 48000, // 64k context window, using 48k for safety
-      },
-    };
-
-    const providerLimits = modelLimits[provider];
-    if (!providerLimits) {
-      // For Ollama, provide intelligent defaults based on model name patterns
-      if (provider === "ollama") {
-        return this.getOllamaTokenLimit(model);
-      }
-      debugRoamWarn(`Unknown provider: ${provider}, using default limit`);
-      return 48000; // Default fallback - increased for better context
-    }
-
-    const limit = providerLimits[model];
-    if (!limit) {
-      debugRoamWarn(
-        `Unknown model: ${model} for provider: ${provider}, using default limit`
-      );
-      return 48000; // Default fallback - increased for better context
-    }
-
-    return limit;
+    return getModelContextWindow(provider, model);
   }
 
   /**
-   * Get token limit for Ollama models based on model name patterns
-   */
-  static getOllamaTokenLimit(model: string): number {
-    const modelName = model.toLowerCase();
-
-    // Special cases - check model families first before parameter size
-    if (modelName.includes("qwen")) {
-      return 24000; // Qwen models typically have 32k context, using 24k for safety
-    }
-
-    if (modelName.includes("deepseek")) {
-      return 48000; // DeepSeek models have 64k context, using 48k for safety
-    }
-
-    if (modelName.includes("code") || modelName.includes("coder")) {
-      return 16000; // Code models usually have larger context
-    }
-
-    if (modelName.includes("mistral")) {
-      return 16000; // Mistral models, updated to be more generous
-    }
-
-    if (modelName.includes("llama")) {
-      return 16000; // Llama models, updated to be more generous
-    }
-
-    // Large models (70B+)
-    if (modelName.includes("70b") || modelName.includes("72b")) {
-      return 24000; // 128k context
-    }
-
-    // Medium-large models (13B-34B)
-    if (
-      modelName.includes("13b") ||
-      modelName.includes("14b") ||
-      modelName.includes("34b")
-    ) {
-      return 16000; // 32k context
-    }
-
-    // Medium models (7B-9B)
-    if (
-      modelName.includes("7b") ||
-      modelName.includes("8b") ||
-      modelName.includes("9b")
-    ) {
-      return 12000; // 16k context, conservative
-    }
-
-    // Small models (3B-4B)
-    if (modelName.includes("3b") || modelName.includes("4b")) {
-      return 8000; // 8k context
-    }
-
-    // Very small models (1B-2B)
-    if (modelName.includes("1b") || modelName.includes("2b")) {
-      return 4000; // 4k context
-    }
-
-    // Default for unknown Ollama models
-    return 8000;
-  }
-
-  /**
-   * Estimate token count (rough approximation: 1 token ≈ 4 characters)
+   * Estimate token count.
+   * Delegates to the centralized tokenLimits module.
    */
   static estimateTokenCount(text: string): number {
-    return Math.ceil(text.length / 4);
+    return centralEstimateTokenCount(text);
   }
 
   /**

@@ -236,14 +236,10 @@ export class LLMUtil {
     messages: any[]
   ): Promise<LLMResult> {
     const { temperature = 0.7, maxTokens } = config;
-    const requestedMaxTokens =
+    // Caller (aiService) already applies getSafeMaxCompletionTokens;
+    // just fall back to default if not provided.
+    const effectiveMaxTokens =
       typeof maxTokens === "number" ? maxTokens : DEFAULT_MAX_COMPLETION_TOKENS;
-    const safeMaxTokens = getSafeMaxCompletionTokens(
-      config.provider,
-      config.model,
-      requestedMaxTokens,
-      DEFAULT_MAX_COMPLETION_TOKENS
-    );
 
     try {
       const model = this.getProviderClient(config);
@@ -255,7 +251,7 @@ export class LLMUtil {
         system: systemMessage?.content,
         messages: this.convertToAISDKMessages(conversationMessages),
         temperature,
-        maxOutputTokens: safeMaxTokens,
+        maxOutputTokens: effectiveMaxTokens,
       });
 
       return {
@@ -282,14 +278,10 @@ export class LLMUtil {
     error?: string;
   }> {
     const { temperature = 0.7, maxTokens } = config;
-    const requestedMaxTokens =
+    // Caller (aiService) already applies getSafeMaxCompletionTokens;
+    // just fall back to default if not provided.
+    const effectiveMaxTokens =
       typeof maxTokens === "number" ? maxTokens : DEFAULT_MAX_COMPLETION_TOKENS;
-    const safeMaxTokens = getSafeMaxCompletionTokens(
-      config.provider,
-      config.model,
-      requestedMaxTokens,
-      DEFAULT_MAX_COMPLETION_TOKENS
-    );
 
     try {
       const model = this.getProviderClient(config);
@@ -303,7 +295,7 @@ export class LLMUtil {
         system: systemMessage?.content,
         messages: this.convertToAISDKMessages(conversationMessages),
         temperature,
-        maxOutputTokens: safeMaxTokens,
+        maxOutputTokens: effectiveMaxTokens,
         abortSignal: signal,
         onError({ error }) {
           console.error("❌ AI SDK onError callback:", error);
