@@ -29,7 +29,7 @@ export class RoamTemplateService {
       `;
       
       const result = window.roamAlphaAPI.q(query);
-      if (result && result.length > 0) {
+      if (result && result.length > 0 && result[0]?.length) {
         return result[0][0];
       }
 

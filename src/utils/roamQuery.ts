@@ -242,21 +242,22 @@ export class RoamQuery {
     try {
       roamLogger.log("Getting page by title:", title);
 
-      // Query for page by title
+      // Query for page by title (escape quotes to prevent Datalog injection)
+      const escapedTitle = title.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
       const pageQuery = `
         [:find ?uid
          :where
-         [?page :node/title "${title}"]
+         [?page :node/title "${escapedTitle}"]
          [?page :block/uid ?uid]]
       `;
 
       const pageResult = window.roamAlphaAPI.q(pageQuery);
-      if (!pageResult || pageResult.length === 0) {
+      if (!pageResult || pageResult.length === 0 || !pageResult[0]?.length) {
         roamLogger.log("Page not found:", title);
         return null;
       }
 
-      const pageUid = pageResult[0][0];
+      const pageUid = pageResult[0][0] as string;
       
       // Get blocks with full hierarchy (using default depth to include nested blocks)
       const blocks = await this.getPageBlocksWithHierarchy(pageUid);

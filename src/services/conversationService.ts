@@ -110,7 +110,7 @@ export class ConversationService {
       `;
       
       const result = window.roamAlphaAPI.q(query);
-      if (result && result.length > 0) {
+      if (result && result.length > 0 && result[0]?.length) {
         return result[0][0];
       }
 
@@ -280,7 +280,7 @@ export class ConversationService {
       `;
       
       const result = window.roamAlphaAPI.q(query);
-      if (!result || result.length === 0) {
+      if (!result || result.length === 0 || !result[0]?.length) {
         console.log("Conversation data page not found:", conversationId);
         return [];
       }
@@ -462,12 +462,12 @@ export class ConversationService {
       `;
       
       const result = window.roamAlphaAPI.q(query);
-      if (!result || result.length === 0) {
+      if (!result || result.length === 0 || !result[0]?.length) {
         throw new Error("Conversation data page not found");
       }
 
       const dataPageUid = result[0][0];
-      
+
       // Update messages
       await this.saveMessagesToDataPage(messages, dataPageUid);
       
@@ -496,7 +496,7 @@ export class ConversationService {
       `;
       
       const dataResult = window.roamAlphaAPI.q(dataQuery);
-      if (dataResult && dataResult.length > 0) {
+      if (dataResult && dataResult.length > 0 && dataResult[0]?.length) {
         const dataPageUid = dataResult[0][0];
         await window.roamAlphaAPI.deletePage({ page: { uid: dataPageUid } });
       }

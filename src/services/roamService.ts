@@ -283,14 +283,15 @@ export class RoamService {
               debugRoamLog("🔍 Found main window page title:", pageTitle);
               title = pageTitle;
               
+              const escapedTitle = pageTitle.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
               const titleQuery = `
                 [:find ?uid
                  :where
-                 [?e :node/title "${pageTitle}"]
+                 [?e :node/title "${escapedTitle}"]
                  [?e :block/uid ?uid]]
               `;
               const titleResult = window.roamAlphaAPI.q(titleQuery);
-              if (titleResult && titleResult.length > 0) {
+              if (titleResult && titleResult.length > 0 && titleResult[0]?.length) {
                 currentPageUid = titleResult[0][0];
                 debugRoamLog("✅ Using main window page as current:", pageTitle);
               }
@@ -842,15 +843,16 @@ export class RoamService {
       for (const format of dateFormats) {
         debugRoamLog("Trying date format:", format);
 
+        const escapedFormat = format.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
         const query = `
           [:find ?uid
            :where
-           [?e :node/title "${format}"]
+           [?e :node/title "${escapedFormat}"]
            [?e :block/uid ?uid]]
         `;
 
         const result = window.roamAlphaAPI.q(query);
-        if (result && result.length > 0) {
+        if (result && result.length > 0 && result[0]?.length) {
           const uid = result[0][0];
           const blocks = await this.getPageBlocks(uid);
 
@@ -2216,19 +2218,20 @@ export class RoamService {
       const dateFormats = LLMUtil.generateRoamDateFormats(dateString);
 
       for (const format of dateFormats) {
-        debugRoamLog("🔍 Trying date format:", format);
+        debugRoamLog("Trying date format:", format);
 
+        const escapedFmt = format.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
         const query = `
           [:find ?uid
            :where
-           [?e :node/title "${format}"]
+           [?e :node/title "${escapedFmt}"]
            [?e :block/uid ?uid]]
         `;
 
         const result = window.roamAlphaAPI.q(query);
-        debugRoamLog("📊 Query result for", format, ":", result);
+        debugRoamLog("Query result for", format, ":", result);
 
-        if (result && result.length > 0) {
+        if (result && result.length > 0 && result[0]?.length) {
           const uid = result[0][0];
           const blocks = await this.getPageBlocks(uid);
 
@@ -2289,17 +2292,18 @@ export class RoamService {
     try {
       debugRoamLog("Getting page by title:", title);
 
+      const escapedTitle = title.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
       const query = `
         [:find ?uid
          :where
-         [?e :node/title "${title}"]
+         [?e :node/title "${escapedTitle}"]
          [?e :block/uid ?uid]]
       `;
 
       const result = window.roamAlphaAPI.q(query);
       debugRoamLog("Page query result:", result);
 
-      if (result && result.length > 0) {
+      if (result && result.length > 0 && result[0]?.length) {
         const uid = result[0][0];
         const blocks = await this.getPageBlocks(uid);
         return { title, uid, blocks };
