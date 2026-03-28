@@ -12,7 +12,7 @@ export interface PromptBuildResult {
 }
 
 export class PromptBuilder {
-  private static DEBUG_MODE = false; // 控制调试日志
+  private static DEBUG_MODE = false; // Controls debug logging
   
   /**
    * Build AI prompt from TipTap editor JSON

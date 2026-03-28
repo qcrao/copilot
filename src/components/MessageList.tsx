@@ -198,7 +198,7 @@ const MessageItem: React.FC<MessageItemProps> = React.memo(({ message, index, on
   // Load user avatar on mount
   useEffect(() => {
     if (isUser) {
-      UserService.getUserAvatar().then(setUserAvatar);
+      UserService.getUserAvatar().then(setUserAvatar).catch(() => {});
     }
   }, [isUser]);
 
