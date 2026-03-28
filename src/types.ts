@@ -256,7 +256,12 @@ export const AI_PROVIDERS: AIProvider[] = [
     models: [
       "gpt-5", // Latest GPT-5 model
       "gpt-5-mini", // GPT-5 Mini variant
-      "gpt-4o", // GPT-4o flagship
+      "gpt-4.1", // GPT-4.1
+      "gpt-4.1-mini", // GPT-4.1 Mini
+      "gpt-4.1-nano", // GPT-4.1 Nano (fastest)
+      "o4-mini", // Reasoning model
+      "o3-mini", // Reasoning model
+      "gpt-4o", // GPT-4o
       "gpt-4o-mini", // Most cost-effective
     ],
     apiKeyUrl: "https://platform.openai.com/api-keys",
@@ -268,8 +273,9 @@ export const AI_PROVIDERS: AIProvider[] = [
     id: "anthropic",
     name: "Anthropic",
     models: [
-      "claude-3-5-sonnet-20241022", // Best model
-      "claude-3-5-haiku-20241022", // Most cost-effective
+      "claude-sonnet-4-6", // Latest Sonnet
+      "claude-haiku-4-5-20251001", // Latest Haiku
+      "claude-3-5-sonnet-20241022", // Claude 3.5 Sonnet
     ],
     apiKeyUrl: "https://console.anthropic.com/settings/keys",
     billingUrl: "https://console.anthropic.com/settings/billing",
@@ -325,20 +331,20 @@ export const AI_PROVIDERS: AIProvider[] = [
     models: [
       "gemini-2.5-flash", // Fast and efficient
       "gemini-2.5-pro", // Most capable
-      "gemini-2.0-flash-exp", // Experimental model
+      "gemini-2.0-flash", // Fast model
     ],
     apiKeyUrl: "https://aistudio.google.com/app/apikey",
     billingUrl: "https://console.cloud.google.com/billing",
     requiresApiKey: true,
-    supportsTools: false,
+    supportsTools: true,
   },
   {
     id: "deepseek",
     name: "DeepSeek",
     baseUrl: "https://api.deepseek.com",
     models: [
-      "deepseek-chat", // Main chat model
-      "deepseek-reasoner", // Reasoning model
+      "deepseek-chat", // Main chat model (V3)
+      "deepseek-reasoner", // Reasoning model (R1)
     ],
     apiKeyUrl: "https://platform.deepseek.com/api_keys",
     billingUrl: "https://platform.deepseek.com/usage",
@@ -351,6 +357,8 @@ export const AI_PROVIDERS: AIProvider[] = [
     models: [
       "gpt-5",
       "gpt-5-mini",
+      "gpt-4.1",
+      "gpt-4.1-mini",
       "gpt-4o",
       "gpt-4o-mini",
       "gpt-4-turbo",
@@ -364,7 +372,7 @@ export const AI_PROVIDERS: AIProvider[] = [
   {
     id: "ollama",
     name: "Ollama (Local)",
-    models: [], // 动态获取模型，不在这里硬编码
+    models: [], // Dynamically fetched, not hardcoded here
     isLocal: true,
     requiresApiKey: false,
     supportsDynamicModels: true,

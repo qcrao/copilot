@@ -468,7 +468,7 @@ export class LLMUtil {
       }
     }
 
-    // Second, check custom models for each provider
+    // Third, check custom models for each provider
     const customModels = multiProviderSettings.customModels || {};
     for (const provider of AI_PROVIDERS) {
       const customModelList = customModels[provider.id];

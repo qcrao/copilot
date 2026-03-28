@@ -88,7 +88,7 @@ export function loadInitialSettings(extensionAPI: any) {
     currentModel,
     currentModelProvider: savedCurrentModelProvider,
     temperature: savedTemperature ? parseFloat(savedTemperature) : 0.7,
-    maxTokens: savedMaxTokens ? parseInt(savedMaxTokens) : 24000,
+    maxTokens: savedMaxTokens ? parseInt(savedMaxTokens) : 4096,
     maxInputTokens: savedMaxInputTokens ? parseInt(savedMaxInputTokens) : 120000,
     responseLanguage: savedResponseLanguage || "English",
     ollamaBaseUrl: savedOllamaBaseUrl || "http://localhost:11434",

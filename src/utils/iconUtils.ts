@@ -86,29 +86,50 @@ const cleanModelName = (modelName: string): string => {
 
   // Additional cleanups for better display
   return cleanedName
+    // OpenAI models (order matters: more specific first)
+    .replace(/gpt-5-mini/i, "GPT-5 Mini")
+    .replace(/gpt-5/i, "GPT-5")
+    .replace(/gpt-4\.1-nano/i, "GPT-4.1 Nano")
+    .replace(/gpt-4\.1-mini/i, "GPT-4.1 Mini")
+    .replace(/gpt-4\.1/i, "GPT-4.1")
+    .replace(/o4-mini/i, "o4-mini")
+    .replace(/o3-mini/i, "o3-mini")
     .replace(/gpt-4o-mini/i, "GPT-4o Mini")
     .replace(/gpt-4o/i, "GPT-4o")
     .replace(/gpt-4-turbo/i, "GPT-4 Turbo")
     .replace(/gpt-4/i, "GPT-4")
     .replace(/gpt-3.5-turbo/i, "GPT-3.5 Turbo")
+    // Anthropic models
+    .replace(/claude-sonnet-4-6/i, "Claude Sonnet 4")
+    .replace(/claude-haiku-4-5/i, "Claude Haiku 4.5")
     .replace(/claude-3-5-sonnet/i, "Claude 3.5 Sonnet")
     .replace(/claude-3-5-haiku/i, "Claude 3.5 Haiku")
     .replace(/claude-3-opus/i, "Claude 3 Opus")
     .replace(/claude-3-sonnet/i, "Claude 3 Sonnet")
     .replace(/claude-3-haiku/i, "Claude 3 Haiku")
+    // Llama models
     .replace(/llama-3\.3-70b-versatile/i, "Llama 3.3 70B")
     .replace(/llama-3\.1-70b-versatile/i, "Llama 3.1 70B")
     .replace(/llama-3\.1-8b-instant/i, "Llama 3.1 8B")
-    .replace(/grok-3-beta/i, "Grok 3 Beta")
-    .replace(/grok-3/i, "Grok 3")
-    .replace(/grok-2/i, "Grok 2")
     .replace(/Meta-Llama-3\.1-8B-Instruct/i, "Llama 3.1 8B")
     .replace(/Phi-3\.5-mini-instruct/i, "Phi-3.5 Mini")
-    .replace(/gemini-2\.0-flash-exp/i, "Gemini 2.0 Flash (Experimental)")
+    // xAI models
+    .replace(/grok-4/i, "Grok 4")
+    .replace(/grok-3-beta/i, "Grok 3 Beta")
+    .replace(/grok-3/i, "Grok 3")
+    .replace(/grok-2-1212/i, "Grok 2")
+    .replace(/grok-2/i, "Grok 2")
+    // Gemini models
+    .replace(/gemini-2\.5-flash/i, "Gemini 2.5 Flash")
+    .replace(/gemini-2\.5-pro/i, "Gemini 2.5 Pro")
+    .replace(/gemini-2\.0-flash-exp/i, "Gemini 2.0 Flash (Exp)")
+    .replace(/gemini-2\.0-flash/i, "Gemini 2.0 Flash")
     .replace(/gemini-1\.5-flash/i, "Gemini 1.5 Flash")
     .replace(/gemini-1\.5-pro/i, "Gemini 1.5 Pro")
+    // DeepSeek models
     .replace(/deepseek-chat/i, "DeepSeek Chat")
     .replace(/deepseek-reasoner/i, "DeepSeek Reasoner")
+    // Local models
     .replace(/qwen2\.5:latest/i, "Qwen 2.5")
     .replace(/llama3\.2:latest/i, "Llama 3.2")
     .replace(/:latest/i, "");

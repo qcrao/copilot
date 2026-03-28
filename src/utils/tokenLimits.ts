@@ -8,6 +8,13 @@ type ProviderCompletionLimits = {
 
 const NORMALIZED_MODEL_LIMITS: Record<string, number> = {
   // OpenAI models
+  "gpt-5": 16384,
+  "gpt-5-mini": 16384,
+  "gpt-4.1": 32768,
+  "gpt-4.1-mini": 16384,
+  "gpt-4.1-nano": 16384,
+  "o4-mini": 16384,
+  "o3-mini": 16384,
   "gpt-4o": 16384,
   "gpt-4o-mini": 16384,
   "gpt-4o-2024-08-06": 16384,
@@ -18,6 +25,8 @@ const NORMALIZED_MODEL_LIMITS: Record<string, number> = {
   "gpt-3.5-turbo": 4096,
 
   // Anthropic Claude models
+  "claude-sonnet-4-6": 16384,
+  "claude-haiku-4-5-20251001": 8192,
   "claude-3-5-sonnet-20241022": 8192,
   "claude-3-5-sonnet-20240620": 8192,
   "claude-3-5-haiku-20241022": 8192,
@@ -28,14 +37,16 @@ const NORMALIZED_MODEL_LIMITS: Record<string, number> = {
   // Google Gemini models
   "gemini-2.5-pro": 65536,
   "gemini-2.5-flash": 65536,
+  "gemini-2.0-flash": 8192,
   "gemini-2.0-flash-exp": 8192,
   "gemini-1.5-flash": 8192,
   "gemini-1.5-pro": 8192,
 
   // xAI Grok models
+  "grok-4": 16000,
   "grok-3": 16000,
   "grok-2": 16000,
-  "grok-4": 16000,
+  "grok-2-1212": 16000,
   "grok-beta": 16000,
   "grok-vision-beta": 16000,
 
@@ -57,12 +68,18 @@ const NORMALIZED_MODEL_LIMITS: Record<string, number> = {
 
 const MODEL_SUBSTRING_LIMITS: Array<{ match: string; limit: number }> = [
   // OpenAI patterns (order matters: more specific first)
+  { match: "gpt-5", limit: 16384 },
+  { match: "gpt-4.1", limit: 32768 },
+  { match: "o4-mini", limit: 16384 },
+  { match: "o3-mini", limit: 16384 },
   { match: "gpt-4o", limit: 16384 },
   { match: "gpt-4-turbo", limit: 4096 },
   { match: "gpt-4", limit: 8192 },
   { match: "gpt-3.5", limit: 4096 },
 
   // Anthropic Claude patterns
+  { match: "claude-sonnet-4", limit: 16384 },
+  { match: "claude-haiku-4", limit: 8192 },
   { match: "claude-3-5-sonnet", limit: 8192 },
   { match: "claude-3-5-haiku", limit: 8192 },
   { match: "claude-3-opus", limit: 8192 },
@@ -92,6 +109,13 @@ const MODEL_SUBSTRING_LIMITS: Array<{ match: string; limit: number }> = [
 const COMPLETION_LIMITS: Record<string, ProviderCompletionLimits> = {
   openai: {
     models: {
+      "gpt-5": 16384,
+      "gpt-5-mini": 16384,
+      "gpt-4.1": 32768,
+      "gpt-4.1-mini": 16384,
+      "gpt-4.1-nano": 16384,
+      "o4-mini": 16384,
+      "o3-mini": 16384,
       "gpt-4o": 16384,
       "gpt-4o-mini": 16384,
       "gpt-4o-2024-08-06": 16384,
@@ -104,6 +128,8 @@ const COMPLETION_LIMITS: Record<string, ProviderCompletionLimits> = {
   },
   anthropic: {
     models: {
+      "claude-sonnet-4-6": 16384,
+      "claude-haiku-4-5-20251001": 8192,
       "claude-3-5-sonnet-20241022": 8192,
       "claude-3-5-sonnet-20240620": 8192,
       "claude-3-5-haiku-20241022": 8192,
@@ -116,6 +142,7 @@ const COMPLETION_LIMITS: Record<string, ProviderCompletionLimits> = {
     models: {
       "gemini-2.5-pro": 65536,
       "gemini-2.5-flash": 65536,
+      "gemini-2.0-flash": 8192,
       "gemini-2.0-flash-exp": 8192,
       "gemini-1.5-flash": 8192,
       "gemini-1.5-pro": 8192,
