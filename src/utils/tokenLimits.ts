@@ -15,13 +15,19 @@ const MIN_COMPLETION_TOKENS = 256;
 /** Per-model completion ceilings (exact match, lowercase keys). */
 const COMPLETION_MODEL_LIMITS: Record<string, number> = {
   // OpenAI
-  "gpt-5": 16384,
-  "gpt-5-mini": 16384,
+  "gpt-5.2": 128000,
+  "gpt-5.2-chat-latest": 16384,
+  "gpt-5.1": 128000,
+  "gpt-5.1-chat-latest": 16384,
+  "gpt-5": 128000,
+  "gpt-5-mini": 128000,
+  "gpt-5-nano": 128000,
   "gpt-4.1": 32768,
-  "gpt-4.1-mini": 16384,
-  "gpt-4.1-nano": 16384,
-  "o4-mini": 16384,
-  "o3-mini": 16384,
+  "gpt-4.1-mini": 32768,
+  "gpt-4.1-nano": 32768,
+  "o3": 100000,
+  "o4-mini": 100000,
+  "o3-mini": 100000,
   "gpt-4o": 16384,
   "gpt-4o-mini": 16384,
   "gpt-4o-2024-08-06": 16384,
@@ -32,8 +38,13 @@ const COMPLETION_MODEL_LIMITS: Record<string, number> = {
   "gpt-3.5-turbo": 4096,
 
   // Anthropic Claude
-  "claude-sonnet-4-6": 16384,
-  "claude-haiku-4-5-20251001": 8192,
+  "claude-opus-4-7": 128000,
+  "claude-sonnet-4-6": 64000,
+  "claude-haiku-4-5-20251001": 64000,
+  "claude-opus-4-1-20250805": 32000,
+  "claude-opus-4-20250514": 32000,
+  "claude-sonnet-4-20250514": 64000,
+  "claude-3-7-sonnet-20250219": 64000,
   "claude-3-5-sonnet-20241022": 8192,
   "claude-3-5-sonnet-20240620": 8192,
   "claude-3-5-haiku-20241022": 8192,
@@ -42,24 +53,36 @@ const COMPLETION_MODEL_LIMITS: Record<string, number> = {
   "claude-3-haiku-20240307": 8192,
 
   // Google Gemini
+  "gemini-3-pro-preview": 65536,
+  "gemini-3-flash-preview": 65536,
   "gemini-2.5-pro": 65536,
   "gemini-2.5-flash": 65536,
+  "gemini-2.5-flash-lite": 65536,
   "gemini-2.0-flash": 8192,
+  "gemini-2.0-flash-lite": 8192,
   "gemini-2.0-flash-exp": 8192,
   "gemini-1.5-flash": 8192,
   "gemini-1.5-pro": 8192,
 
   // xAI Grok
+  "grok-4.3": 16000,
   "grok-4": 16000,
+  "grok-4-fast-reasoning": 16000,
+  "grok-4-fast-non-reasoning": 16000,
+  "grok-4-1-fast-reasoning": 16000,
+  "grok-4-1-fast-non-reasoning": 16000,
   "grok-3": 16000,
+  "grok-3-mini": 16000,
   "grok-2": 16000,
   "grok-2-1212": 16000,
   "grok-beta": 16000,
   "grok-vision-beta": 16000,
 
   // Groq (Llama)
-  "llama-3.3-70b-versatile": 8192,
-  "llama-3.1-8b-instant": 8192,
+  "llama-3.3-70b-versatile": 32768,
+  "llama-3.1-8b-instant": 131072,
+  "openai/gpt-oss-120b": 65536,
+  "openai/gpt-oss-20b": 65536,
   "llama3.2-90b-vision-preview": 8192,
 
   // GitHub Models
@@ -67,6 +90,8 @@ const COMPLETION_MODEL_LIMITS: Record<string, number> = {
   "meta-llama-3.1-8b-instruct": 8192,
 
   // DeepSeek
+  "deepseek-v4-flash": 384000,
+  "deepseek-v4-pro": 384000,
   "deepseek-chat": 8192,
   "deepseek-reasoner": 8192,
   "deepseek-coder": 8192,
@@ -76,28 +101,40 @@ const COMPLETION_MODEL_LIMITS: Record<string, number> = {
 /** Substring-based fallback for completion limits (order matters). */
 const COMPLETION_SUBSTRING_LIMITS: Array<{ match: string; limit: number }> = [
   // OpenAI
-  { match: "gpt-5", limit: 16384 },
+  { match: "gpt-5.2-chat", limit: 16384 },
+  { match: "gpt-5.1-chat", limit: 16384 },
+  { match: "gpt-5", limit: 128000 },
   { match: "gpt-4.1", limit: 32768 },
-  { match: "o4-mini", limit: 16384 },
-  { match: "o3-mini", limit: 16384 },
+  { match: "o4-mini", limit: 100000 },
+  { match: "o3-mini", limit: 100000 },
+  { match: "o3", limit: 100000 },
   { match: "gpt-4o", limit: 16384 },
   { match: "gpt-4-turbo", limit: 4096 },
   { match: "gpt-4", limit: 8192 },
   { match: "gpt-3.5", limit: 4096 },
   // Anthropic
-  { match: "claude-sonnet-4", limit: 16384 },
-  { match: "claude-haiku-4", limit: 8192 },
+  { match: "claude-opus-4-7", limit: 128000 },
+  { match: "claude-sonnet-4-6", limit: 64000 },
+  { match: "claude-haiku-4-5", limit: 64000 },
+  { match: "claude-opus-4", limit: 32000 },
+  { match: "claude-sonnet-4", limit: 64000 },
+  { match: "claude-3-7-sonnet", limit: 64000 },
   { match: "claude-3-5-sonnet", limit: 8192 },
   { match: "claude-3-5-haiku", limit: 8192 },
   { match: "claude", limit: 8192 },
   // Gemini
+  { match: "gemini-3", limit: 65536 },
   { match: "gemini-2.5", limit: 65536 },
   { match: "gemini", limit: 8192 },
   // xAI
   { match: "grok", limit: 16000 },
   // Groq
+  { match: "openai/gpt-oss", limit: 65536 },
+  { match: "llama-3.1-8b-instant", limit: 131072 },
+  { match: "llama-3.3", limit: 32768 },
   { match: "llama", limit: 8192 },
   // DeepSeek
+  { match: "deepseek-v4", limit: 384000 },
   { match: "deepseek", limit: 8192 },
 ];
 
@@ -105,13 +142,19 @@ const COMPLETION_SUBSTRING_LIMITS: Array<{ match: string; limit: number }> = [
 const COMPLETION_PROVIDER_LIMITS: Record<string, { default?: number; models?: Record<string, number> }> = {
   openai: {
     models: {
-      "gpt-5": 16384,
-      "gpt-5-mini": 16384,
+      "gpt-5.2": 128000,
+      "gpt-5.2-chat-latest": 16384,
+      "gpt-5.1": 128000,
+      "gpt-5.1-chat-latest": 16384,
+      "gpt-5": 128000,
+      "gpt-5-mini": 128000,
+      "gpt-5-nano": 128000,
       "gpt-4.1": 32768,
-      "gpt-4.1-mini": 16384,
-      "gpt-4.1-nano": 16384,
-      "o4-mini": 16384,
-      "o3-mini": 16384,
+      "gpt-4.1-mini": 32768,
+      "gpt-4.1-nano": 32768,
+      "o3": 100000,
+      "o4-mini": 100000,
+      "o3-mini": 100000,
       "gpt-4o": 16384,
       "gpt-4o-mini": 16384,
       "gpt-4-turbo": 4096,
@@ -121,8 +164,12 @@ const COMPLETION_PROVIDER_LIMITS: Record<string, { default?: number; models?: Re
   },
   anthropic: {
     models: {
-      "claude-sonnet-4-6": 16384,
-      "claude-haiku-4-5-20251001": 8192,
+      "claude-opus-4-7": 128000,
+      "claude-sonnet-4-6": 64000,
+      "claude-haiku-4-5-20251001": 64000,
+      "claude-opus-4-1-20250805": 32000,
+      "claude-sonnet-4-20250514": 64000,
+      "claude-3-7-sonnet-20250219": 64000,
       "claude-3-5-sonnet-20241022": 8192,
       "claude-3-5-haiku-20241022": 8192,
       "claude-3-opus-20240229": 8192,
@@ -130,19 +177,57 @@ const COMPLETION_PROVIDER_LIMITS: Record<string, { default?: number; models?: Re
   },
   gemini: {
     models: {
+      "gemini-3-pro-preview": 65536,
+      "gemini-3-flash-preview": 65536,
       "gemini-2.5-pro": 65536,
       "gemini-2.5-flash": 65536,
+      "gemini-2.5-flash-lite": 65536,
       "gemini-2.0-flash": 8192,
+      "gemini-2.0-flash-lite": 8192,
       "gemini-1.5-flash": 8192,
       "gemini-1.5-pro": 8192,
     },
   },
   xai: { default: 16000 },
-  groq: { default: 8192 },
-  github: { default: 8192 },
-  deepseek: { default: 8192 },
+  groq: {
+    models: {
+      "llama-3.3-70b-versatile": 32768,
+      "llama-3.1-8b-instant": 131072,
+      "openai/gpt-oss-120b": 65536,
+      "openai/gpt-oss-20b": 65536,
+    },
+  },
+  github: {
+    models: {
+      "phi-3.5-mini-instruct": 8192,
+      "meta-llama-3.1-8b-instruct": 8192,
+    },
+  },
+  deepseek: {
+    models: {
+      "deepseek-v4-flash": 384000,
+      "deepseek-v4-pro": 384000,
+      "deepseek-chat": 8192,
+      "deepseek-reasoner": 8192,
+    },
+  },
   "custom-openai": {
     models: {
+      "gpt-5.2": 128000,
+      "gpt-5.2-chat-latest": 16384,
+      "gpt-5.1": 128000,
+      "gpt-5.1-chat-latest": 16384,
+      "gpt-5": 128000,
+      "gpt-5-mini": 128000,
+      "gpt-5-nano": 128000,
+      "gpt-4.1": 32768,
+      "gpt-4.1-mini": 32768,
+      "gpt-4.1-nano": 32768,
+      "o3": 100000,
+      "o4-mini": 100000,
+      "o3-mini": 100000,
+      "deepseek-v4-flash": 384000,
+      "deepseek-v4-pro": 384000,
       "deepseek-chat": 8192,
       "deepseek-reasoner": 8192,
       "gpt-4o": 16384,
@@ -153,6 +238,8 @@ const COMPLETION_PROVIDER_LIMITS: Record<string, { default?: number; models?: Re
   },
   openrouter: {
     models: {
+      "deepseek/deepseek-v4-flash": 384000,
+      "deepseek/deepseek-v4-pro": 384000,
       "deepseek-chat": 8192,
       "deepseek/deepseek-chat": 8192,
       "openai/gpt-4o": 16384,
@@ -168,11 +255,17 @@ const COMPLETION_PROVIDER_LIMITS: Record<string, { default?: number; models?: Re
 /** Per-model context window sizes (exact match, lowercase keys). */
 const CONTEXT_WINDOW_LIMITS: Record<string, number> = {
   // OpenAI
-  "gpt-5": 128000,
-  "gpt-5-mini": 128000,
+  "gpt-5.2": 400000,
+  "gpt-5.2-chat-latest": 128000,
+  "gpt-5.1": 400000,
+  "gpt-5.1-chat-latest": 128000,
+  "gpt-5": 400000,
+  "gpt-5-mini": 400000,
+  "gpt-5-nano": 400000,
   "gpt-4.1": 1047576,
   "gpt-4.1-mini": 1047576,
   "gpt-4.1-nano": 1047576,
+  "o3": 200000,
   "o4-mini": 200000,
   "o3-mini": 200000,
   "gpt-4o": 128000,
@@ -182,8 +275,13 @@ const CONTEXT_WINDOW_LIMITS: Record<string, number> = {
   "gpt-3.5-turbo": 16000,
 
   // Anthropic Claude
-  "claude-sonnet-4-6": 200000,
+  "claude-opus-4-7": 1000000,
+  "claude-sonnet-4-6": 1000000,
   "claude-haiku-4-5-20251001": 200000,
+  "claude-opus-4-1-20250805": 200000,
+  "claude-opus-4-20250514": 200000,
+  "claude-sonnet-4-20250514": 200000,
+  "claude-3-7-sonnet-20250219": 200000,
   "claude-3-5-sonnet-20241022": 200000,
   "claude-3-5-sonnet-20240620": 200000,
   "claude-3-5-haiku-20241022": 200000,
@@ -192,31 +290,45 @@ const CONTEXT_WINDOW_LIMITS: Record<string, number> = {
   "claude-3-haiku-20240307": 200000,
 
   // Google Gemini
+  "gemini-3-pro-preview": 1048576,
+  "gemini-3-flash-preview": 1048576,
   "gemini-2.5-pro": 1048576,
   "gemini-2.5-flash": 1048576,
+  "gemini-2.5-flash-lite": 1048576,
   "gemini-2.0-flash": 1048576,
+  "gemini-2.0-flash-lite": 1048576,
   "gemini-2.0-flash-exp": 1048576,
   "gemini-1.5-flash": 1048576,
   "gemini-1.5-pro": 2097152,
 
   // xAI Grok
-  "grok-4": 131072,
+  "grok-4.3": 1000000,
+  "grok-4": 256000,
+  "grok-4-fast-reasoning": 2000000,
+  "grok-4-fast-non-reasoning": 2000000,
+  "grok-4-1-fast-reasoning": 2000000,
+  "grok-4-1-fast-non-reasoning": 2000000,
   "grok-3": 131072,
+  "grok-3-mini": 131072,
   "grok-2": 131072,
   "grok-2-1212": 131072,
   "grok-beta": 131072,
   "grok-vision-beta": 131072,
 
   // Groq (Llama)
-  "llama-3.3-70b-versatile": 128000,
-  "llama-3.1-70b-versatile": 128000,
-  "llama-3.1-8b-instant": 128000,
+  "llama-3.3-70b-versatile": 131072,
+  "llama-3.1-70b-versatile": 131072,
+  "llama-3.1-8b-instant": 131072,
+  "openai/gpt-oss-120b": 131072,
+  "openai/gpt-oss-20b": 131072,
 
   // GitHub Models
   "phi-3.5-mini-instruct": 128000,
   "meta-llama-3.1-8b-instruct": 128000,
 
   // DeepSeek
+  "deepseek-v4-flash": 1000000,
+  "deepseek-v4-pro": 1000000,
   "deepseek-chat": 64000,
   "deepseek-reasoner": 64000,
   "deepseek-coder": 64000,
@@ -257,8 +369,11 @@ const CONTEXT_WINDOW_LIMITS: Record<string, number> = {
 /** Substring-based fallback for context window (order matters). */
 const CONTEXT_WINDOW_SUBSTRING_LIMITS: Array<{ match: string; limit: number }> = [
   // OpenAI
-  { match: "gpt-5", limit: 128000 },
+  { match: "gpt-5.2-chat", limit: 128000 },
+  { match: "gpt-5.1-chat", limit: 128000 },
+  { match: "gpt-5", limit: 400000 },
   { match: "gpt-4.1", limit: 1047576 },
+  { match: "o3", limit: 200000 },
   { match: "o4-mini", limit: 200000 },
   { match: "o3-mini", limit: 200000 },
   { match: "gpt-4o", limit: 128000 },
@@ -266,17 +381,27 @@ const CONTEXT_WINDOW_SUBSTRING_LIMITS: Array<{ match: string; limit: number }> =
   { match: "gpt-4", limit: 8000 },
   { match: "gpt-3.5", limit: 16000 },
   // Anthropic
+  { match: "claude-opus-4-7", limit: 1000000 },
+  { match: "claude-sonnet-4-6", limit: 1000000 },
   { match: "claude", limit: 200000 },
   // Gemini
+  { match: "gemini-3", limit: 1048576 },
   { match: "gemini", limit: 1048576 },
   // xAI
+  { match: "grok-4.3", limit: 1000000 },
+  { match: "grok-4-fast", limit: 2000000 },
+  { match: "grok-4-1-fast", limit: 2000000 },
+  { match: "grok-4", limit: 256000 },
+  { match: "grok-3", limit: 131072 },
   { match: "grok", limit: 131072 },
   // Groq
-  { match: "llama-3.3", limit: 128000 },
-  { match: "llama-3.1", limit: 128000 },
+  { match: "openai/gpt-oss", limit: 131072 },
+  { match: "llama-3.3", limit: 131072 },
+  { match: "llama-3.1", limit: 131072 },
   { match: "llama3", limit: 128000 },
   { match: "llama", limit: 32000 },
   // DeepSeek
+  { match: "deepseek-v4", limit: 1000000 },
   { match: "deepseek", limit: 64000 },
   // Ollama families
   { match: "qwen", limit: 32000 },

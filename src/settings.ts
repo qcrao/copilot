@@ -2,10 +2,17 @@
 import React from "react";
 import { AISettings, MultiProviderSettings, AI_PROVIDERS } from "./types";
 
+function normalizeLocalHttpBaseUrl(baseUrl: string): string {
+  return baseUrl.replace(
+    /^https:\/\/(localhost|127\.0\.0\.1|0\.0\.0\.0|\[::1\])(?=[:/]|$)/i,
+    "http://$1"
+  );
+}
+
 // Default settings for legacy AISettings
 const DEFAULT_AI_SETTINGS: AISettings = {
   provider: "openai",
-  model: "gpt-4o-mini",
+  model: "gpt-5-mini",
   apiKey: "",
   temperature: 0.7,
   maxTokens: 4096,
@@ -14,7 +21,7 @@ const DEFAULT_AI_SETTINGS: AISettings = {
 
 // Default settings for MultiProviderSettings
 const DEFAULT_MULTI_PROVIDER_SETTINGS: MultiProviderSettings = {
-  currentModel: "gpt-4o-mini",
+  currentModel: "gpt-5-mini",
   temperature: 0.7,
   maxTokens: 4096,
   maxInputTokens: 120000,
@@ -75,12 +82,12 @@ export function loadInitialSettings(extensionAPI: any) {
 
   // For initial loading, use synchronous model checking
   const availableModels = getSyncAvailableModelsWithKeys(apiKeys, customModels);
-  let currentModel = savedCurrentModel || "gpt-4o-mini";
+  let currentModel = savedCurrentModel || "gpt-5-mini";
 
   // If the saved model doesn't have an API key, use the first available model
   if (!availableModels.some((m) => m.model === currentModel)) {
     currentModel =
-      availableModels.length > 0 ? availableModels[0].model : "gpt-4o-mini";
+      availableModels.length > 0 ? availableModels[0].model : "gpt-5-mini";
   }
 
   multiProviderSettings = {
@@ -92,7 +99,9 @@ export function loadInitialSettings(extensionAPI: any) {
     maxInputTokens: savedMaxInputTokens ? parseInt(savedMaxInputTokens) : 120000,
     responseLanguage: savedResponseLanguage || "English",
     ollamaBaseUrl: savedOllamaBaseUrl || "http://localhost:11434",
-    customOpenAIBaseUrl: savedCustomOpenAIBaseUrl || "https://api.openai.com/v1",
+    customOpenAIBaseUrl: normalizeLocalHttpBaseUrl(
+      savedCustomOpenAIBaseUrl || "https://api.openai.com/v1"
+    ),
     customModels,
   };
 
@@ -182,8 +191,14 @@ async function getAvailableModelsWithKeys(
     if (hasApiKey) {
       let models = getProviderModels(provider, customModels);
 
-      // For Ollama, try to fetch dynamic models if no custom models are set
-      if (provider.id === "ollama" && provider.supportsDynamicModels && !customModels[provider.id]) {
+      const shouldFetchDynamicOllamaModels =
+        provider.id === "ollama" &&
+        provider.supportsDynamicModels &&
+        !customModels[provider.id] &&
+        multiProviderSettings.currentModelProvider === "ollama";
+
+      // For Ollama, only fetch dynamic models when the current conversation is using Ollama.
+      if (shouldFetchDynamicOllamaModels) {
         try {
           const { AIService } = await import("./services/aiService");
           const dynamicModels = await AIService.getOllamaModels();
@@ -191,22 +206,18 @@ async function getAvailableModelsWithKeys(
             models = dynamicModels;
           }
         } catch (error: any) {
-          if (error.message === "CORS_ERROR") {
-            console.warn(
-              "CORS error detected for Ollama. Skipping Ollama models from model selector. " +
-                "To fix this, configure CORS on your Ollama instance by setting OLLAMA_ORIGINS=* environment variable."
-            );
-          } else {
-            console.warn(
-              "Failed to connect to Ollama. Skipping Ollama models from model selector. " +
-                "Please ensure Ollama is running and accessible.",
-              error
-            );
-          }
-
           // Skip adding any Ollama models when any error occurs (CORS, network, etc.)
           continue;
         }
+      }
+
+      if (
+        provider.id === "ollama" &&
+        provider.supportsDynamicModels &&
+        !customModels[provider.id] &&
+        !shouldFetchDynamicOllamaModels
+      ) {
+        continue;
       }
 
       models.forEach((model) => {
@@ -261,7 +272,7 @@ export function initPanelConfig(extensionAPI: any) {
             const value = evt?.target?.value;
             if (value !== undefined) {
               multiProviderSettings.customOpenAIBaseUrl =
-                value || "https://api.openai.com/v1";
+                normalizeLocalHttpBaseUrl(value || "https://api.openai.com/v1");
               extensionAPI.settings.set(
                 "copilot-custom-openai-base-url",
                 multiProviderSettings.customOpenAIBaseUrl

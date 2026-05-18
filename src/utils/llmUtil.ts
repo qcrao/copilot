@@ -29,6 +29,67 @@ interface LLMResult {
   };
 }
 
+function normalizeLocalHttpBaseUrl(baseUrl: string): string {
+  return baseUrl.replace(
+    /^https:\/\/(localhost|127\.0\.0\.1|0\.0\.0\.0|\[::1\])(?=[:/]|$)/i,
+    "http://$1"
+  );
+}
+
+function getConfiguredBaseUrl(config: LLMConfig): string {
+  switch (config.provider) {
+    case "openai":
+      return config.baseUrl || "https://api.openai.com/v1";
+    case "anthropic":
+      return config.baseUrl || "https://api.anthropic.com/v1";
+    case "groq":
+      return config.baseUrl || "https://api.groq.com/openai/v1";
+    case "xai":
+      return config.baseUrl || "https://api.x.ai/v1";
+    case "ollama":
+      return `${config.baseUrl || multiProviderSettings.ollamaBaseUrl || "http://localhost:11434"}/v1`;
+    case "gemini":
+      return config.baseUrl || "https://generativelanguage.googleapis.com/v1beta";
+    case "github":
+      return config.baseUrl || "https://models.inference.ai.azure.com";
+    case "deepseek":
+      return config.baseUrl || "https://api.deepseek.com";
+    case "custom-openai":
+      return normalizeLocalHttpBaseUrl(
+        config.baseUrl || multiProviderSettings.customOpenAIBaseUrl || "https://api.openai.com/v1"
+      );
+    default:
+      return config.baseUrl || "";
+  }
+}
+
+function isLocalBaseUrl(baseUrl: string): boolean {
+  return /(^https?:\/\/)?(localhost|127\.0\.0\.1|0\.0\.0\.0|\[::1\])(:|\/|$)/i.test(baseUrl);
+}
+
+function getReadableNetworkError(config: LLMConfig, error: any): string {
+  const message = error?.message || String(error);
+  const baseUrl = getConfiguredBaseUrl(config);
+
+  if (!message.toLowerCase().includes("fetch")) {
+    return message;
+  }
+
+  if (isLocalBaseUrl(baseUrl)) {
+    return [
+      `Cannot connect to ${config.provider} at ${baseUrl}.`,
+      "Check that the local service is running and the base URL protocol is correct.",
+      "For Ollama, use http://localhost:11434, not https://localhost:11434.",
+      "If Roam still blocks the request, start Ollama with OLLAMA_ORIGINS=*.",
+    ].join(" ");
+  }
+
+  return [
+    `Network request failed for ${config.provider} at ${baseUrl}.`,
+    "Check the provider base URL, network access, and whether the provider allows browser-based requests from Roam.",
+  ].join(" ");
+}
+
 export class LLMUtil {
   /**
    * Convert ISO date format to Roam date format
@@ -213,8 +274,11 @@ export class LLMUtil {
         return deepseek(model);
 
       case "custom-openai":
+        const customOpenAIBaseUrl = normalizeLocalHttpBaseUrl(
+          baseUrl || multiProviderSettings.customOpenAIBaseUrl || "https://api.openai.com/v1"
+        );
         const customOpenAI = createOpenAI({
-          baseURL: baseUrl || multiProviderSettings.customOpenAIBaseUrl || "https://api.openai.com/v1",
+          baseURL: customOpenAIBaseUrl,
           apiKey: apiKey,
         });
         return customOpenAI(model);
@@ -263,7 +327,7 @@ export class LLMUtil {
         },
       };
     } catch (error: any) {
-      throw new Error(`LLM generation failed: ${error.message}`);
+      throw new Error(`LLM generation failed: ${getReadableNetworkError(config, error)}`);
     }
   }
 
@@ -299,7 +363,7 @@ export class LLMUtil {
         abortSignal: signal,
         onError({ error }) {
           console.error("❌ AI SDK onError callback:", error);
-          streamError = (error as any)?.message || "Unknown streaming error";
+          streamError = getReadableNetworkError(config, error);
         },
       });
 
@@ -329,8 +393,7 @@ export class LLMUtil {
               yield {
                 text: "",
                 isComplete: true,
-                error:
-                  (part.error as any)?.message || "Streaming error occurred",
+                error: getReadableNetworkError(config, part.error),
               };
               return;
           }
@@ -513,6 +576,18 @@ export class LLMUtil {
     // If no exact match and not in Ollama, try model name pattern matching to determine provider
     const modelLower = model.toLowerCase();
 
+    // Check for Groq-hosted OpenAI open-weight models before generic GPT matching.
+    if (modelLower.includes("gpt-oss") || modelLower.includes("openai/gpt-oss")) {
+      const groqProvider = AI_PROVIDERS.find((p) => p.id === "groq");
+      if (groqProvider) {
+        const apiKey = multiProviderSettings.apiKeys[groqProvider.id];
+        if (apiKey && apiKey.trim() !== "") {
+          console.log(`🔍 Pattern match: "${model}" identified as Groq model`);
+          return { provider: groqProvider, apiKey };
+        }
+      }
+    }
+
     // Check for OpenAI models
     if (modelLower.includes("gpt")) {
       const openaiProvider = AI_PROVIDERS.find((p) => p.id === "openai");
@@ -622,6 +697,13 @@ export class LLMUtil {
       console.log("Ollama models fetched:", models);
       return models;
     } catch (error: any) {
+      if (this.isLikelyOllamaConnectionError(error)) {
+        console.warn(
+          `Ollama is not reachable or is blocked by the browser at ${url}. Skipping dynamic Ollama models.`
+        );
+        return [];
+      }
+
       // Check if this is a CORS error
       if (this.isCorsError(error)) {
         console.warn(
@@ -643,9 +725,19 @@ export class LLMUtil {
     // Common CORS error patterns
     return (
       errorMessage.includes("cors") ||
-      errorMessage.includes("cross-origin") ||
+      errorMessage.includes("cross-origin")
+    );
+  }
+
+  private static isLikelyOllamaConnectionError(error: any): boolean {
+    const errorMessage = error.message?.toLowerCase() || "";
+
+    return (
       errorMessage.includes("failed to fetch") ||
-      (error.name === "TypeError" && errorMessage.includes("fetch"))
+      errorMessage.includes("networkerror") ||
+      errorMessage.includes("connection refused") ||
+      errorMessage.includes("err_connection_refused") ||
+      errorMessage.includes("err_ssl_protocol_error")
     );
   }
 

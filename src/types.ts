@@ -254,11 +254,16 @@ export const AI_PROVIDERS: AIProvider[] = [
     id: "openai",
     name: "OpenAI",
     models: [
-      "gpt-5", // Latest GPT-5 model
-      "gpt-5-mini", // GPT-5 Mini variant
+      "gpt-5.2", // Latest GPT-5 flagship model
+      "gpt-5.2-chat-latest", // ChatGPT-tuned GPT-5.2
+      "gpt-5.1", // Previous GPT-5 flagship
+      "gpt-5", // Previous GPT-5 model
+      "gpt-5-mini", // Cost-effective GPT-5 variant
+      "gpt-5-nano", // High-throughput GPT-5 variant
       "gpt-4.1", // GPT-4.1
       "gpt-4.1-mini", // GPT-4.1 Mini
       "gpt-4.1-nano", // GPT-4.1 Nano (fastest)
+      "o3", // Reasoning model
       "o4-mini", // Reasoning model
       "o3-mini", // Reasoning model
       "gpt-4o", // GPT-4o
@@ -273,8 +278,12 @@ export const AI_PROVIDERS: AIProvider[] = [
     id: "anthropic",
     name: "Anthropic",
     models: [
+      "claude-opus-4-7", // Latest Opus
       "claude-sonnet-4-6", // Latest Sonnet
       "claude-haiku-4-5-20251001", // Latest Haiku
+      "claude-opus-4-1-20250805", // Previous Opus
+      "claude-sonnet-4-20250514", // Previous Sonnet
+      "claude-3-7-sonnet-20250219", // Extended thinking Sonnet
       "claude-3-5-sonnet-20241022", // Claude 3.5 Sonnet
     ],
     apiKeyUrl: "https://console.anthropic.com/settings/keys",
@@ -288,6 +297,8 @@ export const AI_PROVIDERS: AIProvider[] = [
     models: [
       "llama-3.3-70b-versatile", // Best model
       "llama-3.1-8b-instant", // Most cost-effective
+      "openai/gpt-oss-120b", // OpenAI open-weight reasoning model
+      "openai/gpt-oss-20b", // Smaller OpenAI open-weight model
     ],
     apiKeyUrl: "https://console.groq.com/keys",
     billingUrl: "https://console.groq.com/settings/billing",
@@ -298,9 +309,9 @@ export const AI_PROVIDERS: AIProvider[] = [
     id: "xai",
     name: "xAI (Grok)",
     models: [
-      "grok-4", // Latest flagship model
+      "grok-4.3", // Latest flagship model
       "grok-3", // Advanced reasoning model
-      "grok-2-1212", // Stable version
+      "grok-3-mini", // Lightweight reasoning model
     ],
     apiKeyUrl: "https://console.x.ai/",
     billingUrl: "https://console.x.ai/",
@@ -312,7 +323,7 @@ export const AI_PROVIDERS: AIProvider[] = [
     name: "GitHub Models",
     baseUrl: "https://models.inference.ai.azure.com",
     models: [
-      "gpt-5", // GPT-5 (Latest OpenAI model)
+      "gpt-5", // GPT-5
       "gpt-5-mini", // GPT-5 Mini
       "gpt-4o", // GPT-4o
       "o3-mini", // OpenAI o3-mini reasoning model
@@ -329,9 +340,13 @@ export const AI_PROVIDERS: AIProvider[] = [
     name: "Google Gemini",
     baseUrl: "https://generativelanguage.googleapis.com/v1beta",
     models: [
+      "gemini-3-pro-preview", // Latest Gemini 3 Pro preview
+      "gemini-3-flash-preview", // Latest Gemini 3 Flash preview
       "gemini-2.5-flash", // Fast and efficient
       "gemini-2.5-pro", // Most capable
+      "gemini-2.5-flash-lite", // Fastest Gemini 2.5 variant
       "gemini-2.0-flash", // Fast model
+      "gemini-2.0-flash-lite", // Cost-efficient Gemini 2.0 model
     ],
     apiKeyUrl: "https://aistudio.google.com/app/apikey",
     billingUrl: "https://console.cloud.google.com/billing",
@@ -343,8 +358,10 @@ export const AI_PROVIDERS: AIProvider[] = [
     name: "DeepSeek",
     baseUrl: "https://api.deepseek.com",
     models: [
-      "deepseek-chat", // Main chat model (V3)
-      "deepseek-reasoner", // Reasoning model (R1)
+      "deepseek-v4-flash", // Latest V4 flash model
+      "deepseek-v4-pro", // Latest V4 pro model
+      "deepseek-chat", // Legacy alias for V4 flash non-thinking mode
+      "deepseek-reasoner", // Legacy alias for V4 flash thinking mode
     ],
     apiKeyUrl: "https://platform.deepseek.com/api_keys",
     billingUrl: "https://platform.deepseek.com/usage",
@@ -355,10 +372,19 @@ export const AI_PROVIDERS: AIProvider[] = [
     id: "custom-openai",
     name: "Custom OpenAI",
     models: [
+      "gpt-5.2",
+      "gpt-5.2-chat-latest",
+      "gpt-5.1",
+      "gpt-5.1-chat-latest",
       "gpt-5",
       "gpt-5-mini",
+      "gpt-5-nano",
       "gpt-4.1",
       "gpt-4.1-mini",
+      "gpt-4.1-nano",
+      "o3",
+      "o4-mini",
+      "o3-mini",
       "gpt-4o",
       "gpt-4o-mini",
       "gpt-4-turbo",

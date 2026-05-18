@@ -2431,6 +2431,7 @@ export const CopilotWidget: React.FC<CopilotWidgetProps> = ({
             isLoading={state.isLoading} // Pass loading state for send button
             onCancel={handleCancelRequest} // Pass cancel handler
             context={mentionedPageContext || pageContext}
+            messages={state.messages}
             onExcludeContextBlock={handleExcludeFromContext}
             isContextLocked={isContextLocked}
             hasConversationSpecificContext={hasConversationSpecificContext}

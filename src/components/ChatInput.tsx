@@ -20,7 +20,7 @@ import {
 import { RoamQuery } from "../utils/roamQuery";
 import { PromptMenu } from "./PromptMenu";
 import { PROMPT_TEMPLATES } from "../data/promptTemplates";
-import { PromptTemplate } from "../types";
+import { ChatMessage, PromptTemplate } from "../types";
 import { UserTemplateService } from "../services/userTemplateService";
 import { UniversalSearchDropdown } from "./UniversalSearchDropdown";
 import { RoamService } from "../services/roamService";
@@ -44,6 +44,7 @@ interface ChatInputProps {
   isLoading?: boolean;
   onCancel?: () => void;
   context?: PageContext | null;
+  messages?: ChatMessage[];
   onExcludeContextBlock?: (uid: string) => void;
   isContextLocked?: boolean;
   hasConversationSpecificContext?: boolean;
@@ -73,6 +74,7 @@ export const ChatInput = React.forwardRef<ChatInputHandle, ChatInputProps>((
   isLoading = false,
   onCancel,
   context,
+  messages = [],
   onExcludeContextBlock,
   isContextLocked = false,
   hasConversationSpecificContext = false,
@@ -345,6 +347,82 @@ export const ChatInput = React.forwardRef<ChatInputHandle, ChatInputProps>((
   };
 
   const [selectedModel, setSelectedModel] = useState(getValidModel());
+
+  const hasDraftContent = useMemo(() => {
+    if (!editor) return false;
+
+    const hasTextContent = (editor.getText()?.trim().length || 0) > 0;
+    const serializedContent = serializedContentRef.current || "";
+    const hasReferences =
+      serializedContent.includes("((") || serializedContent.includes("[[");
+
+    return hasTextContent || hasReferences;
+  }, [editor, editorContentVersion]);
+
+  const threadContextUsage = useMemo(() => {
+    const selectedModelInfo = availableModels.find(
+      (modelInfo) => modelInfo.model === selectedModel
+    );
+    const provider = selectedModelInfo?.provider ||
+      multiProviderSettings.currentModelProvider ||
+      "openai";
+
+    if (!selectedModel) {
+      return {
+        usedTokens: 0,
+        maxTokens: 0,
+        remainingTokens: 0,
+        remainingPercent: 100,
+        fullPercent: 0,
+        fullPercentLabel: "0",
+      };
+    }
+
+    try {
+      const modelLimit = RoamService.getModelTokenLimit(provider, selectedModel);
+      const maxTokens = modelLimit;
+      const latestPromptUsage = [...messages]
+        .reverse()
+        .find((message) => message.role === "assistant" && message.usage?.promptTokens)
+        ?.usage?.promptTokens || 0;
+      const usedTokens = latestPromptUsage;
+      const remainingTokens = Math.max(0, maxTokens - usedTokens);
+      const remainingPercent = maxTokens > 0
+        ? Math.max(0, Math.min(100, Math.round((remainingTokens / maxTokens) * 100)))
+        : 100;
+      const fullPercent = maxTokens > 0
+        ? Math.max(0, Math.min(100, (usedTokens / maxTokens) * 100))
+        : 0;
+      const fullPercentLabel =
+        fullPercent > 0 && fullPercent < 1
+          ? "<1"
+          : Math.round(fullPercent).toString();
+      return {
+        usedTokens,
+        maxTokens,
+        remainingTokens,
+        remainingPercent,
+        fullPercent,
+        fullPercentLabel,
+      };
+    } catch (error) {
+      return {
+        usedTokens: 0,
+        maxTokens: 0,
+        remainingTokens: 0,
+        remainingPercent: 100,
+        fullPercent: 0,
+        fullPercentLabel: "0",
+      };
+    }
+  }, [availableModels, messages, selectedModel]);
+
+  const formatCompactTokens = (tokens: number) => {
+    if (tokens >= 1000) {
+      return `${Math.round(tokens / 1000)}k`;
+    }
+    return tokens.toLocaleString();
+  };
 
   // Update selectedModel when available models change
   useEffect(() => {
@@ -1131,17 +1209,8 @@ export const ChatInput = React.forwardRef<ChatInputHandle, ChatInputProps>((
 
   const canSend = useMemo(() => {
     if (!editor || disabled || isLoading) return false;
-
-    // Check if editor has any text content
-    const hasTextContent = (editor.getText()?.trim().length || 0) > 0;
-
-    // Check if editor has any reference chips
-    const serializedContent = serializedContentRef.current || "";
-    const hasReferences =
-      serializedContent.includes("((") || serializedContent.includes("[[");
-
-    return hasTextContent || hasReferences;
-  }, [editor, disabled, isLoading, editorContentVersion]);
+    return hasDraftContent;
+  }, [editor, disabled, isLoading, hasDraftContent]);
 
   // Handle composition events
   const handleCompositionStart = () => {
@@ -1252,20 +1321,44 @@ export const ChatInput = React.forwardRef<ChatInputHandle, ChatInputProps>((
             />
           </div>
 
-          {isLoading ? (
-            <button
-              className="rr-copilot-cancel-button"
-              onClick={onCancel}
-              disabled={!onCancel}
-              type="button"
-              title="Cancel request"
-            >
-              <svg
-                width="16"
-                height="16"
-                viewBox="0 0 16 16"
-                fill="none"
-                xmlns="http://www.w3.org/2000/svg"
+          <div
+            className="rr-copilot-context-capacity"
+            aria-label={`Thread context: ${threadContextUsage.fullPercentLabel}% full, ${threadContextUsage.usedTokens.toLocaleString()} of ${threadContextUsage.maxTokens.toLocaleString()} prompt tokens sent`}
+            tabIndex={0}
+            style={{
+              "--rr-context-full": `${threadContextUsage.fullPercent}%`,
+            } as React.CSSProperties}
+          >
+            <span className="rr-copilot-context-capacity__ring" />
+            <span className="rr-copilot-context-capacity__tooltip" role="tooltip">
+              <span className="rr-copilot-context-capacity__tooltip-muted">
+                Thread context:
+              </span>
+              <span className="rr-copilot-context-capacity__tooltip-muted">
+                {threadContextUsage.fullPercentLabel}% full
+              </span>
+              <span className="rr-copilot-context-capacity__tooltip-strong">
+                {formatCompactTokens(threadContextUsage.usedTokens)} /{" "}
+                {formatCompactTokens(threadContextUsage.maxTokens)} tokens sent
+              </span>
+            </span>
+          </div>
+
+          <div className="rr-copilot-input-actions">
+            {isLoading ? (
+              <button
+                className="rr-copilot-cancel-button"
+                onClick={onCancel}
+                disabled={!onCancel}
+                type="button"
+                title="Cancel request"
+              >
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 16 16"
+                  fill="none"
+                  xmlns="http://www.w3.org/2000/svg"
               >
                 <rect
                   x="4"
@@ -1278,23 +1371,23 @@ export const ChatInput = React.forwardRef<ChatInputHandle, ChatInputProps>((
                   fill="currentColor"
                 />
               </svg>
-            </button>
-          ) : (
-            <button
-              className={`rr-copilot-send-button ${
-                canSend ? "active" : "inactive"
-              }`}
-              onClick={handleSend}
-              disabled={!canSend}
-              type="button"
-              title="Send message"
-            >
-              <svg
-                width="16"
-                height="16"
-                viewBox="0 0 16 16"
-                fill="none"
-                xmlns="http://www.w3.org/2000/svg"
+              </button>
+            ) : (
+              <button
+                className={`rr-copilot-send-button ${
+                  canSend ? "active" : "inactive"
+                }`}
+                onClick={handleSend}
+                disabled={!canSend}
+                type="button"
+                title="Send message"
+              >
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 16 16"
+                  fill="none"
+                  xmlns="http://www.w3.org/2000/svg"
               >
                 <path
                   d="M8 2L8 14M8 2L3 7M8 2L13 7"
@@ -1303,9 +1396,10 @@ export const ChatInput = React.forwardRef<ChatInputHandle, ChatInputProps>((
                   strokeLinecap="round"
                   strokeLinejoin="round"
                 />
-              </svg>
-            </button>
-          )}
+                </svg>
+              </button>
+            )}
+          </div>
         </div>
       </div>
 

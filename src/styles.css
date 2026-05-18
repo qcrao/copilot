@@ -287,7 +287,7 @@
   padding: 0;
   transition: all 0.2s ease;
   box-shadow: 0 1px 3px rgba(60, 64, 67, 0.06);
-  overflow: hidden;
+  overflow: visible;
 }
 
 .rr-copilot-input-box:hover {
@@ -549,14 +549,23 @@ details[style*="thinking"][open] {
 .rr-copilot-input-toolbar {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-start;
   padding: 10px 16px; /* reduced padding for more compact feel */
   background: #f8f9fa; /* subtle background to separate from input */
   border-top: 1px solid #e8eaed; /* subtle separator */
   border-radius: 0 0 8px 8px; /* match container radius */
-  gap: 12px; /* slightly reduced gap */
+  gap: 10px; /* slightly reduced gap */
   flex-shrink: 0;
   min-height: 52px; /* reduced height */
+}
+
+.rr-copilot-input-actions {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  flex: 0 0 auto;
+  margin-left: auto;
 }
 
 .rr-copilot-model-selector {
@@ -620,6 +629,92 @@ details[style*="thinking"][open] {
   color: #9ca3af;
   font-style: italic;
   background-color: #f9fafb;
+}
+
+.rr-copilot-context-capacity {
+  --rr-context-full: 0%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 22px;
+  height: 36px;
+  position: relative;
+  padding: 0;
+  margin: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  outline: none;
+  cursor: default;
+}
+
+.rr-copilot-context-capacity__ring {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background:
+    radial-gradient(circle at center, #f8f9fa 50%, transparent 53%),
+    conic-gradient(
+      #7a7f85 var(--rr-context-full),
+      #d5d9de var(--rr-context-full) 100%
+    );
+  transition: background 0.16s ease, opacity 0.16s ease;
+}
+
+.rr-copilot-context-capacity:hover .rr-copilot-context-capacity__ring,
+.rr-copilot-context-capacity:focus-visible .rr-copilot-context-capacity__ring {
+  opacity: 0.86;
+}
+
+.rr-copilot-context-capacity__tooltip {
+  position: absolute;
+  right: -8px;
+  bottom: calc(100% + 8px);
+  transform: translateY(3px);
+  z-index: 100010;
+  min-width: 148px;
+  padding: 8px 10px 9px;
+  border: 1px solid #edf0f2;
+  border-radius: 7px;
+  background: #ffffff;
+  color: #1f2328;
+  box-shadow: 0 10px 28px rgba(33, 37, 41, 0.14);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.14s ease, transform 0.14s ease;
+  text-align: center;
+}
+
+.rr-copilot-context-capacity:hover .rr-copilot-context-capacity__tooltip,
+.rr-copilot-context-capacity:focus-visible .rr-copilot-context-capacity__tooltip {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.rr-copilot-context-capacity__tooltip-muted,
+.rr-copilot-context-capacity__tooltip-strong {
+  display: block;
+  white-space: nowrap;
+}
+
+.rr-copilot-context-capacity__tooltip-muted {
+  color: #8b8f94;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.45;
+}
+
+.rr-copilot-context-capacity__tooltip-strong {
+  margin-top: 4px;
+  color: #202124;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.35;
 }
 
 .rr-copilot-send-button {
