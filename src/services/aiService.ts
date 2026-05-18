@@ -8,6 +8,7 @@ import {
   getModelContextWindow,
   estimateTokenCount,
 } from "../utils/tokenLimits";
+import { aiLogger } from "../utils/shared/debug";
 
 // Default universal assistant prompt (not shown in template panel)
 const UNIVERSAL_ASSISTANT_PROMPT = `You are an intelligent note assistant designed to help with various knowledge work tasks. Your role is to provide helpful, contextual assistance based on the user's notes and current needs.
@@ -115,8 +116,7 @@ export class AIService {
     );
 
     try {
-      // Simplified logging for better performance and consistency
-      console.log("🔧 AI Service sending message:", {
+      aiLogger.debug("Sending message", {
         provider: providerId,
         model: model,
         hasApiKey: !!providerInfo.apiKey,
@@ -125,7 +125,6 @@ export class AIService {
         contextLength: context.length,
       });
 
-      // Log the complete message history sent to AI
       this.logCompleteMessageHistory(messagesWithHistory);
 
       const result = await LLMUtil.generateResponse(
@@ -140,7 +139,7 @@ export class AIService {
         messagesWithHistory
       );
 
-      console.log("🔧 AI Service response:", {
+      aiLogger.debug("Received response", {
         responseLength: result.text.length,
         usage: result.usage,
       });
@@ -241,27 +240,16 @@ export class AIService {
     );
 
     try {
-
-      console.log("🔧 AI Service sending streaming message:", {
+      aiLogger.debug("Sending streaming message", {
         provider: providerId,
         model: model,
         hasApiKey: !!providerInfo.apiKey,
         userMessageLength: finalUserMessage.length,
         systemMessageLength: systemMessage.length,
-        systemMessagePreview: systemMessage.substring(0, 200) + "...",
         customPromptProvided: !!customPrompt,
-        customPromptPreview: customPrompt
-          ? customPrompt.substring(0, 100) + "..."
-          : "none",
-        contextInSystemMessage: {
-          hasAvailableContext: systemMessage.includes("**Available Context:**"),
-          contextStartIndex: systemMessage.indexOf("**Available Context:**"),
-          contextLength: context.length,
-          contextPreview: context.substring(0, 500) + "...",
-        },
+        contextLength: context.length,
       });
 
-      // Log the complete message history sent to AI
       this.logCompleteMessageHistory(messagesWithHistory);
 
       const config = {
@@ -417,26 +405,14 @@ export class AIService {
     // Determine conversation stage
     const isFirstRound = conversationHistory.length === 0;
     
-    // Debug: Log context information
-    console.log("🐛 getSystemMessage Debug (context moved to user message):", {
+    aiLogger.debug("Building system message", {
       isFirstRound,
       hasContext: !!context,
       contextLength: context?.length || 0,
-      contextPreview: context ? context.substring(0, 200) + "..." : "NO CONTEXT"
     });
 
     // NEW OPTIMIZATION: Context is now always placed in user message, not system message
     // This prevents context from being truncated in long conversations
-    
-    if (context && context.trim()) {
-      if (isFirstRound) {
-        console.log("✅ Context will be included in first round user message");
-      } else {
-        console.log("🔄 Context will be included in subsequent round user message");
-      }
-    } else if (!isFirstRound) {
-      console.log("⚠️ No context available for subsequent round");
-    }
 
     // First round with custom prompt (Template): Use template as system message (without context)
     if (isFirstRound && customPrompt) {
@@ -636,10 +612,9 @@ export class AIService {
         role: "user", 
         content: `**Please answer based on the following relevant information:**\n\n${context}` 
       });
-      console.log("✅ Context added as separate message at the end");
     }
 
-    console.log("🔧 Context Management (IMPROVED APPROACH):", {
+    aiLogger.debug("Context management summary", {
       totalMessages: messages.length,
       historyMessages: relevantHistory.length,
       estimatedTokens: usedTokens,
@@ -714,9 +689,13 @@ export class AIService {
   }
 
   /**
-   * Log complete message history sent to AI for debugging
+   * Log redacted message history summary for debugging.
    */
   private static logCompleteMessageHistory(messages: Array<{ role: string; content: string }>): void {
+    if (!aiLogger.isEnabled()) {
+      return;
+    }
+
     try {
       // Locate the dedicated context message if present
       const contextMsgIndex = messages.findIndex(
@@ -754,14 +733,9 @@ export class AIService {
       const contextTitles = contextMsg ? extractTitles(contextMsg.content) : [];
       const userTitles = userMsgBeforeContext ? extractTitles(userMsgBeforeContext.content) : [];
 
-      // Header
-      console.log("\n\n🚀 AI Payload — Clean Log");
-      console.log("═".repeat(88));
-
       let totalChars = 0;
       let estimatedTokens = 0;
-
-      messages.forEach((message, index) => {
+      const messageSummaries = messages.map((message, index) => {
         const charCount = message.content.length;
         const tokenCount = this.estimateTokens(message.content);
         totalChars += charCount;
@@ -777,58 +751,43 @@ export class AIService {
               ? "USER (context)"
               : "USER";
 
-        console.log(`#${index + 1}/${messages.length} ${label}  ·  ${charCount} chars  ·  ~${tokenCount} tokens`);
-
-        // For the context message, add a concise summary header
-        if (isContext) {
-          const pageList = contextTitles.length > 0 ? contextTitles.join(", ") : "(none)";
-          console.log(`🧩 Context Summary · Pages: ${pageList}`);
-        }
-
-        console.log("—— content begin ———————————————————————————————————————————");
-        console.log(message.content);
-        console.log("—— content end —————————————————————————————————————————————");
-        console.log("");
+        return {
+          index: index + 1,
+          role: label,
+          charCount,
+          estimatedTokens: tokenCount,
+        };
       });
 
       // Footer summary
       const userList = userTitles.length > 0 ? userTitles.join(", ") : "(none)";
       const ctxList = contextTitles.length > 0 ? contextTitles.join(", ") : "(none)";
-      console.log(`📊 Payload Summary: ${messages.length} messages  ·  ${totalChars} chars  ·  ~${estimatedTokens} tokens`);
-      if (userMsgBeforeContext) {
-        console.log(`🔗 Pages in user message: ${userList}`);
-      }
-      if (contextMsg) {
-        console.log(`🔗 Pages in context payload: ${ctxList}`);
-      }
+      const summary: Record<string, unknown> = {
+        messages: messageSummaries,
+        totalMessages: messages.length,
+        totalChars,
+        estimatedTokens,
+        pagesInUserMessage: userMsgBeforeContext ? userList : undefined,
+        pagesInContextPayload: contextMsg ? ctxList : undefined,
+      };
+
       if (userTitles.length && contextTitles.length) {
         const missingInCtx = userTitles.filter((t) => !contextTitles.includes(t));
         const extraInCtx = contextTitles.filter((t) => !userTitles.includes(t));
         if (missingInCtx.length || extraInCtx.length) {
-          console.log("⚠️ Mismatch detected between user refs and context:", {
+          summary.contextMismatch = {
             missingInContext: missingInCtx,
             extraInContext: extraInCtx,
-          });
+          };
         }
       }
 
-      console.log("═".repeat(88));
+      aiLogger.debug("AI payload summary", summary);
     } catch (err) {
-      // Fallback to the previous simple logger on any error
-      console.log("🚀 SENDING TO AI - Complete Message History (fallback logger)");
-      console.log("═".repeat(80));
-      let totalChars = 0;
-      let estimatedTokens = 0;
-      messages.forEach((message, index) => {
-        const charCount = message.content.length;
-        totalChars += charCount;
-        estimatedTokens += this.estimateTokens(message.content);
-        console.log(`[${index + 1}] ${message.role.toUpperCase()} (${charCount} chars):`);
-        console.log(message.content);
-        console.log("─".repeat(80));
+      aiLogger.warn("Failed to summarize AI payload", {
+        messageCount: messages.length,
+        error: err instanceof Error ? err.message : String(err),
       });
-      console.log(`📊 Summary: ${messages.length} messages, ${totalChars} total chars, ~${estimatedTokens} estimated tokens`);
-      console.log("═".repeat(80));
     }
   }
 }

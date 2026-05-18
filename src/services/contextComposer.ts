@@ -2,6 +2,7 @@
 import { PageContext, RoamBlock } from "../types";
 import { ContextItem } from "./contextManager";
 import { RoamService } from "./roamService";
+import { contextLogger } from "../utils/shared/debug";
 
 export interface UnifiedContextOptions {
   provider?: string;
@@ -61,7 +62,7 @@ export function composeUnifiedContext(
   // Enforce a practical minimum of 1000 to keep context meaningful
   const maxContextTokens = Math.max(1000, Math.min(requestedBudget, modelBudget));
 
-  console.log("CONTEXT COMPOSER TOKEN BUDGET:", {
+  contextLogger.debug("Token budget", {
     provider,
     model,
     modelLimit,
@@ -282,7 +283,7 @@ export function composeUnifiedContext(
   // Dynamic small-section threshold (avoid dropping all content on small budgets)
   const minSectionThreshold = Math.max(20, Math.floor(maxContextTokens * 0.03));
   
-  console.log("🔧 CONTEXT COMPOSER SECTION ALLOCATION:", {
+  contextLogger.debug("Section allocation", {
     sectionsCount: sections.length,
     minSectionThreshold,
     sections: sections.map(s => ({
@@ -290,7 +291,6 @@ export function composeUnifiedContext(
       priority: s.priority,
       allocatedTokens: s.allocatedTokens,
       contentLength: s.content.length,
-      contentPreview: s.content.substring(0, 100) + "..."
     }))
   });
 
